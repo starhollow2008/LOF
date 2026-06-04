@@ -68,7 +68,7 @@ function render(filter = '') {
   for (const [id, f] of entries) {
     const card = template.content.cloneNode(true);
 
-    card.querySelector('.card-title').textContent = f.title || f.title_unicode || 'Unknown';
+    card.querySelector('.card-title').innerHTML = (f.title || f.title_unicode || 'Unknown') + (f.nsfw ? ' <span class="nsfw-badge">EXPLICIT</span>' : '');
     card.querySelector('.card-artist').textContent = f.artist || f.artist_unicode || '';
     card.querySelector('.card-mapper').textContent = f.creator || '';
     card.querySelector('.card-bpm').textContent = f.bpm ? `${f.bpm} BPM` : '';

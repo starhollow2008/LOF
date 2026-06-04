@@ -101,7 +101,8 @@
           difficulty_rating: b.difficulty_rating || 0,
           mode: b.mode || '', status: b.status || ''
         })),
-        favourited_at: new Date().toISOString()
+        favourited_at: new Date().toISOString(),
+        nsfw: bm.nsfw || false
       };
     } catch (e) { return null; }
   }
@@ -177,7 +178,8 @@
         status: '', favourite_count: 0, play_count: 0, bpm: 0,
         source, tags: '', genre: '', language: '',
         url: 'https://osu.ppy.sh/beatmapsets/' + id,
-        beatmaps: [], favourited_at: new Date().toISOString()
+        beatmaps: [], favourited_at: new Date().toISOString(),
+        nsfw: !!card.querySelector('.beatmapset-badge--nsfw') || false
       };
     } catch (e) { return null; }
   }
@@ -286,12 +288,11 @@
     const heading = container.querySelector('h2.title--page-extra');
 
     const btn = document.createElement('button');
-    btn.textContent = '+ Favorite all';
+    btn.textContent = 'Favorite all';
     Object.assign(btn.style, {
-      marginLeft: '6px', padding: '1px 8px', fontSize: '10px',
-      background: 'none', color: '#f6c243', border: '1px solid #f6c243',
-      borderRadius: '3px', cursor: 'pointer', fontWeight: '500',
-      verticalAlign: 'middle'
+      marginLeft: '10px', padding: '2px 10px', fontSize: '11px',
+      background: '#ff66aa', color: '#fff', border: 'none',
+      borderRadius: '3px', cursor: 'pointer', fontWeight: '600'
     });
     btn.addEventListener('click', e => {
       e.preventDefault(); e.stopPropagation();
@@ -328,7 +329,7 @@
       setFavorites(favs);
       updateFloatingHeart();
       btn.textContent = 'Added ' + count;
-      setTimeout(() => { btn.textContent = '+ Favorite all'; btn.disabled = false; }, 2000);
+      setTimeout(() => { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
     });
 
     // Insert after the heading
@@ -482,7 +483,7 @@
           : `<div style="width:50px;height:38px;border-radius:2px;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:18px;color:#666">?</div>`
         }
         <div style="flex:1;min-width:0">
-          <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.title || f.title_unicode || 'Unknown'}</div>
+          <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.title || f.title_unicode || 'Unknown'}${f.nsfw ? ' <span style="font-size:8px;color:#f6c243;border:1px solid #f6c243;border-radius:2px;padding:0 3px">EXPLICIT</span>' : ''}</div>
           <div style="font-size:10px;color:#999">${f.artist || f.artist_unicode || ''}</div>
           <div style="font-size:9px;color:#666">${f.creator || ''}${f.bpm ? ' · ' + f.bpm + ' BPM' : ''}</div>
         </div>
