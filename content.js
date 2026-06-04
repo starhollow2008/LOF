@@ -374,6 +374,47 @@
     }
   }
 
+  // ── Copy-all button ("Beatmaps" heading) ──────────────────────
+  function addCopyAllButton() {
+    var heading = document.querySelector('h2.title--page-extra');
+    if (!heading || heading.dataset.osuFavBtn) return;
+    heading.dataset.osuFavBtn = '1';
+
+    var btn = document.createElement('button');
+    btn.textContent = 'Favorite all';
+    btn.style.cssText = 'margin-left:10px;padding:2px 10px;font-size:11px;background:#ff66aa;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:600';
+    btn.addEventListener('click', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      btn.textContent = 'Working...';
+      btn.disabled = true;
+
+      getFavorites().then(function(favs) {
+        var cards = document.querySelectorAll('.beatmapset-panel');
+        var count = 0;
+        var promises = [];
+
+        cards.forEach(function(card) {
+          var data = getBeatmapDataFromCard(card);
+          if (data && !favs[data.id]) {
+            favs[data.id] = data;
+            count++;
+          }
+        });
+
+        return setFavorites(favs).then(function() {
+          updateBadge();
+          btn.textContent = 'Added ' + count;
+          setTimeout(function() { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
+        });
+      }).catch(function() {
+        btn.textContent = 'Error';
+        setTimeout(function() { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
+      });
+    });
+
+    heading.appendChild(btn);
+  }
+
   // ── Floating indicator (all pages) ─────────────────────────────
   function ensureHeartIndicator() {
     if (document.getElementById('osu-local-fav-indicator')) return;
@@ -551,6 +592,7 @@
     observerTimer = setTimeout(function() {
       observerTimer = null;
       ensureHeartIndicator();
+      addCopyAllButton();
       refreshButtons();
     }, 600);
   });
@@ -559,6 +601,7 @@
   function init() {
     getFavorites();
     ensureHeartIndicator();
+    addCopyAllButton();
 
     if (document.body) {
       observer.observe(document.body, { childList: true, subtree: true });

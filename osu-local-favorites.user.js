@@ -277,6 +277,45 @@
     return !wasFav;
   }
 
+  // ═══ Copy-all button ("Beatmaps" heading) ═══
+  function addCopyAllButton() {
+    const heading = document.querySelector('h2.title--page-extra');
+    if (!heading || heading.dataset.osuFavBtn) return;
+    heading.dataset.osuFavBtn = '1';
+
+    const btn = document.createElement('button');
+    btn.textContent = 'Favorite all';
+    Object.assign(btn.style, {
+      marginLeft: '10px', padding: '2px 10px', fontSize: '11px',
+      background: '#ff66aa', color: '#fff', border: 'none',
+      borderRadius: '3px', cursor: 'pointer', fontWeight: '600'
+    });
+    btn.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      btn.textContent = 'Working...';
+      btn.disabled = true;
+
+      const favs = getFavorites();
+      const cards = document.querySelectorAll('.beatmapset-panel');
+      let count = 0;
+
+      cards.forEach(card => {
+        const data = getBeatmapDataFromCard(card);
+        if (data && !favs[data.id]) {
+          favs[data.id] = data;
+          count++;
+        }
+      });
+
+      setFavorites(favs);
+      updateFloatingHeart();
+      btn.textContent = 'Added ' + count;
+      setTimeout(() => { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
+    });
+
+    heading.appendChild(btn);
+  }
+
   // ═══ Floating heart — always visible on all osu! pages ═══
   function ensureHeartIndicator() {
     if (document.getElementById('osu-local-fav-ind')) return;
@@ -499,6 +538,7 @@
     injectInterceptor();
     getFavorites();
     ensureHeartIndicator();
+    addCopyAllButton();
 
     // Debounced observer — runs at most once per 600ms to avoid freezing the page
     let timer = null;
@@ -508,6 +548,7 @@
         timer = null;
         refreshButtons();
         if (!document.getElementById('osu-local-fav-ind')) ensureHeartIndicator();
+        addCopyAllButton();
         updateFloatingHeart();
       }, 600);
     };
