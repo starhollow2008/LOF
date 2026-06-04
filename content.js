@@ -374,28 +374,133 @@
     }
   }
 
-  // ── Floating indicator (detail pages) ──────────────────────────
-  function createHeartIndicator(beatmapId) {
+  // ── Floating indicator (all pages) ─────────────────────────────
+  function ensureHeartIndicator() {
     if (document.getElementById('osu-local-fav-indicator')) return;
     var ind = document.createElement('div');
     ind.id = 'osu-local-fav-indicator';
-    ind.title = 'Toggle local favorite';
+    ind.title = 'View local favorites';
     ind.style.cssText = 'position:fixed;bottom:40px;right:100px;z-index:99999;width:50px;height:50px;border-radius:50%;background:rgba(22,33,62,0.95);border:2px solid #ff66aa;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:26px;line-height:1;transition:all 0.2s ease;box-shadow:0 2px 16px rgba(255,102,170,0.3);user-select:none;-webkit-user-select:none;';
     ind.textContent = '🤍';
     ind.addEventListener('click', function(e) {
       e.preventDefault(); e.stopPropagation();
-      toggleFavorite(beatmapId, null).then(function(nowFav) {
-        if (nowFav === null) return;
-        ind.textContent = nowFav ? '❤️' : '🤍';
-        ind.style.borderColor = nowFav ? '#ff3377' : '#ff66aa';
-        ind.style.boxShadow = nowFav ? '0 2px 20px rgba(255,51,119,0.6)' : '0 2px 16px rgba(255,102,170,0.3)';
-      });
+      showFavoritesPanel();
     });
     document.body.appendChild(ind);
-    isFavorited(beatmapId).then(function(fav) {
-      ind.textContent = fav ? '❤️' : '🤍';
-      ind.style.borderColor = fav ? '#ff3377' : '#ff66aa';
-      ind.style.boxShadow = fav ? '0 2px 20px rgba(255,51,119,0.6)' : '0 2px 16px rgba(255,102,170,0.3)';
+  }
+
+  // ── Favorites side panel ──────────────────────────────────────
+  function showFavoritesPanel() {
+    if (document.getElementById('osu-local-fav-panel')) {
+      document.getElementById('osu-local-fav-panel').remove();
+      return;
+    }
+
+    getFavorites().then(function(favs) {
+      var entries = Object.entries(favs).sort(function(a, b) {
+        return (b[1].favourited_at || '').localeCompare(a[1].favourited_at || '');
+      });
+
+      var panel = document.createElement('div');
+      panel.id = 'osu-local-fav-panel';
+      panel.style.cssText = 'position:fixed;top:0;right:0;z-index:100000;width:360px;height:100vh;background:#111;color:#ddd;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;border-left:1px solid #333;display:flex;flex-direction:column;overflow:hidden;box-shadow:-2px 0 16px rgba(0,0,0,0.5);';
+
+      // Header
+      var header = document.createElement('div');
+      header.style.cssText = 'padding:12px 14px;background:#1a1a1a;border-bottom:2px solid #ff66aa;display:flex;justify-content:space-between;align-items:center;flex-shrink:0';
+      header.innerHTML = '<span style="font-weight:600;font-size:14px">Local Favorites <span style="color:#ff66aa">' + entries.length + '</span></span><button id="osu-fav-panel-close" style="background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:12px">&times; Close</button>';
+
+      // List
+      var list = document.createElement('div');
+      list.style.cssText = 'flex:1;overflow-y:auto;padding:4px 0';
+      if (entries.length === 0) {
+        list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;font-size:12px">No favorites yet.</p>';
+      }
+
+      entries.forEach(function(entry) {
+        var id = entry[0], f = entry[1];
+        var card = document.createElement('div');
+        card.style.cssText = 'display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid #222;align-items:center';
+        card.onmouseenter = function() { card.style.background = '#1e1e1e'; };
+        card.onmouseleave = function() { card.style.background = ''; };
+
+        var coverUrl = (f.covers && f.covers.card) || (f.covers && f.covers.list) || (f.covers && f.covers.cover) || '';
+
+        card.innerHTML =
+          (coverUrl
+            ? '<div style="width:50px;height:38px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#1a1a1a"><img src="' + coverUrl + '" style="width:100%;height:100%;object-fit:cover" loading="lazy" onerror="this.parentElement.innerHTML=\'?\'"></div>'
+            : '<div style="width:50px;height:38px;border-radius:2px;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:18px;color:#666">?</div>') +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (f.title || f.title_unicode || 'Unknown') + '</div>' +
+            '<div style="font-size:10px;color:#999">' + (f.artist || f.artist_unicode || '') + '</div>' +
+            '<div style="font-size:9px;color:#666">' + (f.creator || '') + (f.bpm ? ' · ' + f.bpm + ' BPM' : '') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">' +
+            '<a href="' + (f.url || 'https://osu.ppy.sh/beatmapsets/' + id) + '" target="_blank" style="font-size:9px;padding:2px 6px;border:1px solid #333;border-radius:2px;color:#999;text-decoration:none;text-align:center">Open</a>' +
+            '<button data-remove="' + id + '" style="font-size:9px;padding:2px 6px;border:1px solid #333;border-radius:2px;background:none;color:#999;cursor:pointer">Remove</button>' +
+          '</div>';
+
+        card.querySelector('[data-remove]').addEventListener('click', function() {
+          getFavorites().then(function(favs) {
+            delete favs[id];
+            var obj2 = {}; obj2[STORAGE_KEY] = favs;
+            chrome.storage.local.set(obj2).then(function() {
+              _favCache = favs;
+              updateBadge();
+              showFavoritesPanel();
+            });
+          });
+        });
+
+        list.appendChild(card);
+      });
+
+      // Footer
+      var footer = document.createElement('div');
+      footer.style.cssText = 'padding:8px 14px;border-top:1px solid #333;background:#1a1a1a;display:flex;gap:6px;flex-shrink:0';
+      footer.innerHTML = '<button id="osu-fav-export" style="font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;background:none;color:#999;cursor:pointer">Export</button><button id="osu-fav-import" style="font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;background:none;color:#999;cursor:pointer">Import</button><input type="file" id="osu-fav-import-file" accept=".json" style="display:none">';
+
+      panel.appendChild(header);
+      panel.appendChild(list);
+      panel.appendChild(footer);
+      document.body.appendChild(panel);
+
+      document.getElementById('osu-fav-panel-close').addEventListener('click', function() { panel.remove(); });
+      document.getElementById('osu-fav-export').addEventListener('click', function() {
+        var data = JSON.stringify(favs, null, 2);
+        var blob = new Blob([data], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'osu-favorites-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+      document.getElementById('osu-fav-import').addEventListener('click', function() {
+        document.getElementById('osu-fav-import-file').click();
+      });
+      document.getElementById('osu-fav-import-file').addEventListener('change', function(e) {
+        if (!e.target.files[0]) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            var data = JSON.parse(ev.target.result);
+            if (typeof data !== 'object' || Array.isArray(data)) throw new Error('Expected JSON object');
+            getFavorites().then(function(existing) {
+              var added = 0;
+              for (var id in data) {
+                if (!existing[id]) { existing[id] = data[id]; added++; }
+              }
+              var obj3 = {}; obj3[STORAGE_KEY] = existing;
+              chrome.storage.local.set(obj3).then(function() {
+                _favCache = existing;
+                updateBadge();
+                showFavoritesPanel();
+              });
+            });
+          } catch (err) { alert('Import failed: ' + err.message); }
+        };
+        reader.readAsText(e.target.files[0]);
+      });
     });
   }
 
@@ -417,12 +522,6 @@
       button.style.transform = 'scale(1.2)';
       button.style.transition = 'transform 0.1s ease';
       setTimeout(function() { button.style.transform = 'scale(1)'; }, 120);
-      var ind = document.getElementById('osu-local-fav-indicator');
-      if (ind) {
-        ind.textContent = nowFav ? '❤️' : '🤍';
-        ind.style.borderColor = nowFav ? '#ff3377' : '#ff66aa';
-        ind.style.boxShadow = nowFav ? '0 2px 20px rgba(255,51,119,0.6)' : '0 2px 16px rgba(255,102,170,0.3)';
-      }
     });
   }, true);
 
@@ -446,21 +545,20 @@
   }
 
   // ── Observer ───────────────────────────────────────────────────
+  var observerTimer = null;
   var observer = new MutationObserver(function() {
-    var bmid = getBeatmapId();
-    if (bmid && !document.getElementById('osu-local-fav-indicator')) {
-      createHeartIndicator(bmid);
-    }
-    refreshButtons();
+    if (observerTimer) return;
+    observerTimer = setTimeout(function() {
+      observerTimer = null;
+      ensureHeartIndicator();
+      refreshButtons();
+    }, 600);
   });
 
   // ── Init ───────────────────────────────────────────────────────
   function init() {
-    // Pre-load the favorites cache
     getFavorites();
-
-    var bmid = getBeatmapId();
-    if (bmid) createHeartIndicator(bmid);
+    ensureHeartIndicator();
 
     if (document.body) {
       observer.observe(document.body, { childList: true, subtree: true });

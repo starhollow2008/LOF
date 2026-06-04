@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "osu! Local Favorites",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "description": "Store osu! beatmap favorites locally in your browser instead of using the osu! website's favorite system.",
   "permissions": [
     "storage"
