@@ -385,15 +385,7 @@
 
   // ── Copy-all button ("Beatmaps" heading) ──────────────────────
   function addCopyAllButton() {
-    // Find any "Beatmaps" h2 heading on the page (works on both search and user pages)
-    var headings = document.querySelectorAll('h2.title--page-extra');
-    var container = null;
-    for (var i = 0; i < headings.length; i++) {
-      if (headings[i].textContent.trim().startsWith('Beatmaps')) {
-        container = headings[i];
-        break;
-      }
-    }
+    var container = document.querySelector('.js-sortable--page[data-page-id="beatmaps"] .page-extra .u-relative');
     if (!container || container.dataset.osuFavBtn) return;
     container.dataset.osuFavBtn = '1';
 
@@ -406,24 +398,10 @@
       btn.disabled = true;
 
       getFavorites().then(function(favs) {
-        // Scope cards to the beatmaps listing area near the heading
-        var section = container.closest('[data-page-id], .js-sortable--page, .page-extra__content, .beatmapsets__content') || document;
+        // Only fetch cards from within the beatmaps section
+        var section = document.querySelector('.js-sortable--page[data-page-id="beatmaps"]');
+        if (!section) return;
         var cards = section.querySelectorAll('.beatmapset-panel, .beatmapsets__item, [class*="beatmapset-panel"]');
-        if (cards.length === 0) {
-          // Fallback: find beatmap links scoped to this section
-          var links = section.querySelectorAll('a[href*="/beatmapsets/"]');
-          var seen = {};
-          cards = [];
-          links.forEach(function(link) {
-            var m = link.href.match(/\/beatmapsets\/(\d+)/);
-            if (!m || seen[m[1]]) return;
-            seen[m[1]] = true;
-            // Walk up to card wrapper, skip pinned score cards
-            var card = link.closest('[class*="beatmap"]');
-            if (!card) card = link.closest('div');
-            if (card) cards.push(card);
-          });
-        }
 
         var count = 0;
         cards.forEach(function(card) {
@@ -445,8 +423,8 @@
       });
     });
 
-    // Insert after the heading
-    container.parentNode.insertBefore(btn, container.nextSibling);
+    // Append to the .u-relative container
+    container.appendChild(btn);
   }
 
   // ── Floating indicator (all pages) ─────────────────────────────

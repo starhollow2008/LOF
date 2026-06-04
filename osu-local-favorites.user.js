@@ -290,15 +290,7 @@
 
   // ═══ Copy-all button ("Beatmaps" heading) ═══
   function addCopyAllButton() {
-    // Find any "Beatmaps" h2 heading (works on search and user pages)
-    const headings = document.querySelectorAll('h2.title--page-extra');
-    let container = null;
-    for (const h of headings) {
-      if (h.textContent.trim().startsWith('Beatmaps')) {
-        container = h;
-        break;
-      }
-    }
+    const container = document.querySelector('.js-sortable--page[data-page-id="beatmaps"] .page-extra .u-relative');
     if (!container || container.dataset.osuFavBtn) return;
     container.dataset.osuFavBtn = '1';
 
@@ -316,22 +308,10 @@
 
       const favs = getFavorites();
 
-      // Scope cards to the beatmaps area near the heading
-      const section = container.closest('[data-page-id], .js-sortable--page, .page-extra__content, .beatmapsets__content') || document;
+      // Only fetch cards from within the beatmaps section
+      const section = document.querySelector('.js-sortable--page[data-page-id="beatmaps"]');
+      if (!section) return;
       let cards = section.querySelectorAll('.beatmapset-panel, .beatmapsets__item, [class*="beatmapset-panel"]');
-      if (cards.length === 0) {
-        const links = section.querySelectorAll('a[href*="/beatmapsets/"]');
-        const seen = {};
-        cards = [];
-        links.forEach(link => {
-          const m = link.href.match(/\/beatmapsets\/(\d+)/);
-          if (!m || seen[m[1]]) return;
-          seen[m[1]] = true;
-          let card = link.closest('[class*="beatmap"]');
-          if (!card) card = link.closest('div');
-          if (card) cards.push(card);
-        });
-      }
 
       let count = 0;
       cards.forEach(card => {
@@ -348,8 +328,8 @@
       setTimeout(() => { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
     });
 
-    // Insert after the heading
-    container.parentNode.insertBefore(btn, container.nextSibling);
+    // Append to the .u-relative container
+    container.appendChild(btn);
   }
 
   // ═══ Floating heart — always visible on all osu! pages ═══
