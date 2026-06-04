@@ -283,6 +283,8 @@
     if (!container || container.dataset.osuFavBtn) return;
     container.dataset.osuFavBtn = '1';
 
+    const heading = container.querySelector('h2.title--page-extra');
+
     const btn = document.createElement('button');
     btn.textContent = 'Favorite all';
     Object.assign(btn.style, {
@@ -313,7 +315,12 @@
       setTimeout(() => { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
     });
 
-    container.appendChild(btn);
+    // Insert after the heading
+    if (heading && heading.nextSibling) {
+      heading.parentNode.insertBefore(btn, heading.nextSibling);
+    } else {
+      container.appendChild(btn);
+    }
   }
 
   // ═══ Floating heart — always visible on all osu! pages ═══

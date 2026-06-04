@@ -380,6 +380,8 @@
     if (!container || container.dataset.osuFavBtn) return;
     container.dataset.osuFavBtn = '1';
 
+    var heading = container.querySelector('h2.title--page-extra');
+
     var btn = document.createElement('button');
     btn.textContent = 'Favorite all';
     btn.style.cssText = 'margin-left:10px;padding:2px 10px;font-size:11px;background:#ff66aa;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:600';
@@ -412,7 +414,12 @@
       });
     });
 
-    container.appendChild(btn);
+    // Insert after the heading
+    if (heading && heading.nextSibling) {
+      heading.parentNode.insertBefore(btn, heading.nextSibling);
+    } else {
+      container.appendChild(btn);
+    }
   }
 
   // ── Floating indicator (all pages) ─────────────────────────────
