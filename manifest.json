@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "osu! Local Favorites",
+  "version": "2.0.0",
+  "description": "Store osu! beatmap favorites locally in your browser instead of using the osu! website's favorite system.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://osu.ppy.sh/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://osu.ppy.sh/beatmapsets*",
+        "*://osu.ppy.sh/users/*"
+      ],
+      "exclude_matches": [
+        "*://osu.ppy.sh/beatmapsets/*/discussion*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "osu! Local Favorites",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "interceptor.js"
+      ],
+      "matches": [
+        "*://osu.ppy.sh/*"
+      ]
+    }
+  ]
+}

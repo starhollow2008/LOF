@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>osu! Local Favorites</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="header-row">
+      <img class="logo" src="icons/icon48.png" alt="">
+      <h1>osu! <span>Favorites</span></h1>
+      <span id="count" class="count">0</span>
+    </div>
+    <div class="search-row">
+      <input type="text" id="search" placeholder="Search title, artist, mapper...">
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="sort-group" id="sortBar">
+      <button class="sort-btn active" data-sort="date">Date</button>
+      <button class="sort-btn" data-sort="title">Title</button>
+      <button class="sort-btn" data-sort="artist">Artist</button>
+      <button class="sort-btn" data-sort="status">Status</button>
+    </div>
+    <div class="toolbar-actions">
+      <button class="action-btn" id="exportBtn">Export</button>
+      <button class="action-btn" id="importBtn">Import</button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+    </div>
+  </div>
+
+  <main id="list"></main>
+
+  <div id="empty" class="empty-state" style="display:none">
+    <p>No favorites yet. Open <a href="https://osu.ppy.sh/beatmapsets" target="_blank">osu.ppy.sh</a> and click the favorite button on a beatmap.</p>
+  </div>
+
+  <template id="cardTemplate">
+    <div class="card">
+      <div class="card-cover">
+        <img src="" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="no-cover" style="display:none"></div>
+      </div>
+      <div class="card-info">
+        <div class="card-title"></div>
+        <div class="card-artist"></div>
+        <div class="card-meta">
+          <span class="card-mapper"></span>
+          <span class="card-status"></span>
+          <span class="card-bpm"></span>
+        </div>
+        <div class="card-date"></div>
+      </div>
+      <div class="card-actions">
+        <a class="card-link" href="#" target="_blank" title="Open">Open</a>
+        <button class="card-remove" title="Remove">Remove</button>
+      </div>
+    </div>
+  </template>
+
+  <script src="popup.js"></script>
+</body>
+</html>
