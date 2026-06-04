@@ -376,9 +376,9 @@
 
   // ── Copy-all button ("Beatmaps" heading) ──────────────────────
   function addCopyAllButton() {
-    var heading = document.querySelector('h2.title--page-extra');
-    if (!heading || heading.dataset.osuFavBtn) return;
-    heading.dataset.osuFavBtn = '1';
+    var container = document.querySelector('.js-sortable--page[data-page-id="beatmaps"] .page-extra');
+    if (!container || container.dataset.osuFavBtn) return;
+    container.dataset.osuFavBtn = '1';
 
     var btn = document.createElement('button');
     btn.textContent = 'Favorite all';
@@ -412,7 +412,7 @@
       });
     });
 
-    heading.appendChild(btn);
+    container.appendChild(btn);
   }
 
   // ── Floating indicator (all pages) ─────────────────────────────

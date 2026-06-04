@@ -279,9 +279,9 @@
 
   // ═══ Copy-all button ("Beatmaps" heading) ═══
   function addCopyAllButton() {
-    const heading = document.querySelector('h2.title--page-extra');
-    if (!heading || heading.dataset.osuFavBtn) return;
-    heading.dataset.osuFavBtn = '1';
+    const container = document.querySelector('.js-sortable--page[data-page-id="beatmaps"] .page-extra');
+    if (!container || container.dataset.osuFavBtn) return;
+    container.dataset.osuFavBtn = '1';
 
     const btn = document.createElement('button');
     btn.textContent = 'Favorite all';
@@ -313,7 +313,7 @@
       setTimeout(() => { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
     });
 
-    heading.appendChild(btn);
+    container.appendChild(btn);
   }
 
   // ═══ Floating heart — always visible on all osu! pages ═══
