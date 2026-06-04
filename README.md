@@ -1,5 +1,72 @@
-# Local-osu-Favorites
-Escape the constraints placed on you by peppy of only being allowed to have 100 favorite beatmaps without supporter or 1k with supporter, with this extention you can favorite all the existing maps if you want to(altho im not sure if it can handle 1.3 milion beatmapsets))
-___________________________________________________
+# osu! Local Favorites
 
-.          Built for the osu! community           .
+Store osu! beatmap favorites locally in your browser. No server-side limits, no account needed.
+
+## What it does
+
+Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with local browser storage. Your favorites stay on your machine.
+
+## Two ways to use
+
+### Chrome Extension
+
+1. Download `osu-favorites-extension.zip` from the [latest release](https://github.com/vyroxat/Local-osu-Favorites/releases)
+2. Unzip
+3. Go to `chrome://extensions/`, enable Developer mode
+4. Click **Load unpacked** and select the unzipped folder
+
+**Or** clone the repo and load it directly:
+
+```
+git clone https://github.com/vyroxat/Local-osu-Favorites.git
+```
+
+Then load the folder in `chrome://extensions/`.
+
+### Tampermonkey Userscript
+
+1. Install [Tampermonkey](https://www.tampermonkey.net/)
+2. Click the Tampermonkey icon → **Create a new script**
+3. Copy the contents of `osu-local-favorites.user.js`
+4. Save (Ctrl+S)
+
+The script adds a **View Local Favorites** option in the Tampermonkey menu. Click it to open a side panel with all your favorites.
+
+## How it works
+
+- Intercepts favorite button clicks on beatmap pages and listing pages
+- Blocks osu!'s server-side favorite API calls
+- Stores favorites in `chrome.storage.local` (extension) or `GM_setValue` (userscript)
+- Floating heart button in the bottom-right corner of beatmap pages
+- Export/import as JSON
+
+## Features
+
+- Favorite beatmaps from detail pages or listing cards
+- Search and sort favorites in the popup
+- Export as JSON, import from JSON (merges, skips duplicates)
+- Tracks title, artist, mapper, BPM, status, cover art, difficulty info
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `manifest.json` | Chrome MV3 manifest |
+| `content.js` | Page interaction + favorite button interception |
+| `interceptor.js` | Blocks osu! server API calls |
+| `popup.html` | Extension popup |
+| `popup.css` | Popup styles |
+| `popup.js` | Popup logic |
+| `background.js` | Badge counter |
+| `icons/` | Extension icons |
+| `osu-local-favorites.user.js` | Tampermonkey userscript |
+
+## Limitiations
+
+- Purely local — favorites don't sync between devices unless you export/import
+- Only works on `osu.ppy.sh` beatmap pages
+- May need updates if osu! changes their page layout
+
+## License
+
+MIT
