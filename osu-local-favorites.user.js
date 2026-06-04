@@ -119,7 +119,14 @@
       let title = '', artist = '', creator = '', source = '';
       const rows = card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]');
       const texts = [];
-      rows.forEach(r => { const t = r.textContent.trim(); if (t) texts.push(t); });
+      rows.forEach(r => {
+        // Skip nsfw badge text
+        const nsfw = r.querySelector('.beatmapset-badge--nsfw');
+        if (nsfw) nsfw.style.display = 'none';
+        const t = r.textContent.trim();
+        if (nsfw) nsfw.style.display = '';
+        if (t) texts.push(t);
+      });
 
       texts.forEach(txt => {
         if (txt.startsWith('by ') && !artist) artist = txt.replace(/^by\s+/, '').replace(/Featured\s*Artist$/i, '').trim();

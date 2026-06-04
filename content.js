@@ -147,7 +147,11 @@
       var rows = card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]');
       var texts = [];
       for (var i = 0; i < rows.length; i++) {
+        // Skip the nsfw badge — don't include it in extracted text
+        var nsfw = rows[i].querySelector('.beatmapset-badge--nsfw');
+        if (nsfw) nsfw.style.display = 'none'; // hide it while reading
         var t = rows[i].textContent.trim();
+        if (nsfw) nsfw.style.display = ''; // restore
         if (t) texts.push(t);
       }
 
