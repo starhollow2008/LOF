@@ -299,19 +299,13 @@
       ind.textContent = fav ? '❤️' : '🤍';
       ind.style.border = fav ? '2px solid #ff3377' : '2px solid #ff66aa';
       ind.style.boxShadow = fav ? '0 2px 20px rgba(255,51,119,0.6)' : '0 2px 16px rgba(255,102,170,0.3)';
-      // If not on a beatmap page, clicking heart opens favorites panel
-      ind.title = bmid ? 'Toggle local favorite' : 'View local favorites';
+      // Clicking heart always opens favorites panel
+      ind.title = 'View local favorites';
     };
 
     ind.addEventListener('click', e => {
       e.preventDefault(); e.stopPropagation();
-      const bmid = getBeatmapId();
-      if (bmid) {
-        toggleFavorite(bmid, null);
-        update();
-      } else {
-        showFavoritesPanel();
-      }
+      showFavoritesPanel();
     });
 
     document.body.appendChild(ind);
