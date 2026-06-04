@@ -383,18 +383,31 @@
     var heading = container.querySelector('h2.title--page-extra');
 
     var btn = document.createElement('button');
-    btn.textContent = 'Favorite all';
-    btn.style.cssText = 'margin-left:10px;padding:2px 10px;font-size:11px;background:#ff66aa;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:600';
+    btn.textContent = '+ Favorite all';
+    btn.style.cssText = 'margin-left:6px;padding:1px 8px;font-size:10px;background:none;color:#f6c243;border:1px solid #f6c243;border-radius:3px;cursor:pointer;font-weight:500;vertical-align:middle';
     btn.addEventListener('click', function(e) {
       e.preventDefault(); e.stopPropagation();
       btn.textContent = 'Working...';
       btn.disabled = true;
 
       getFavorites().then(function(favs) {
-        var cards = document.querySelectorAll('.beatmapset-panel');
-        var count = 0;
-        var promises = [];
+        // Find all beatmap panel wrappers — try multiple selectors
+        var cards = document.querySelectorAll('.beatmapset-panel, .beatmapsets__item, [class*="beatmapset-panel"]');
+        if (cards.length === 0) {
+          // Fallback: find all beatmap links and get their closest card
+          var links = document.querySelectorAll('a[href*="/beatmapsets/"]');
+          var seen = {};
+          cards = [];
+          links.forEach(function(link) {
+            var m = link.href.match(/\/beatmapsets\/(\d+)/);
+            if (!m || seen[m[1]]) return;
+            seen[m[1]] = true;
+            var card = link.closest('[class*="beatmap"]') || link.closest('div');
+            if (card) cards.push(card);
+          });
+        }
 
+        var count = 0;
         cards.forEach(function(card) {
           var data = getBeatmapDataFromCard(card);
           if (data && !favs[data.id]) {
@@ -406,11 +419,11 @@
         return setFavorites(favs).then(function() {
           updateBadge();
           btn.textContent = 'Added ' + count;
-          setTimeout(function() { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
+          setTimeout(function() { btn.textContent = '+ Favorite all'; btn.disabled = false; }, 2000);
         });
       }).catch(function() {
         btn.textContent = 'Error';
-        setTimeout(function() { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
+        setTimeout(function() { btn.textContent = '+ Favorite all'; btn.disabled = false; }, 2000);
       });
     });
 

@@ -286,11 +286,12 @@
     const heading = container.querySelector('h2.title--page-extra');
 
     const btn = document.createElement('button');
-    btn.textContent = 'Favorite all';
+    btn.textContent = '+ Favorite all';
     Object.assign(btn.style, {
-      marginLeft: '10px', padding: '2px 10px', fontSize: '11px',
-      background: '#ff66aa', color: '#fff', border: 'none',
-      borderRadius: '3px', cursor: 'pointer', fontWeight: '600'
+      marginLeft: '6px', padding: '1px 8px', fontSize: '10px',
+      background: 'none', color: '#f6c243', border: '1px solid #f6c243',
+      borderRadius: '3px', cursor: 'pointer', fontWeight: '500',
+      verticalAlign: 'middle'
     });
     btn.addEventListener('click', e => {
       e.preventDefault(); e.stopPropagation();
@@ -298,9 +299,24 @@
       btn.disabled = true;
 
       const favs = getFavorites();
-      const cards = document.querySelectorAll('.beatmapset-panel');
-      let count = 0;
 
+      // Find all beatmap panel wrappers — try multiple selectors
+      let cards = document.querySelectorAll('.beatmapset-panel, .beatmapsets__item, [class*="beatmapset-panel"]');
+      if (cards.length === 0) {
+        // Fallback: find all beatmap links and get their closest card
+        const links = document.querySelectorAll('a[href*="/beatmapsets/"]');
+        const seen = {};
+        cards = [];
+        links.forEach(link => {
+          const m = link.href.match(/\/beatmapsets\/(\d+)/);
+          if (!m || seen[m[1]]) return;
+          seen[m[1]] = true;
+          const card = link.closest('[class*="beatmap"]') || link.closest('div');
+          if (card) cards.push(card);
+        });
+      }
+
+      let count = 0;
       cards.forEach(card => {
         const data = getBeatmapDataFromCard(card);
         if (data && !favs[data.id]) {
@@ -312,7 +328,7 @@
       setFavorites(favs);
       updateFloatingHeart();
       btn.textContent = 'Added ' + count;
-      setTimeout(() => { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
+      setTimeout(() => { btn.textContent = '+ Favorite all'; btn.disabled = false; }, 2000);
     });
 
     // Insert after the heading
