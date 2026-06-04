@@ -380,7 +380,7 @@
     var ind = document.createElement('div');
     ind.id = 'osu-local-fav-indicator';
     ind.title = 'Toggle local favorite';
-    ind.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;width:50px;height:50px;border-radius:50%;background:rgba(22,33,62,0.95);border:2px solid #ff66aa;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:26px;line-height:1;transition:all 0.2s ease;box-shadow:0 2px 16px rgba(255,102,170,0.3);user-select:none;-webkit-user-select:none;';
+    ind.style.cssText = 'position:fixed;bottom:40px;right:100px;z-index:99999;width:50px;height:50px;border-radius:50%;background:rgba(22,33,62,0.95);border:2px solid #ff66aa;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:26px;line-height:1;transition:all 0.2s ease;box-shadow:0 2px 16px rgba(255,102,170,0.3);user-select:none;-webkit-user-select:none;';
     ind.textContent = '🤍';
     ind.addEventListener('click', function(e) {
       e.preventDefault(); e.stopPropagation();

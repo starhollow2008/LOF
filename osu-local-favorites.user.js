@@ -284,7 +284,7 @@
     const ind = document.createElement('div');
     ind.id = 'osu-local-fav-ind';
     Object.assign(ind.style, {
-      position: 'fixed', bottom: '24px', right: '24px', zIndex: '99999',
+      position: 'fixed', bottom: '40px', right: '100px', zIndex: '99999',
       width: '50px', height: '50px', borderRadius: '50%',
       background: 'rgba(22,33,62,0.95)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
