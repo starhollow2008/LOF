@@ -26,9 +26,7 @@ Then load the folder in `chrome://extensions/`.
 ### Tampermonkey Userscript
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/)
-2. Click the Tampermonkey icon → **Create a new script**
-3. Copy the contents of `osu-local-favorites.user.js`
-4. Save (Ctrl+S)
+2. **[Click here to install](https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js)** — Tampermonkey will open the installation page automatically.
 
 The script adds a **View Local Favorites** option in the Tampermonkey menu. Click it to open a side panel with all your favorites.
 
