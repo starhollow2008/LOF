@@ -349,11 +349,7 @@
     });
 
     // Insert after the heading
-    if (heading && heading.nextSibling) {
-      heading.parentNode.insertBefore(btn, heading.nextSibling);
-    } else {
-      container.parentNode.insertBefore(btn, container.nextSibling);
-    }
+    container.parentNode.insertBefore(btn, container.nextSibling);
   }
 
   // ═══ Floating heart — always visible on all osu! pages ═══

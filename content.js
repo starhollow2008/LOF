@@ -446,11 +446,7 @@
     });
 
     // Insert after the heading
-    if (heading && heading.nextSibling) {
-      heading.parentNode.insertBefore(btn, heading.nextSibling);
-    } else {
-      container.parentNode.insertBefore(btn, container.nextSibling);
-    }
+    container.parentNode.insertBefore(btn, container.nextSibling);
   }
 
   // ── Floating indicator (all pages) ─────────────────────────────
