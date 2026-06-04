@@ -1,14 +1,13 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      2.0.0
+// @version      2.1.0
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers.
 // @author       vyroxat
 // @match        https://osu.ppy.sh/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
-// @grant        GM_addStyle
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -19,7 +18,6 @@
   const STORAGE_KEY = 'osu_local_favorites';
 
   // ═══ Page-world XHR/fetch interceptor ═══
-  // Blocks osu!'s server-side favorite API calls
   function injectInterceptor() {
     const script = document.createElement('script');
     script.textContent = `(${function() {
@@ -133,26 +131,49 @@
         if (ml) title = ml.textContent.trim();
       }
 
-      let listUrl = '';
-      const coverEl = card.querySelector('.beatmapset-cover--full, [class*="beatmapset-cover"]');
+      // Extract cover URL — try multiple methods
+      let coverUrl = '';
+
+      // Method 1: computed style --bg custom property on cover element
+      const coverEl = card.querySelector('[class*="beatmapset-cover"]');
       if (coverEl) {
-        const bg = coverEl.style.getPropertyValue('--bg') || '';
+        const cs = getComputedStyle(coverEl);
+        let bg = cs.getPropertyValue('--bg') || '';
+        if (!bg) bg = cs.backgroundImage || '';
         const m2 = bg.match(/url\("([^"]+)"\)/) || bg.match(/url\(([^)]+)\)/);
-        if (m2) listUrl = m2[1];
+        if (m2) coverUrl = m2[1];
       }
-      if (!listUrl) {
-        const coverImg = card.querySelector('.beatmapset-cover img, [class*="beatmapset-cover"] img');
-        if (coverImg) listUrl = coverImg.src || coverImg.getAttribute('data-src') || '';
+
+      // Method 2: img inside cover
+      if (!coverUrl) {
+        const coverImg = card.querySelector('img[src*="cover"], [class*="cover"] img, .beatmapset-cover img');
+        if (coverImg) coverUrl = coverImg.src || coverImg.getAttribute('data-src') || '';
       }
-      if (listUrl && !listUrl.startsWith('http')) {
-        if (listUrl.startsWith('/')) listUrl = 'https://osu.ppy.sh' + listUrl;
-        else if (listUrl.startsWith('//')) listUrl = 'https:' + listUrl;
+
+      // Method 3: any img in card that looks like a cover
+      if (!coverUrl) {
+        const imgs = card.querySelectorAll('img');
+        for (const img of imgs) {
+          const src = img.src || '';
+          if (src.includes('cover') || src.includes('thumb')) { coverUrl = src; break; }
+        }
+        if (!coverUrl && imgs.length > 0) {
+          // First image that's not an icon
+          for (const img of imgs) {
+            if (img.width > 40) { coverUrl = img.src; break; }
+          }
+        }
       }
-      const coverUrl = listUrl.replace('/list.jpg', '/card.jpg').replace('/list@2x.jpg', '/card@2x.jpg') || listUrl;
+
+      // Normalize URL
+      if (coverUrl && !coverUrl.startsWith('http')) {
+        if (coverUrl.startsWith('//')) coverUrl = 'https:' + coverUrl;
+        else if (coverUrl.startsWith('/')) coverUrl = 'https://osu.ppy.sh' + coverUrl;
+      }
 
       return {
         id, artist, artist_unicode: artist, title, title_unicode: title, creator,
-        user_id: '', covers: { list: listUrl, card: coverUrl, cover: coverUrl },
+        user_id: '', covers: { list: coverUrl, card: coverUrl, cover: coverUrl },
         status: '', favourite_count: 0, play_count: 0, bpm: 0,
         source, tags: '', genre: '', language: '',
         url: 'https://osu.ppy.sh/beatmapsets/' + id,
@@ -234,6 +255,7 @@
 
   // ═══ Toggle favorite ═══
   function toggleFavorite(beatmapId, card) {
+    if (!beatmapId) return null;
     const favs = getFavorites();
     const wasFav = !!favs[beatmapId];
 
@@ -255,35 +277,41 @@
     return !wasFav;
   }
 
-  // ═══ Floating heart indicator ═══
-  function createHeartIndicator(beatmapId) {
+  // ═══ Floating heart — always visible on all osu! pages ═══
+  function ensureHeartIndicator() {
     if (document.getElementById('osu-local-fav-ind')) return;
 
     const ind = document.createElement('div');
     ind.id = 'osu-local-fav-ind';
-    ind.title = 'Toggle local favorite';
     Object.assign(ind.style, {
       position: 'fixed', bottom: '24px', right: '24px', zIndex: '99999',
       width: '50px', height: '50px', borderRadius: '50%',
-      background: 'rgba(22,33,62,0.95)', border: '2px solid #ff66aa',
+      background: 'rgba(22,33,62,0.95)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'pointer', fontSize: '26px', lineHeight: '1',
       transition: 'all 0.15s ease',
-      boxShadow: '0 2px 16px rgba(255,102,170,0.3)',
       userSelect: 'none'
     });
 
     const update = () => {
-      const fav = isFavorited(beatmapId);
+      const bmid = getBeatmapId();
+      const fav = bmid ? isFavorited(bmid) : false;
       ind.textContent = fav ? '❤️' : '🤍';
-      ind.style.borderColor = fav ? '#ff3377' : '#ff66aa';
+      ind.style.border = fav ? '2px solid #ff3377' : '2px solid #ff66aa';
       ind.style.boxShadow = fav ? '0 2px 20px rgba(255,51,119,0.6)' : '0 2px 16px rgba(255,102,170,0.3)';
+      // If not on a beatmap page, clicking heart opens favorites panel
+      ind.title = bmid ? 'Toggle local favorite' : 'View local favorites';
     };
 
     ind.addEventListener('click', e => {
       e.preventDefault(); e.stopPropagation();
-      toggleFavorite(beatmapId, null);
-      update();
+      const bmid = getBeatmapId();
+      if (bmid) {
+        toggleFavorite(bmid, null);
+        update();
+      } else {
+        showFavoritesPanel();
+      }
     });
 
     document.body.appendChild(ind);
@@ -294,10 +322,9 @@
     const ind = document.getElementById('osu-local-fav-ind');
     if (!ind) return;
     const bmid = getBeatmapId();
-    if (!bmid) return;
-    const fav = isFavorited(bmid);
+    const fav = bmid ? isFavorited(bmid) : false;
     ind.textContent = fav ? '❤️' : '🤍';
-    ind.style.borderColor = fav ? '#ff3377' : '#ff66aa';
+    ind.style.border = fav ? '2px solid #ff3377' : '2px solid #ff66aa';
     ind.style.boxShadow = fav ? '0 2px 20px rgba(255,51,119,0.6)' : '0 2px 16px rgba(255,102,170,0.3)';
   }
 
@@ -391,11 +418,11 @@
       card.onmouseenter = () => card.style.background = '#1e1e1e';
       card.onmouseleave = () => card.style.background = '';
 
-      const coverUrl = f.covers?.list || f.covers?.card || f.covers?.cover || '';
+      const coverUrl = f.covers?.card || f.covers?.list || f.covers?.cover || '';
 
       card.innerHTML = `
         ${coverUrl
-          ? `<div style="width:50px;height:38px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#1a1a1a"><img src="${coverUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"></div>`
+          ? `<div style="width:50px;height:38px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#1a1a1a"><img src="${coverUrl}" style="width:100%;height:100%;object-fit:cover" loading="lazy" onerror="this.parentElement.innerHTML='<div style=width:50px;height:38px;border-radius:2px;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:18px;color:#666>?</div>'"></div>`
           : `<div style="width:50px;height:38px;border-radius:2px;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:18px;color:#666">?</div>`
         }
         <div style="flex:1;min-width:0">
@@ -414,13 +441,13 @@
         delete favs[id];
         setFavorites(favs);
         updateFloatingHeart();
-        showFavoritesPanel(); // refresh
+        showFavoritesPanel();
       });
 
       list.appendChild(card);
     });
 
-    // Export/Import
+    // Footer
     const footer = document.createElement('div');
     Object.assign(footer.style, {
       padding: '8px 14px', borderTop: '1px solid #333',
@@ -473,31 +500,36 @@
   // ═══ Menu command ═══
   GM_registerMenuCommand('View Local Favorites', showFavoritesPanel);
 
-  // ═══ Observer ═══
-  const observer = new MutationObserver(() => {
-    const bmid = getBeatmapId();
-    if (bmid && !document.getElementById('osu-local-fav-ind')) {
-      createHeartIndicator(bmid);
-    }
-    refreshButtons();
-  });
-
   // ═══ Init ═══
   function init() {
     injectInterceptor();
     getFavorites();
-
-    const bmid = getBeatmapId();
-    if (bmid) createHeartIndicator(bmid);
+    ensureHeartIndicator();
 
     if (document.body) {
+      const observer = new MutationObserver(() => {
+        refreshButtons();
+        // Periodically re-check floating heart (SPA navigation)
+        if (!document.getElementById('osu-local-fav-ind')) ensureHeartIndicator();
+        updateFloatingHeart();
+      });
       observer.observe(document.body, { childList: true, subtree: true });
+
+      // Also watch for URL changes (SPA)
+      let lastUrl = location.href;
+      setInterval(() => {
+        if (location.href !== lastUrl) {
+          lastUrl = location.href;
+          ensureHeartIndicator();
+          refreshButtons();
+        }
+      }, 500);
     }
 
     let attempts = 0;
     function poll() {
       refreshButtons();
-      if (attempts < 12) { attempts++; setTimeout(poll, 400); }
+      if (attempts < 15) { attempts++; setTimeout(poll, 500); }
     }
     setTimeout(poll, 600);
   }
