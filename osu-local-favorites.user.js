@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      2.1.0
+// @version      2.1.1
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers.
 // @author       vyroxat
 // @match        https://osu.ppy.sh/*
@@ -506,32 +506,36 @@
     getFavorites();
     ensureHeartIndicator();
 
-    if (document.body) {
-      const observer = new MutationObserver(() => {
+    // Debounced observer — runs at most once per 600ms to avoid freezing the page
+    let timer = null;
+    const debouncedRefresh = () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
         refreshButtons();
-        // Periodically re-check floating heart (SPA navigation)
         if (!document.getElementById('osu-local-fav-ind')) ensureHeartIndicator();
         updateFloatingHeart();
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
+      }, 600);
+    };
 
-      // Also watch for URL changes (SPA)
-      let lastUrl = location.href;
-      setInterval(() => {
-        if (location.href !== lastUrl) {
-          lastUrl = location.href;
-          ensureHeartIndicator();
-          refreshButtons();
-        }
-      }, 500);
+    if (document.body) {
+      new MutationObserver(debouncedRefresh)
+        .observe(document.body, { childList: true, subtree: true });
     }
 
-    let attempts = 0;
-    function poll() {
-      refreshButtons();
-      if (attempts < 15) { attempts++; setTimeout(poll, 500); }
-    }
-    setTimeout(poll, 600);
+    // Polling for SPA navigation (low overhead)
+    let lastUrl = location.href;
+    setInterval(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        ensureHeartIndicator();
+        debouncedRefresh();
+      }
+    }, 800);
+
+    // Initial refresh after page settles
+    setTimeout(refreshButtons, 800);
+    setTimeout(refreshButtons, 2000);
   }
 
   if (document.readyState === 'loading') {
