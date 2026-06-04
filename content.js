@@ -137,6 +137,8 @@
   // ── Beatmap data extraction (listing cards) ────────────────────
   function getBeatmapDataFromCard(card) {
     if (!card) return null;
+    // Skip cards inside pinned scores section
+    if (card.closest('[data-page-id="pinnedScores"], .js-sortable--page .title--page-extra-small')) return null;
     try {
       var link = card.querySelector('a[href*="/beatmapsets/"]');
       if (!link) return null;
@@ -147,11 +149,11 @@
       var rows = card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]');
       var texts = [];
       for (var i = 0; i < rows.length; i++) {
-        // Skip the nsfw badge — don't include it in extracted text
-        var nsfw = rows[i].querySelector('.beatmapset-badge--nsfw');
-        if (nsfw) nsfw.style.display = 'none'; // hide it while reading
-        var t = rows[i].textContent.trim();
-        if (nsfw) nsfw.style.display = ''; // restore
+        // Clone the row and remove nsfw badge before reading text
+        var clone = rows[i].cloneNode(true);
+        var badge = clone.querySelector('.beatmapset-badge--nsfw');
+        if (badge) badge.remove();
+        var t = clone.textContent.trim();
         if (t) texts.push(t);
       }
 
@@ -383,11 +385,17 @@
 
   // ── Copy-all button ("Beatmaps" heading) ──────────────────────
   function addCopyAllButton() {
-    var container = document.querySelector('.js-sortable--page[data-page-id="beatmaps"] .page-extra');
+    // Find any "Beatmaps" h2 heading on the page (works on both search and user pages)
+    var headings = document.querySelectorAll('h2.title--page-extra');
+    var container = null;
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].textContent.trim().startsWith('Beatmaps')) {
+        container = headings[i];
+        break;
+      }
+    }
     if (!container || container.dataset.osuFavBtn) return;
     container.dataset.osuFavBtn = '1';
-
-    var heading = container.querySelector('h2.title--page-extra');
 
     var btn = document.createElement('button');
     btn.textContent = 'Favorite all';
@@ -398,18 +406,21 @@
       btn.disabled = true;
 
       getFavorites().then(function(favs) {
-        // Find all beatmap panel wrappers — try multiple selectors
-        var cards = document.querySelectorAll('.beatmapset-panel, .beatmapsets__item, [class*="beatmapset-panel"]');
+        // Scope cards to the beatmaps listing area near the heading
+        var section = container.closest('[data-page-id], .js-sortable--page, .page-extra__content, .beatmapsets__content') || document;
+        var cards = section.querySelectorAll('.beatmapset-panel, .beatmapsets__item, [class*="beatmapset-panel"]');
         if (cards.length === 0) {
-          // Fallback: find all beatmap links and get their closest card
-          var links = document.querySelectorAll('a[href*="/beatmapsets/"]');
+          // Fallback: find beatmap links scoped to this section
+          var links = section.querySelectorAll('a[href*="/beatmapsets/"]');
           var seen = {};
           cards = [];
           links.forEach(function(link) {
             var m = link.href.match(/\/beatmapsets\/(\d+)/);
             if (!m || seen[m[1]]) return;
             seen[m[1]] = true;
-            var card = link.closest('[class*="beatmap"]') || link.closest('div');
+            // Walk up to card wrapper, skip pinned score cards
+            var card = link.closest('[class*="beatmap"]');
+            if (!card) card = link.closest('div');
             if (card) cards.push(card);
           });
         }
@@ -438,7 +449,7 @@
     if (heading && heading.nextSibling) {
       heading.parentNode.insertBefore(btn, heading.nextSibling);
     } else {
-      container.appendChild(btn);
+      container.parentNode.insertBefore(btn, container.nextSibling);
     }
   }
 

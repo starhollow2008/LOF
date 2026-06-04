@@ -109,6 +109,8 @@
 
   function getBeatmapDataFromCard(card) {
     if (!card) return null;
+    // Skip cards inside pinned scores section
+    if (card.closest('[data-page-id="pinnedScores"], .js-sortable--page .title--page-extra-small')) return null;
     try {
       const link = card.querySelector('a[href*="/beatmapsets/"]');
       if (!link) return null;
@@ -120,11 +122,11 @@
       const rows = card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]');
       const texts = [];
       rows.forEach(r => {
-        // Skip nsfw badge text
-        const nsfw = r.querySelector('.beatmapset-badge--nsfw');
-        if (nsfw) nsfw.style.display = 'none';
-        const t = r.textContent.trim();
-        if (nsfw) nsfw.style.display = '';
+        // Clone and remove nsfw badge before reading text
+        const clone = r.cloneNode(true);
+        const badge = clone.querySelector('.beatmapset-badge--nsfw');
+        if (badge) badge.remove();
+        const t = clone.textContent.trim();
         if (t) texts.push(t);
       });
 
@@ -288,11 +290,17 @@
 
   // ═══ Copy-all button ("Beatmaps" heading) ═══
   function addCopyAllButton() {
-    const container = document.querySelector('.js-sortable--page[data-page-id="beatmaps"] .page-extra');
+    // Find any "Beatmaps" h2 heading (works on search and user pages)
+    const headings = document.querySelectorAll('h2.title--page-extra');
+    let container = null;
+    for (const h of headings) {
+      if (h.textContent.trim().startsWith('Beatmaps')) {
+        container = h;
+        break;
+      }
+    }
     if (!container || container.dataset.osuFavBtn) return;
     container.dataset.osuFavBtn = '1';
-
-    const heading = container.querySelector('h2.title--page-extra');
 
     const btn = document.createElement('button');
     btn.textContent = 'Favorite all';
@@ -308,18 +316,19 @@
 
       const favs = getFavorites();
 
-      // Find all beatmap panel wrappers — try multiple selectors
-      let cards = document.querySelectorAll('.beatmapset-panel, .beatmapsets__item, [class*="beatmapset-panel"]');
+      // Scope cards to the beatmaps area near the heading
+      const section = container.closest('[data-page-id], .js-sortable--page, .page-extra__content, .beatmapsets__content') || document;
+      let cards = section.querySelectorAll('.beatmapset-panel, .beatmapsets__item, [class*="beatmapset-panel"]');
       if (cards.length === 0) {
-        // Fallback: find all beatmap links and get their closest card
-        const links = document.querySelectorAll('a[href*="/beatmapsets/"]');
+        const links = section.querySelectorAll('a[href*="/beatmapsets/"]');
         const seen = {};
         cards = [];
         links.forEach(link => {
           const m = link.href.match(/\/beatmapsets\/(\d+)/);
           if (!m || seen[m[1]]) return;
           seen[m[1]] = true;
-          const card = link.closest('[class*="beatmap"]') || link.closest('div');
+          let card = link.closest('[class*="beatmap"]');
+          if (!card) card = link.closest('div');
           if (card) cards.push(card);
         });
       }
@@ -343,7 +352,7 @@
     if (heading && heading.nextSibling) {
       heading.parentNode.insertBefore(btn, heading.nextSibling);
     } else {
-      container.appendChild(btn);
+      container.parentNode.insertBefore(btn, container.nextSibling);
     }
   }
 
