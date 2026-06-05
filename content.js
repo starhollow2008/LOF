@@ -230,45 +230,37 @@
     var urlId = getBeatmapId();
     if (urlId) return { beatmapId: urlId, card: null, pageType: 'detail' };
 
-    // Walk up the DOM from the button to find the beatmap card wrapper.
-    // Skip menu-related containers — they may contain beatmap links but NOT
-    // the metadata (title, artist, mapper) needed for data extraction.
-    // Prefer .beatmapset-panel (the actual card wrapper) over sub-containers.
+    // Primary: use closest() to find the nearest .beatmapset-panel card wrapper.
+    // This avoids the bug where walking up parents and using querySelector on
+    // a multi-card container would pick the first card's link instead of this one.
+    var card = button.closest('.beatmapset-panel');
+    if (card) {
+      var link = card.querySelector('a[href*="/beatmapsets/"]');
+      if (link) {
+        var m = link.href.match(/\/beatmapsets\/(\d+)/);
+        if (m) return { beatmapId: m[1], card: card, pageType: 'listing' };
+      }
+    }
+
+    // Fallback: walk up the DOM for cases where .beatmapset-panel doesn't exist
+    // (e.g. alternative card structures, older osu! pages)
     var el = button.parentElement;
-    var bestEl = null;
-    var bestId = null;
     while (el && el !== document.body && el !== document.documentElement) {
       var cls = (el.className || '').toString();
-      // Skip menu containers and menu items
+      // Skip menu containers — they have beatmap links but no metadata
       if (cls.indexOf('beatmapset-panel__menu') !== -1) {
         el = el.parentElement;
         continue;
       }
-      // Check for beatmap link
-      var link = el.querySelector('a[href*="/beatmapsets/"]');
-      if (link) {
-        var m = link.href.match(/\/beatmapsets\/(\d+)/);
-        if (m) {
-          bestEl = el;
-          bestId = m[1];
-          // If this is the actual .beatmapset-panel card, stop — it has everything
-          if (cls.indexOf('beatmapset-panel ') !== -1 || cls === 'beatmapset-panel' || cls.indexOf('beatmapset-panel--') !== -1) {
-            break;
-          }
-        }
+      // Only check direct children for links to avoid cross-card contamination
+      var dlink = el.querySelector(':scope > a[href*="/beatmapsets/"]');
+      if (dlink) {
+        var dm = dlink.href.match(/\/beatmapsets\/(\d+)/);
+        if (dm) return { beatmapId: dm[1], card: el, pageType: 'listing' };
       }
       el = el.parentElement;
     }
-    if (bestId) return { beatmapId: bestId, card: bestEl, pageType: 'listing' };
-    // Fallback: look for .beatmapset-panel directly
-    var card = button.closest('.beatmapset-panel');
-    if (card) {
-      var flink = card.querySelector('a[href*="/beatmapsets/"]');
-      if (flink) {
-        var fm = flink.href.match(/\/beatmapsets\/(\d+)/);
-        if (fm) return { beatmapId: fm[1], card: card, pageType: 'listing' };
-      }
-    }
+
     return { beatmapId: null, card: null, pageType: 'unknown' };
   }
 
@@ -383,30 +375,81 @@
     }
   }
 
-  // ── Copy-all button ("Beatmaps" heading) ──────────────────────
+  // ── Copy-all button ("Favourite Beatmaps" section) ────────────
   function addCopyAllButton() {
-    var container = document.querySelector('.js-sortable--page[data-page-id="beatmaps"] .page-extra .u-relative');
-    if (!container || container.dataset.osuFavBtn) return;
-    container.dataset.osuFavBtn = '1';
+    // Find the "Favourite Beatmaps" heading inside the Beatmaps section
+    // Works on profile pages: /users/* (any user)
+    var favHeading = document.querySelector('.js-sortable--page[data-page-id="beatmaps"] h3.title--page-extra-small');
+    if (!favHeading) return;
+    var ht = favHeading.textContent || '';
+    if (ht.indexOf('Favourite') === -1 && ht.indexOf('Favorite') === -1) return;
+    // Guard: don't add the button twice
+    if (favHeading.querySelector('.osu-fav-all-btn')) return;
 
     var btn = document.createElement('button');
+    btn.className = 'osu-fav-all-btn';
     btn.textContent = 'Favorite all';
-    btn.style.cssText = 'margin-left:10px;padding:2px 10px;font-size:11px;background:#ff66aa;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:600';
+    btn.style.cssText = 'margin-left:10px;padding:2px 10px;font-size:11px;background:#ff66aa;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:600;transform:scale(1);transition:transform 0.1s';
+
     btn.addEventListener('click', function(e) {
       e.preventDefault(); e.stopPropagation();
-      btn.textContent = 'Working...';
+      btn.textContent = 'Loading all...';
       btn.disabled = true;
 
-      getFavorites().then(function(favs) {
-        // Only fetch cards from within the beatmaps section
-        var section = document.querySelector('.js-sortable--page[data-page-id="beatmaps"]');
-        if (!section) return;
-        var cards = section.querySelectorAll('.beatmapset-panel, .beatmapsets__item, [class*="beatmapset-panel"]');
+      // The grid that holds beatmap panels in the Favourite Beatmaps section
+      var grid = document.querySelector('.js-sortable--page[data-page-id="beatmaps"] .page-extra__beatmapsets.js-audio--group');
 
+      // Click "show more" once and wait for new cards to appear.
+      // Returns a Promise that resolves when cards finish loading.
+      function clickShowMoreOnce() {
+        var showMore = document.querySelector('.show-more-link--profile-page-beatmapsets');
+        if (!showMore) return Promise.resolve();
+        if (showMore.offsetParent === null || showMore.disabled) return Promise.resolve();
+
+        var before = grid ? grid.querySelectorAll('.beatmapset-panel').length : 0;
+        showMore.click();
+
+        return new Promise(function(resolve) {
+          var attempts = 0;
+          function check() {
+            attempts++;
+            var after = grid ? grid.querySelectorAll('.beatmapset-panel').length : 0;
+            var sm = document.querySelector('.show-more-link--profile-page-beatmapsets');
+            // Resolve when new cards appear OR show-more button disappears
+            if (after > before || !sm || sm.offsetParent === null || attempts > 30) {
+              resolve();
+            } else {
+              setTimeout(check, 400);
+            }
+          }
+          setTimeout(check, 500);
+        });
+      }
+
+      // Recursively click "show more" until all beatmaps are loaded
+      function loadAllBeatmaps() {
+        return clickShowMoreOnce().then(function() {
+          var sm = document.querySelector('.show-more-link--profile-page-beatmapsets');
+          if (sm && sm.offsetParent !== null && !sm.disabled) {
+            return loadAllBeatmaps();
+          }
+        });
+      }
+
+      loadAllBeatmaps().then(function() {
+        return getFavorites();
+      }).then(function(favs) {
+        if (!grid) return;
+        var cards = grid.querySelectorAll('.beatmapset-panel, .beatmapsets__item');
+        // Use a decreasing base timestamp so top-to-bottom DOM order is preserved
+        // (panel sorts by favourited_at descending)
+        var baseTime = Date.now();
         var count = 0;
-        cards.forEach(function(card) {
+        cards.forEach(function(card, i) {
           var data = getBeatmapDataFromCard(card);
           if (data && !favs[data.id]) {
+            // Subtract i seconds so first card (top) gets newest timestamp
+            data.favourited_at = new Date(baseTime - i * 1000).toISOString();
             favs[data.id] = data;
             count++;
           }
@@ -414,17 +457,22 @@
 
         return setFavorites(favs).then(function() {
           updateBadge();
+          // Refresh the favorites panel if it's already open
+          if (document.getElementById('osu-local-fav-panel')) {
+            document.getElementById('osu-local-fav-panel').remove();
+            showFavoritesPanel();
+          }
           btn.textContent = 'Added ' + count;
           setTimeout(function() { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
         });
       }).catch(function() {
         btn.textContent = 'Error';
-        setTimeout(function() { btn.textContent = '+ Favorite all'; btn.disabled = false; }, 2000);
+        setTimeout(function() { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
       });
     });
 
-    // Append to the .u-relative container
-    container.appendChild(btn);
+    // Append button inside the heading element
+    favHeading.appendChild(btn);
   }
 
   // ── Floating indicator (all pages) ─────────────────────────────
@@ -451,7 +499,9 @@
 
     getFavorites().then(function(favs) {
       var entries = Object.entries(favs).sort(function(a, b) {
-        return (b[1].favourited_at || '').localeCompare(a[1].favourited_at || '');
+        var cmp = (b[1].favourited_at || '').localeCompare(a[1].favourited_at || '');
+        // Tiebreaker: if timestamps are equal, sort by beatmap ID descending
+        return cmp !== 0 ? cmp : (b[0].localeCompare(a[0]));
       });
 
       var panel = document.createElement('div');
@@ -510,8 +560,8 @@
 
       // Footer
       var footer = document.createElement('div');
-      footer.style.cssText = 'padding:8px 14px;border-top:1px solid #333;background:#1a1a1a;display:flex;gap:6px;flex-shrink:0';
-      footer.innerHTML = '<button id="osu-fav-export" style="font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;background:none;color:#999;cursor:pointer">Export</button><button id="osu-fav-import" style="font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;background:none;color:#999;cursor:pointer">Import</button><input type="file" id="osu-fav-import-file" accept=".json" style="display:none">';
+      footer.style.cssText = 'padding:8px 14px;border-top:1px solid #333;background:#1a1a1a;display:flex;gap:6px;flex-shrink:0;justify-content:space-between;align-items:center';
+      footer.innerHTML = '<div style="display:flex;gap:6px"><button id="osu-fav-export" style="font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;background:none;color:#999;cursor:pointer">Export</button><button id="osu-fav-import" style="font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;background:none;color:#999;cursor:pointer">Import</button></div><button id="osu-fav-remove-all" style="font-size:10px;padding:4px 10px;border:1px solid #555;border-radius:3px;background:none;color:#888;cursor:pointer">Remove all</button><input type="file" id="osu-fav-import-file" accept=".json" style="display:none">';
 
       panel.appendChild(header);
       panel.appendChild(list);
@@ -531,6 +581,40 @@
       document.getElementById('osu-fav-import').addEventListener('click', function() {
         document.getElementById('osu-fav-import-file').click();
       });
+
+      // Two-click confirmation for "Remove all"
+      (function() {
+        var removeBtn = document.getElementById('osu-fav-remove-all');
+        var confirming = false;
+        removeBtn.addEventListener('click', function() {
+          if (!confirming) {
+            confirming = true;
+            removeBtn.textContent = 'You sure?';
+            removeBtn.style.background = '#ff4444';
+            removeBtn.style.color = '#fff';
+            removeBtn.style.borderColor = '#ff4444';
+            removeBtn.style.fontWeight = '600';
+            setTimeout(function() {
+              if (confirming) {
+                confirming = false;
+                removeBtn.textContent = 'Remove all';
+                removeBtn.style.background = 'none';
+                removeBtn.style.color = '#888';
+                removeBtn.style.borderColor = '#555';
+                removeBtn.style.fontWeight = '';
+              }
+            }, 3000);
+          } else {
+            // Second click: clear everything
+            var obj = {}; obj[STORAGE_KEY] = {};
+            chrome.storage.local.set(obj).then(function() {
+              _favCache = {};
+              updateBadge();
+              panel.remove();
+            });
+          }
+        });
+      })();
       document.getElementById('osu-fav-import-file').addEventListener('change', function(e) {
         if (!e.target.files[0]) return;
         var reader = new FileReader();
