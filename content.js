@@ -146,34 +146,103 @@
       if (!m) return null;
       var id = m[1];
 
-      var rows = card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]');
-      var texts = [];
-      for (var i = 0; i < rows.length; i++) {
-        // Clone the row and remove nsfw badge before reading text
-        var clone = rows[i].cloneNode(true);
-        var badge = clone.querySelector('.beatmapset-badge--nsfw');
-        if (badge) badge.remove();
-        var t = clone.textContent.trim();
-        if (t) texts.push(t);
+      // ── Title ──────────────────────────────────────────────────
+      // The main panel link holds the beatmapset title
+      var title = '';
+      var titleEl = card.querySelector(
+        '.beatmapset-panel__main-link, ' +
+        'a[class*="main-link"], ' +
+        '.beatmapset-panel__title, ' +
+        '[class*="beatmapset-panel__title"]'
+      );
+      if (titleEl) {
+        // Clone to strip any child badge/icon text
+        var titleClone = titleEl.cloneNode(true);
+        var titleBadge = titleClone.querySelector('.beatmapset-badge, [class*="badge"], i, svg');
+        if (titleBadge) titleBadge.remove();
+        title = titleClone.textContent.trim();
       }
-
-      var title = '', artist = '', creator = '', source = '';
-      for (var j = 0; j < texts.length; j++) {
-        var txt = texts[j];
-        if (txt.indexOf('by ') === 0 && !artist) {
-          artist = txt.replace(/^by\s+/, '').replace(/Featured\s*Artist$/i, '').trim();
-        } else if (txt.indexOf('mapped by ') === 0) {
-          creator = txt.replace(/^mapped by\s+/, '').trim();
-        } else if (!title) {
-          title = txt;
-        } else if (artist && creator && !source) {
-          source = txt;
-        }
-      }
+      // Fallback: first info-row that isn't a "by"/"mapped by" line
       if (!title) {
-        var ml = card.querySelector('.beatmapset-panel__main-link, a[class*="main-link"]');
+        var ml = card.querySelector('a[href*="/beatmapsets/"]');
         if (ml) title = ml.textContent.trim();
       }
+
+      // ── Artist ─────────────────────────────────────────────────
+      // osu! cards render "by <artist>" in a dedicated element; grab that
+      // element's text and strip the "by " prefix rather than parsing raw rows.
+      var artist = '';
+      var artistSelectors = [
+        '.beatmapset-panel__artist',
+        '[class*="beatmapset-panel__artist"]',
+        '.beatmapset-panel__info-row--artist',
+        '[class*="info-row--artist"]'
+      ];
+      for (var ai = 0; ai < artistSelectors.length; ai++) {
+        var aEl = card.querySelector(artistSelectors[ai]);
+        if (aEl) { artist = aEl.textContent.trim(); break; }
+      }
+      // Fallback: scan info-row text nodes for the "by …" line
+      if (!artist) {
+        var infoRows = card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]');
+        for (var ir = 0; ir < infoRows.length; ir++) {
+          var rowClone = infoRows[ir].cloneNode(true);
+          // Remove stat icons/numbers — keep only text-node content
+          var statEls = rowClone.querySelectorAll(
+            '.beatmapset-badge, [class*="badge"], i, svg, ' +
+            '[class*="stat"], [class*="count"], [class*="play"], [class*="fav"]'
+          );
+          for (var si = 0; si < statEls.length; si++) statEls[si].remove();
+          var rowText = rowClone.textContent.trim();
+          if (rowText.indexOf('by ') === 0) {
+            artist = rowText.replace(/^by\s+/, '').replace(/Featured\s*Artist$/i, '').trim();
+            break;
+          }
+        }
+      }
+
+      // ── Creator (mapper) ───────────────────────────────────────
+      var creator = '';
+      var creatorSelectors = [
+        '.beatmapset-panel__mapper',
+        '[class*="beatmapset-panel__mapper"]',
+        '.beatmapset-panel__info-row--mapper',
+        '[class*="info-row--mapper"]'
+      ];
+      for (var ci = 0; ci < creatorSelectors.length; ci++) {
+        var cEl = card.querySelector(creatorSelectors[ci]);
+        if (cEl) { creator = cEl.textContent.trim(); break; }
+      }
+      // Fallback: scan for "mapped by …" line in info rows
+      if (!creator) {
+        var infoRows2 = card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]');
+        for (var ir2 = 0; ir2 < infoRows2.length; ir2++) {
+          var rowClone2 = infoRows2[ir2].cloneNode(true);
+          var statEls2 = rowClone2.querySelectorAll(
+            '.beatmapset-badge, [class*="badge"], i, svg, ' +
+            '[class*="stat"], [class*="count"], [class*="play"], [class*="fav"]'
+          );
+          for (var si2 = 0; si2 < statEls2.length; si2++) statEls2[si2].remove();
+          var rowText2 = rowClone2.textContent.trim();
+          if (rowText2.indexOf('mapped by ') === 0) {
+            creator = rowText2.replace(/^mapped by\s+/, '').trim();
+            break;
+          }
+        }
+      }
+      // Last resort: user links in card header area
+      if (!creator) {
+        var mapperLink = card.querySelector(
+          'a[href*="/users/"], ' +
+          '.beatmapset-panel__mapper a, ' +
+          '[class*="mapper"] a'
+        );
+        if (mapperLink) creator = mapperLink.textContent.trim();
+      }
+
+      // source is not available in listing card DOM — leave blank rather
+      // than accidentally capturing stats/date text as source
+      var source = '';
 
       // Extract cover URLs from CSS custom properties or background-image on cover divs
       var coverList = card.querySelector('.beatmapset-cover--full, [class*="beatmapset-cover"]');
@@ -292,22 +361,97 @@
     return getFavorites().then(function(favs) { return !!favs[id]; });
   }
 
+  // ── Background enrichment ──────────────────────────────────────
+  // Fetches the beatmapset detail page and merges full JSON data into storage.
+  // Called fire-and-forget after storing minimal card data, so the toggle is
+  // always instant. Uses credentials so logged-in users get the full payload.
+  function enrichBeatmapData(beatmapId) {
+    return fetch('https://osu.ppy.sh/beatmapsets/' + beatmapId, { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.text() : null; })
+      .then(function(html) {
+        if (!html) return;
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(html, 'text/html');
+        var el = doc.getElementById('json-beatmapset');
+        if (!el) return;
+        var raw;
+        try { raw = JSON.parse(el.textContent); } catch(e) { return; }
+        var bm = raw.beatmapset || raw;
+        if (!bm || !bm.id) return;
+        var enriched = {
+          id: String(bm.id),
+          artist: bm.artist || '',
+          artist_unicode: bm.artist_unicode || bm.artist || '',
+          title: bm.title || '',
+          title_unicode: bm.title_unicode || bm.title || '',
+          creator: bm.creator || '',
+          user_id: String(bm.user_id || ''),
+          covers: bm.covers || {},
+          status: bm.status || '',
+          favourite_count: bm.favourite_count || 0,
+          play_count: bm.play_count || 0,
+          bpm: bm.bpm || 0,
+          source: bm.source || '',
+          tags: bm.tags || '',
+          genre: (bm.genre && bm.genre.name) || '',
+          language: (bm.language && bm.language.name) || '',
+          url: 'https://osu.ppy.sh/beatmapsets/' + bm.id,
+          beatmaps: (bm.beatmaps || []).map(function(b) { return {
+            id: String(b.id), version: b.version || '',
+            difficulty_rating: b.difficulty_rating || 0,
+            mode: b.mode || '', status: b.status || ''
+          };}),
+          nsfw: bm.nsfw || false
+        };
+        return getFavorites().then(function(favs) {
+          var sid = String(bm.id);
+          if (!favs[sid]) return; // Removed before enrichment finished — skip
+          enriched.favourited_at = favs[sid].favourited_at || new Date().toISOString();
+          favs[sid] = enriched;
+          return setFavorites(favs);
+        });
+      })
+      .catch(function() {});
+  }
+
+  // Sequentially enriches a list of IDs with a delay between each request
+  // to avoid hammering osu!'s servers during bulk imports.
+  function enrichBeatmapsSequential(ids, delayMs) {
+    var i = 0;
+    function next() {
+      if (i >= ids.length) return;
+      var id = ids[i++];
+      enrichBeatmapData(id).then(function() { setTimeout(next, delayMs); });
+    }
+    setTimeout(next, delayMs);
+  }
+
   function toggleFavorite(beatmapId, card) {
     // Use in-memory cache for instant toggle detection (avoids stale storage reads)
     return getFavorites().then(function(favs) {
       var wasFav = !!favs[beatmapId];
+      var needsEnrich = false;
       if (wasFav) {
         delete favs[beatmapId];
       } else {
-        var data = getBeatmapDataFromJSON() || getBeatmapDataFromDetailDOM() || getBeatmapDataFromCard(card);
-        favs[beatmapId] = data || {
-          id: beatmapId,
-          url: 'https://osu.ppy.sh/beatmapsets/' + beatmapId,
-          favourited_at: new Date().toISOString()
-        };
+        var jsonData = getBeatmapDataFromJSON();
+        if (jsonData) {
+          favs[beatmapId] = jsonData;
+        } else {
+          // Not on a detail page — store card data immediately for instant feedback,
+          // then enrich in the background with a full page fetch
+          needsEnrich = true;
+          var data = getBeatmapDataFromDetailDOM() || getBeatmapDataFromCard(card);
+          favs[beatmapId] = data || {
+            id: beatmapId,
+            url: 'https://osu.ppy.sh/beatmapsets/' + beatmapId,
+            favourited_at: new Date().toISOString()
+          };
+        }
       }
       return setFavorites(favs).then(function() {
         updateBadge();
+        if (needsEnrich) enrichBeatmapData(beatmapId);
         return !wasFav;
       });
     }).catch(function() {
@@ -445,12 +589,14 @@
         // (panel sorts by favourited_at descending)
         var baseTime = Date.now();
         var count = 0;
+        var newIds = [];
         cards.forEach(function(card, i) {
           var data = getBeatmapDataFromCard(card);
           if (data && !favs[data.id]) {
             // Subtract i seconds so first card (top) gets newest timestamp
             data.favourited_at = new Date(baseTime - i * 1000).toISOString();
             favs[data.id] = data;
+            newIds.push(data.id);
             count++;
           }
         });
@@ -462,7 +608,9 @@
             document.getElementById('osu-local-fav-panel').remove();
             showFavoritesPanel();
           }
-          btn.textContent = 'Added ' + count;
+          btn.textContent = 'Added ' + count + ', enriching...';
+          // Enrich each card with full page data sequentially (400ms between requests)
+          enrichBeatmapsSequential(newIds, 400);
           setTimeout(function() { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
         });
       }).catch(function() {

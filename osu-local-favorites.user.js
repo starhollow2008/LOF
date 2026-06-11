@@ -118,28 +118,78 @@
       if (!m) return null;
       const id = m[1];
 
-      let title = '', artist = '', creator = '', source = '';
-      const rows = card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]');
-      const texts = [];
-      rows.forEach(r => {
-        // Clone and remove nsfw badge before reading text
-        const clone = r.cloneNode(true);
-        const badge = clone.querySelector('.beatmapset-badge--nsfw');
-        if (badge) badge.remove();
-        const t = clone.textContent.trim();
-        if (t) texts.push(t);
-      });
-
-      texts.forEach(txt => {
-        if (txt.startsWith('by ') && !artist) artist = txt.replace(/^by\s+/, '').replace(/Featured\s*Artist$/i, '').trim();
-        else if (txt.startsWith('mapped by ')) creator = txt.replace(/^mapped by\s+/, '').trim();
-        else if (!title) title = txt;
-        else if (artist && creator && !source) source = txt;
-      });
+      // ── Title ────────────────────────────────────────────────────
+      let title = '';
+      const titleEl = card.querySelector(
+        '.beatmapset-panel__main-link, a[class*="main-link"], ' +
+        '.beatmapset-panel__title, [class*="beatmapset-panel__title"]'
+      );
+      if (titleEl) {
+        const titleClone = titleEl.cloneNode(true);
+        titleClone.querySelectorAll('.beatmapset-badge, [class*="badge"], i, svg').forEach(n => n.remove());
+        title = titleClone.textContent.trim();
+      }
       if (!title) {
-        const ml = card.querySelector('.beatmapset-panel__main-link, a[class*="main-link"]');
+        const ml = card.querySelector('a[href*="/beatmapsets/"]');
         if (ml) title = ml.textContent.trim();
       }
+
+      // ── Artist ───────────────────────────────────────────────────
+      // Use dedicated semantic elements first; fall back to filtered info-row text.
+      // Never read raw info-row text without stripping stat nodes — doing so causes
+      // play counts / fav counts / dates to bleed into the artist field.
+      let artist = '';
+      for (const sel of ['.beatmapset-panel__artist', '[class*="beatmapset-panel__artist"]',
+                          '.beatmapset-panel__info-row--artist', '[class*="info-row--artist"]']) {
+        const el = card.querySelector(sel);
+        if (el) { artist = el.textContent.trim(); break; }
+      }
+      if (!artist) {
+        for (const row of card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]')) {
+          const clone = row.cloneNode(true);
+          clone.querySelectorAll(
+            '.beatmapset-badge, [class*="badge"], i, svg, ' +
+            '[class*="stat"], [class*="count"], [class*="play"], [class*="fav"]'
+          ).forEach(n => n.remove());
+          const txt = clone.textContent.trim();
+          if (txt.startsWith('by ')) {
+            artist = txt.replace(/^by\s+/, '').replace(/Featured\s*Artist$/i, '').trim();
+            break;
+          }
+        }
+      }
+
+      // ── Creator (mapper) ─────────────────────────────────────────
+      let creator = '';
+      for (const sel of ['.beatmapset-panel__mapper', '[class*="beatmapset-panel__mapper"]',
+                          '.beatmapset-panel__info-row--mapper', '[class*="info-row--mapper"]']) {
+        const el = card.querySelector(sel);
+        if (el) { creator = el.textContent.trim(); break; }
+      }
+      if (!creator) {
+        for (const row of card.querySelectorAll('.beatmapset-panel__info-row, [class*="info-row"]')) {
+          const clone = row.cloneNode(true);
+          clone.querySelectorAll(
+            '.beatmapset-badge, [class*="badge"], i, svg, ' +
+            '[class*="stat"], [class*="count"], [class*="play"], [class*="fav"]'
+          ).forEach(n => n.remove());
+          const txt = clone.textContent.trim();
+          if (txt.startsWith('mapped by ')) {
+            creator = txt.replace(/^mapped by\s+/, '').trim();
+            break;
+          }
+        }
+      }
+      if (!creator) {
+        const mapperLink = card.querySelector(
+          'a[href*="/users/"], .beatmapset-panel__mapper a, [class*="mapper"] a'
+        );
+        if (mapperLink) creator = mapperLink.textContent.trim();
+      }
+
+      // source is not present in listing card DOM — leave blank rather than
+      // accidentally capturing stats / date text from info-row nodes
+      const source = '';
 
       // Extract cover URL — try multiple methods
       let coverUrl = '';
@@ -277,26 +327,92 @@
   }
 
   // ═══ Toggle favorite ═══
+  // ═══ Background enrichment ═══
+  // Fetches the beatmapset detail page and merges full JSON data into storage.
+  // Fire-and-forget — card data is stored instantly, this fills in the gaps.
+  function enrichBeatmapData(beatmapId) {
+    return fetch('https://osu.ppy.sh/beatmapsets/' + beatmapId, { credentials: 'include' })
+      .then(r => r.ok ? r.text() : null)
+      .then(html => {
+        if (!html) return;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const el = doc.getElementById('json-beatmapset');
+        if (!el) return;
+        let raw;
+        try { raw = JSON.parse(el.textContent); } catch(e) { return; }
+        const bm = raw.beatmapset || raw;
+        if (!bm || !bm.id) return;
+        const favs = getFavorites();
+        const sid = String(bm.id);
+        if (!favs[sid]) return; // Removed before enrichment finished — skip
+        favs[sid] = {
+          id: sid,
+          artist: bm.artist || '',
+          artist_unicode: bm.artist_unicode || bm.artist || '',
+          title: bm.title || '',
+          title_unicode: bm.title_unicode || bm.title || '',
+          creator: bm.creator || '',
+          user_id: String(bm.user_id || ''),
+          covers: bm.covers || {},
+          status: bm.status || '',
+          favourite_count: bm.favourite_count || 0,
+          play_count: bm.play_count || 0,
+          bpm: bm.bpm || 0,
+          source: bm.source || '',
+          tags: bm.tags || '',
+          genre: (bm.genre && bm.genre.name) || '',
+          language: (bm.language && bm.language.name) || '',
+          url: 'https://osu.ppy.sh/beatmapsets/' + sid,
+          beatmaps: (bm.beatmaps || []).map(b => ({
+            id: String(b.id), version: b.version || '',
+            difficulty_rating: b.difficulty_rating || 0,
+            mode: b.mode || '', status: b.status || ''
+          })),
+          favourited_at: favs[sid].favourited_at || new Date().toISOString(),
+          nsfw: bm.nsfw || false
+        };
+        setFavorites(favs);
+      })
+      .catch(() => {});
+  }
+
+  // Sequentially enriches a list of IDs with a delay between requests
+  function enrichBeatmapsSequential(ids, delayMs) {
+    let i = 0;
+    function next() {
+      if (i >= ids.length) return;
+      enrichBeatmapData(ids[i++]).then(() => setTimeout(next, delayMs));
+    }
+    setTimeout(next, delayMs);
+  }
+
   function toggleFavorite(beatmapId, card) {
     if (!beatmapId) return null;
     const favs = getFavorites();
     const wasFav = !!favs[beatmapId];
+    let needsEnrich = false;
 
     if (wasFav) {
       delete favs[beatmapId];
     } else {
-      const data = getBeatmapDataFromJSON() ||
-        (card ? getBeatmapDataFromCard(card) : null) ||
-        {
+      const jsonData = getBeatmapDataFromJSON();
+      if (jsonData) {
+        favs[beatmapId] = jsonData;
+      } else {
+        needsEnrich = true;
+        const data = (card ? getBeatmapDataFromCard(card) : null) || {
           id: beatmapId,
           url: 'https://osu.ppy.sh/beatmapsets/' + beatmapId,
           favourited_at: new Date().toISOString()
         };
-      favs[beatmapId] = data;
+        favs[beatmapId] = data;
+      }
     }
 
     setFavorites(favs);
     updateFloatingHeart();
+    if (needsEnrich) enrichBeatmapData(beatmapId);
     return !wasFav;
   }
 
@@ -373,12 +489,14 @@
         // (panel sorts by favourited_at descending)
         const baseTime = Date.now();
         let count = 0;
+        const newIds = [];
         cards.forEach((card, i) => {
           const data = getBeatmapDataFromCard(card);
           if (data && !favs[data.id]) {
             // Subtract i seconds so first card (top) gets newest timestamp
             data.favourited_at = new Date(baseTime - i * 1000).toISOString();
             favs[data.id] = data;
+            newIds.push(data.id);
             count++;
           }
         });
@@ -390,7 +508,9 @@
           document.getElementById('osu-local-fav-panel').remove();
           showFavoritesPanel();
         }
-        btn.textContent = 'Added ' + count;
+        btn.textContent = 'Added ' + count + ', enriching...';
+        // Enrich each card with full page data sequentially (400ms between requests)
+        enrichBeatmapsSequential(newIds, 400);
         setTimeout(() => { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
       }).catch(() => {
         btn.textContent = 'Error';
