@@ -1,4 +1,4 @@
-// osu! Local Favorites - Content Script v2.2
+// osu! Local Favorites - Content Script v3.2.1
 // Intercepts osu! favorite buttons via network-level blocking
 // Does NOT clone DOM elements — fully compatible with React
 
@@ -42,11 +42,6 @@
         genre: bm.genre && bm.genre.name || '',
         language: bm.language && bm.language.name || '',
         url: 'https://osu.ppy.sh/beatmapsets/' + bm.id,
-        beatmaps: (bm.beatmaps || []).map(function(b) { return {
-          id: String(b.id), version: b.version || '',
-          difficulty_rating: b.difficulty_rating || 0,
-          mode: b.mode || '', status: b.status || ''
-        };}),
         favourited_at: new Date().toISOString(),
         nsfw: bm.nsfw || false
       };
@@ -127,7 +122,6 @@
         genre: '',
         language: '',
         url: 'https://osu.ppy.sh/beatmapsets/' + id,
-        beatmaps: [],
         favourited_at: new Date().toISOString(),
         nsfw: !!document.querySelector('.beatmapset-badge--nsfw') || false
       };
@@ -284,7 +278,7 @@
         status: '', favourite_count: 0, play_count: 0, bpm: 0,
         source: source, tags: '', genre: '', language: '',
         url: 'https://osu.ppy.sh/beatmapsets/' + id,
-        beatmaps: [], favourited_at: new Date().toISOString(),
+        favourited_at: new Date().toISOString(),
         nsfw: !!card.querySelector('.beatmapset-badge--nsfw') || false
       };
     } catch (e) { return null; }
@@ -396,11 +390,6 @@
           genre: (bm.genre && bm.genre.name) || '',
           language: (bm.language && bm.language.name) || '',
           url: 'https://osu.ppy.sh/beatmapsets/' + bm.id,
-          beatmaps: (bm.beatmaps || []).map(function(b) { return {
-            id: String(b.id), version: b.version || '',
-            difficulty_rating: b.difficulty_rating || 0,
-            mode: b.mode || '', status: b.status || ''
-          };}),
           nsfw: bm.nsfw || false
         };
         return getFavorites().then(function(favs) {

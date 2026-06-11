@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      2.3.0
+// @version      3.2.1
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers.
 // @author       vyroxat
 // @match        https://osu.ppy.sh/*
@@ -96,11 +96,6 @@
         genre: bm.genre && bm.genre.name || '',
         language: bm.language && bm.language.name || '',
         url: 'https://osu.ppy.sh/beatmapsets/' + bm.id,
-        beatmaps: (bm.beatmaps || []).map(b => ({
-          id: String(b.id), version: b.version || '',
-          difficulty_rating: b.difficulty_rating || 0,
-          mode: b.mode || '', status: b.status || ''
-        })),
         favourited_at: new Date().toISOString(),
         nsfw: bm.nsfw || false
       };
@@ -237,7 +232,7 @@
         status: '', favourite_count: 0, play_count: 0, bpm: 0,
         source, tags: '', genre: '', language: '',
         url: 'https://osu.ppy.sh/beatmapsets/' + id,
-        beatmaps: [], favourited_at: new Date().toISOString(),
+        favourited_at: new Date().toISOString(),
         nsfw: !!card.querySelector('.beatmapset-badge--nsfw') || false
       };
     } catch (e) { return null; }
@@ -364,11 +359,6 @@
           genre: (bm.genre && bm.genre.name) || '',
           language: (bm.language && bm.language.name) || '',
           url: 'https://osu.ppy.sh/beatmapsets/' + sid,
-          beatmaps: (bm.beatmaps || []).map(b => ({
-            id: String(b.id), version: b.version || '',
-            difficulty_rating: b.difficulty_rating || 0,
-            mode: b.mode || '', status: b.status || ''
-          })),
           favourited_at: favs[sid].favourited_at || new Date().toISOString(),
           nsfw: bm.nsfw || false
         };
