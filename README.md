@@ -8,9 +8,16 @@ Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with 
 
 ## Two ways to use
 
-### Chrome Extension
+### Tampermonkey Userscript
 
-1. Download `osu-favorites-extension.zip` from the [latest release](https://github.com/vyroxat/Local-osu-Favorites/releases)
+1. Install [Tampermonkey](https://www.tampermonkey.net/)
+2. **[Click here to install](https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js)** — Tampermonkey will open the installation page automatically.
+
+The script adds a **View Local Favorites** option in the Tampermonkey menu. Click it to open a side panel with all your favorites.
+
+### [Deprecated] Extension
+
+1. Download `osu-favorites-extension.zip` or `osu-favorites-extension.xpi` from the [last extention release](https://github.com/vyroxat/Local-osu-Favorites/releases/tag/v3.4.2)
 2. Unzip
 3. Go to `chrome://extensions/`, enable Developer mode
 4. Click **Load unpacked** and select the unzipped folder
@@ -22,13 +29,6 @@ git clone https://github.com/vyroxat/Local-osu-Favorites.git
 ```
 
 Then load the folder in `chrome://extensions/`.
-
-### Tampermonkey Userscript
-
-1. Install [Tampermonkey](https://www.tampermonkey.net/)
-2. **[Click here to install](https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js)** — Tampermonkey will open the installation page automatically.
-
-The script adds a **View Local Favorites** option in the Tampermonkey menu. Click it to open a side panel with all your favorites.
 
 ## How it works
 
