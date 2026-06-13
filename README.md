@@ -67,4 +67,4 @@ The script adds a **View Local Favorites** option in the Tampermonkey menu. Clic
 
 ## License
 
-MIT
+[MIT](https://github.com/vyroxat/Local-osu-Favorites/blob/main/LICENSE)
