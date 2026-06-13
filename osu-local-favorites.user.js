@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      3.5.2
+// @version      3.5.3
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -765,8 +765,8 @@
             showFavoritesPanel();
           }
           btn.textContent = "Added " + count + ", enriching...";
-          // Enrich each card with full page data sequentially (400ms between requests)
-          enrichBeatmapsSequential(newIds, 400);
+          // Enrich each card with full page data sequentially (1000ms between requests to respect the 60 requests/min limit)
+          enrichBeatmapsSequential(newIds, 1000);
           setTimeout(() => {
             btn.textContent = "Favorite all";
             btn.disabled = false;
