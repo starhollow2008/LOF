@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>osu! Local Favorites</title>
   <link rel="stylesheet" href="popup.css">
 </head>
+
 <body>
   <header>
     <div class="header-row">
@@ -39,13 +41,15 @@
   </footer>
 
   <div id="empty" class="empty-state" style="display:none">
-    <p>No favorites yet. Open <a href="https://osu.ppy.sh/beatmapsets" target="_blank">osu.ppy.sh</a> and click the favorite button on a beatmap.</p>
+    <p>No favorites yet. Open <a href="https://osu.ppy.sh/beatmapsets" target="_blank">osu.ppy.sh</a> and click the
+      favorite button on a beatmap.</p>
   </div>
 
   <template id="cardTemplate">
     <div class="card">
       <div class="card-cover">
-        <img src="" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <img src="" alt="" loading="lazy"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div class="no-cover" style="display:none"></div>
       </div>
       <div class="card-info">
@@ -67,4 +71,5 @@
 
   <script src="popup.js"></script>
 </body>
+
 </html>
