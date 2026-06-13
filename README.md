@@ -22,6 +22,12 @@ The script adds a **View Local Favorites** option in the Tampermonkey menu. Clic
 3. Go to `chrome://extensions/`, enable Developer mode
 4. Click **Load unpacked** and select the unzipped folder
 
+**For Firefox**
+
+1. Download `osu-favorites-extension.xpi` from the [last extention release](https://github.com/vyroxat/Local-osu-Favorites/releases/tag/v3.4.2) (.xpi file)
+2. To install it in Firefox go to `about:debugging` → `This Firefox` → `Load Temporary Add-on` → pick the .xpi file
+   *(temporary - it will be removed after browser restart)*
+
 **Or** clone the repo and load it directly:
 
 ```
