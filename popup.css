@@ -35,7 +35,7 @@ body {
 header {
   padding: 12px 14px 8px;
   background: var(--bg-surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--pink);
   flex-shrink: 0;
 }
 
@@ -153,8 +153,8 @@ main::-webkit-scrollbar-thumb:hover { background: var(--pink); }
 .card:hover { background: var(--bg-card-hover); }
 
 .card-cover {
-  width: 60px;
-  height: 45px;
+  width: 56px;
+  height: 42px;
   border-radius: 2px;
   overflow: hidden;
   flex-shrink: 0;
@@ -176,7 +176,7 @@ main::-webkit-scrollbar-thumb:hover { background: var(--pink); }
 .card-info { flex: 1; min-width: 0; }
 
 .card-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -194,8 +194,41 @@ main::-webkit-scrollbar-thumb:hover { background: var(--pink); }
   font-weight: 600;
 }
 
+.fa-badge {
+  font-size: 8px;
+  color: #66ccff;
+  border: 1px solid #66ccff;
+  border-radius: 2px;
+  padding: 0 3px;
+  vertical-align: middle;
+  font-weight: 600;
+}
+
+/* ── Footer ─────────────────────────────────── */
+
+.popup-footer {
+  padding: 6px 14px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.remove-all-btn {
+  width: 100%;
+  font-size: 10px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.remove-all-btn:hover { border-color: #e55; color: #e55; }
+.remove-all-btn.confirming { background: #e55; color: #fff; border-color: #e55; font-weight: 600; }
+
 .card-artist {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -205,7 +238,7 @@ main::-webkit-scrollbar-thumb:hover { background: var(--pink); }
 
 .card-meta {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   font-size: 10px;
   color: var(--text-muted);
   margin-top: 2px;
@@ -214,7 +247,7 @@ main::-webkit-scrollbar-thumb:hover { background: var(--pink); }
 
 .card-mapper { color: var(--pink); font-weight: 500; }
 .card-status {
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   font-size: 8px;
   letter-spacing: 0.3px;
@@ -231,7 +264,7 @@ main::-webkit-scrollbar-thumb:hover { background: var(--pink); }
 
 .card-link,
 .card-remove {
-  font-size: 10px;
+  font-size: 9px;
   padding: 2px 6px;
   border: 1px solid var(--border);
   border-radius: 2px;

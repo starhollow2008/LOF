@@ -68,8 +68,21 @@ function render(filter = '') {
   for (const [id, f] of entries) {
     const card = template.content.cloneNode(true);
 
-    card.querySelector('.card-title').innerHTML = (f.title || f.title_unicode || 'Unknown') + (f.nsfw ? ' <span class="nsfw-badge">EXPLICIT</span>' : '');
-    card.querySelector('.card-artist').textContent = f.artist || f.artist_unicode || '';
+    let titleHtml = f.title || f.title_unicode || 'Unknown';
+    if (f.nsfw) titleHtml += ' <span class="nsfw-badge">EXPLICIT</span>';
+    card.querySelector('.card-title').innerHTML = titleHtml;
+    const artistEl = card.querySelector('.card-artist');
+    artistEl.textContent = '';
+    const artistText = document.createElement('span');
+    artistText.textContent = f.artist || f.artist_unicode || '';
+    artistEl.appendChild(artistText);
+    if (f.is_artist_featured) {
+      const faBadge = document.createElement('span');
+      faBadge.className = 'fa-badge';
+      faBadge.textContent = 'FEATURED ARTIST';
+      faBadge.style.marginLeft = '4px';
+      artistEl.appendChild(faBadge);
+    }
     card.querySelector('.card-mapper').textContent = f.creator || '';
     card.querySelector('.card-bpm').textContent = f.bpm ? `${f.bpm} BPM` : '';
     card.querySelector('.card-date').textContent = formatDate(f.favourited_at);
@@ -79,7 +92,7 @@ function render(filter = '') {
     // Status
     const statusEl = card.querySelector('.card-status');
     if (f.status) {
-      statusEl.textContent = f.status;
+      statusEl.textContent = f.status.toUpperCase();
       statusEl.style.color = statusColor(f.status);
     } else {
       statusEl.textContent = '';
@@ -96,24 +109,20 @@ function render(filter = '') {
       if (noCover) noCover.style.display = 'flex';
     }
 
-    // Tooltip from beatmap data
-    if (f.beatmaps && f.beatmaps.length > 0) {
-      const diffs = f.beatmaps.map(b => `${b.version} [${b.difficulty_rating.toFixed(1)}★]`).join(', ');
-      card.querySelector('.card').title = `Difficulties: ${diffs}`;
-    }
-
     list.appendChild(card);
   }
 }
 
 function statusColor(status) {
   const map = {
-    ranked: '#4caf50',
-    loved: '#ff66aa',
-    qualified: '#2196f3',
-    pending: '#ff9800',
-    wip: '#f44336',
-    graveyard: '#777',
+    ranked:    '#4caf50',
+    loved:     '#ff66aa',
+    qualified: '#4fc3f7',
+    approved:  '#4caf50',
+    pending:   '#ff9800',
+    wip:       '#f44336',
+    graveyard: '#666',
+    vip:       '#f6c243',
   };
   return map[status] || '#888';
 }
@@ -149,9 +158,10 @@ async function getFavorites() {
 function updateSortButtons() {
   const buttons = document.querySelectorAll('#sortBar .sort-btn');
   buttons.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.sort === currentSort);
-    const arrow = sortAsc ? ' ↑' : ' ↓';
-    btn.textContent = btn.dataset.sort.charAt(0).toUpperCase() + btn.dataset.sort.slice(1) + arrow;
+    const isActive = btn.dataset.sort === currentSort;
+    btn.classList.toggle('active', isActive);
+    const label = btn.dataset.sort.charAt(0).toUpperCase() + btn.dataset.sort.slice(1);
+    btn.textContent = isActive ? label + (sortAsc ? ' ↑' : ' ↓') : label;
   });
 }
 
@@ -231,6 +241,32 @@ document.getElementById('importFile').addEventListener('change', (e) => {
   if (e.target.files[0]) {
     importFavorites(e.target.files[0]);
     e.target.value = '';
+  }
+});
+
+// ── Remove All ───────────────────────────────────────────────
+const removeAllBtn = document.getElementById('removeAllBtn');
+let removeConfirming = false;
+removeAllBtn.addEventListener('click', async () => {
+  if (!removeConfirming) {
+    removeConfirming = true;
+    removeAllBtn.textContent = 'You sure?';
+    removeAllBtn.classList.add('confirming');
+    setTimeout(() => {
+      if (removeConfirming) {
+        removeConfirming = false;
+        removeAllBtn.textContent = 'Remove all';
+        removeAllBtn.classList.remove('confirming');
+      }
+    }, 3000);
+  } else {
+    await chrome.storage.local.set({ [STORAGE_KEY]: {} });
+    allFavorites = {};
+    chrome.runtime.sendMessage({ action: 'updateBadge' }).catch(() => {});
+    render(searchInput.value);
+    removeConfirming = false;
+    removeAllBtn.textContent = 'Remove all';
+    removeAllBtn.classList.remove('confirming');
   }
 });
 

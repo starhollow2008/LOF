@@ -1,4 +1,4 @@
-// osu! Local Favorites - Content Script v3.2.1
+// osu! Local Favorites - Content Script v2.2
 // Intercepts osu! favorite buttons via network-level blocking
 // Does NOT clone DOM elements — fully compatible with React
 
@@ -11,7 +11,7 @@
   // ── Network interceptor ────────────────────────────────────────
   // Inject interceptor.js into the page's MAIN world via <script src>
   // This intercepts jQuery's $.ajax XHR/fetch calls to /favourites
-  (function() {
+  (function () {
     var script = document.createElement('script');
     script.src = chrome.runtime.getURL('interceptor.js');
     (document.head || document.documentElement).appendChild(script);
@@ -43,7 +43,9 @@
         language: bm.language && bm.language.name || '',
         url: 'https://osu.ppy.sh/beatmapsets/' + bm.id,
         favourited_at: new Date().toISOString(),
-        nsfw: bm.nsfw || false
+        featured_artist: !!bm.track_id,
+        nsfw: bm.nsfw || false,
+        preview: 'https://b.ppy.sh/preview/' + bm.id + '.mp3'
       };
     } catch (e) { return null; }
   }
@@ -123,7 +125,8 @@
         language: '',
         url: 'https://osu.ppy.sh/beatmapsets/' + id,
         favourited_at: new Date().toISOString(),
-        nsfw: !!document.querySelector('.beatmapset-badge--nsfw') || false
+        nsfw: !!document.querySelector('.beatmapset-badge--nsfw') || false,
+        preview: 'https://b.ppy.sh/preview/' + id + '.mp3'
       };
     } catch (e) { return null; }
   }
@@ -279,7 +282,9 @@
         source: source, tags: '', genre: '', language: '',
         url: 'https://osu.ppy.sh/beatmapsets/' + id,
         favourited_at: new Date().toISOString(),
-        nsfw: !!card.querySelector('.beatmapset-badge--nsfw') || false
+        is_artist_featured: !!card.querySelector('.beatmapset-badge--featured_artist'),
+        nsfw: !!card.querySelector('.beatmapset-badge--nsfw') || false,
+        preview: 'https://b.ppy.sh/preview/' + id + '.mp3'
       };
     } catch (e) { return null; }
   }
@@ -332,27 +337,27 @@
   var _favCache = null;
 
   function getFavorites() {
-    return chrome.storage.local.get(STORAGE_KEY).then(function(r) {
+    return chrome.storage.local.get(STORAGE_KEY).then(function (r) {
       _favCache = r[STORAGE_KEY] || {};
       return _favCache;
-    }).catch(function() { return {}; });
+    }).catch(function () { return {}; });
   }
 
   function setFavorites(favs) {
     _favCache = favs;
     var obj = {};
     obj[STORAGE_KEY] = favs;
-    return chrome.storage.local.set(obj).catch(function(){});
+    return chrome.storage.local.set(obj).catch(function () { });
   }
 
   function updateBadge() {
     var count = _favCache ? Object.keys(_favCache).length : 0;
-    chrome.runtime.sendMessage({ action: 'updateBadge' }).catch(function(){});
+    chrome.runtime.sendMessage({ action: 'updateBadge' }).catch(function () { });
   }
 
   function isFavorited(id) {
     if (_favCache !== null) return Promise.resolve(!!_favCache[id]);
-    return getFavorites().then(function(favs) { return !!favs[id]; });
+    return getFavorites().then(function (favs) { return !!favs[id]; });
   }
 
   // ── Background enrichment ──────────────────────────────────────
@@ -361,15 +366,15 @@
   // always instant. Uses credentials so logged-in users get the full payload.
   function enrichBeatmapData(beatmapId) {
     return fetch('https://osu.ppy.sh/beatmapsets/' + beatmapId, { credentials: 'include' })
-      .then(function(r) { return r.ok ? r.text() : null; })
-      .then(function(html) {
+      .then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (html) {
         if (!html) return;
         var parser = new DOMParser();
         var doc = parser.parseFromString(html, 'text/html');
         var el = doc.getElementById('json-beatmapset');
         if (!el) return;
         var raw;
-        try { raw = JSON.parse(el.textContent); } catch(e) { return; }
+        try { raw = JSON.parse(el.textContent); } catch (e) { return; }
         var bm = raw.beatmapset || raw;
         if (!bm || !bm.id) return;
         var enriched = {
@@ -390,9 +395,11 @@
           genre: (bm.genre && bm.genre.name) || '',
           language: (bm.language && bm.language.name) || '',
           url: 'https://osu.ppy.sh/beatmapsets/' + bm.id,
-          nsfw: bm.nsfw || false
+          is_artist_featured: !!bm.track_id,
+          nsfw: bm.nsfw || false,
+          preview: 'https://b.ppy.sh/preview/' + bm.id + '.mp3'
         };
-        return getFavorites().then(function(favs) {
+        return getFavorites().then(function (favs) {
           var sid = String(bm.id);
           if (!favs[sid]) return; // Removed before enrichment finished — skip
           enriched.favourited_at = favs[sid].favourited_at || new Date().toISOString();
@@ -400,7 +407,7 @@
           return setFavorites(favs);
         });
       })
-      .catch(function() {});
+      .catch(function () { });
   }
 
   // Sequentially enriches a list of IDs with a delay between each request
@@ -410,14 +417,14 @@
     function next() {
       if (i >= ids.length) return;
       var id = ids[i++];
-      enrichBeatmapData(id).then(function() { setTimeout(next, delayMs); });
+      enrichBeatmapData(id).then(function () { setTimeout(next, delayMs); });
     }
     setTimeout(next, delayMs);
   }
 
   function toggleFavorite(beatmapId, card) {
     // Use in-memory cache for instant toggle detection (avoids stale storage reads)
-    return getFavorites().then(function(favs) {
+    return getFavorites().then(function (favs) {
       var wasFav = !!favs[beatmapId];
       var needsEnrich = false;
       if (wasFav) {
@@ -438,12 +445,12 @@
           };
         }
       }
-      return setFavorites(favs).then(function() {
+      return setFavorites(favs).then(function () {
         updateBadge();
         if (needsEnrich) enrichBeatmapData(beatmapId);
         return !wasFav;
       });
-    }).catch(function() {
+    }).catch(function () {
       return null;
     });
   }
@@ -524,7 +531,7 @@
     btn.textContent = 'Favorite all';
     btn.style.cssText = 'margin-left:10px;padding:2px 10px;font-size:11px;background:#ff66aa;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:600;transform:scale(1);transition:transform 0.1s';
 
-    btn.addEventListener('click', function(e) {
+    btn.addEventListener('click', function (e) {
       e.preventDefault(); e.stopPropagation();
       btn.textContent = 'Loading all...';
       btn.disabled = true;
@@ -542,7 +549,7 @@
         var before = grid ? grid.querySelectorAll('.beatmapset-panel').length : 0;
         showMore.click();
 
-        return new Promise(function(resolve) {
+        return new Promise(function (resolve) {
           var attempts = 0;
           function check() {
             attempts++;
@@ -561,7 +568,7 @@
 
       // Recursively click "show more" until all beatmaps are loaded
       function loadAllBeatmaps() {
-        return clickShowMoreOnce().then(function() {
+        return clickShowMoreOnce().then(function () {
           var sm = document.querySelector('.show-more-link--profile-page-beatmapsets');
           if (sm && sm.offsetParent !== null && !sm.disabled) {
             return loadAllBeatmaps();
@@ -569,9 +576,9 @@
         });
       }
 
-      loadAllBeatmaps().then(function() {
+      loadAllBeatmaps().then(function () {
         return getFavorites();
-      }).then(function(favs) {
+      }).then(function (favs) {
         if (!grid) return;
         var cards = grid.querySelectorAll('.beatmapset-panel, .beatmapsets__item');
         // Use a decreasing base timestamp so top-to-bottom DOM order is preserved
@@ -579,7 +586,7 @@
         var baseTime = Date.now();
         var count = 0;
         var newIds = [];
-        cards.forEach(function(card, i) {
+        cards.forEach(function (card, i) {
           var data = getBeatmapDataFromCard(card);
           if (data && !favs[data.id]) {
             // Subtract i seconds so first card (top) gets newest timestamp
@@ -590,7 +597,7 @@
           }
         });
 
-        return setFavorites(favs).then(function() {
+        return setFavorites(favs).then(function () {
           updateBadge();
           // Refresh the favorites panel if it's already open
           if (document.getElementById('osu-local-fav-panel')) {
@@ -600,11 +607,11 @@
           btn.textContent = 'Added ' + count + ', enriching...';
           // Enrich each card with full page data sequentially (400ms between requests)
           enrichBeatmapsSequential(newIds, 400);
-          setTimeout(function() { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
+          setTimeout(function () { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
         });
-      }).catch(function() {
+      }).catch(function () {
         btn.textContent = 'Error';
-        setTimeout(function() { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
+        setTimeout(function () { btn.textContent = 'Favorite all'; btn.disabled = false; }, 2000);
       });
     });
 
@@ -620,7 +627,7 @@
     ind.title = 'View local favorites';
     ind.style.cssText = 'position:fixed;bottom:40px;right:100px;z-index:99999;width:50px;height:50px;border-radius:50%;background:rgba(22,33,62,0.95);border:2px solid #ff66aa;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:26px;line-height:1;transition:all 0.2s ease;box-shadow:0 2px 16px rgba(255,102,170,0.3);user-select:none;-webkit-user-select:none;';
     ind.textContent = '🤍';
-    ind.addEventListener('click', function(e) {
+    ind.addEventListener('click', function (e) {
       e.preventDefault(); e.stopPropagation();
       showFavoritesPanel();
     });
@@ -634,152 +641,514 @@
       return;
     }
 
-    getFavorites().then(function(favs) {
-      var entries = Object.entries(favs).sort(function(a, b) {
-        var cmp = (b[1].favourited_at || '').localeCompare(a[1].favourited_at || '');
-        // Tiebreaker: if timestamps are equal, sort by beatmap ID descending
-        return cmp !== 0 ? cmp : (b[0].localeCompare(a[0]));
+    var currentSort = 'date', sortAsc = false, searchQuery = '';
+
+    // ── Inject CSS ──────────────────────────────────────────────────────────
+    if (!document.getElementById('osu-fav-panel-style')) {
+      var s = document.createElement('style');
+      s.id = 'osu-fav-panel-style';
+      s.textContent = [
+        '#osu-local-fav-panel{--bg:#111;--bg-surface:#1a1a1a;--bg-card:#222;--bg-card-hover:#2a2a2a;--bg-input:#1a1a1a;--text:#ddd;--text-secondary:#999;--text-muted:#666;--border:#333;--border-hover:#555;--pink:#ff66aa;--pink-dim:rgba(255,102,170,.12);--radius:4px;position:fixed;top:0;right:0;z-index:100000;width:360px;height:100vh;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:13px;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;box-shadow:-2px 0 16px rgba(0,0,0,.5)}',
+        '#osu-local-fav-panel *{box-sizing:border-box;margin:0;padding:0}',
+        '#osu-fav-header{padding:12px 14px 8px;background:var(--bg-surface);border-bottom:2px solid var(--pink);flex-shrink:0}',
+        '#osu-fav-header-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}',
+        '.osu-fav-logo{width:28px;height:28px;border-radius:50%;flex-shrink:0}',
+        '#osu-fav-title{flex:1;font-size:15px;font-weight:600;letter-spacing:-.2px}',
+        '#osu-fav-title span{color:var(--pink)}',
+        '.osu-fav-count{font-size:11px;color:var(--pink);background:var(--pink-dim);padding:2px 8px;border-radius:10px}',
+        '.osu-fav-close{background:none;border:1px solid var(--border);color:var(--text-muted);cursor:pointer;padding:2px 8px;border-radius:3px;font-size:12px;flex-shrink:0}',
+        '.osu-fav-close:hover{border-color:var(--border-hover);color:var(--text)}',
+        '#osu-fav-search{width:100%;padding:7px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:12px;outline:none}',
+        '#osu-fav-search::placeholder{color:var(--text-muted)}',
+        '#osu-fav-search:focus{border-color:var(--pink)}',
+        '#osu-fav-toolbar{display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--bg-surface);border-bottom:1px solid var(--border);flex-shrink:0}',
+        '.osu-fav-sort-group{display:flex;gap:2px;flex:1}',
+        '.osu-fav-sort-btn{font-size:10px;font-weight:500;padding:3px 8px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--text-muted);cursor:pointer;user-select:none}',
+        '.osu-fav-sort-btn:hover{color:var(--text-secondary)}',
+        '.osu-fav-sort-btn.active{background:var(--pink);color:#fff}',
+        '.osu-fav-actions{display:flex;gap:3px;flex-shrink:0}',
+        '.osu-fav-action-btn{font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--text-secondary);cursor:pointer}',
+        '.osu-fav-action-btn:hover{border-color:var(--pink);color:var(--pink)}',
+        '#osu-fav-list{flex:1;overflow-y:auto}',
+        '#osu-fav-list::-webkit-scrollbar{width:4px}',
+        '#osu-fav-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}',
+        '#osu-fav-list::-webkit-scrollbar-thumb:hover{background:var(--pink)}',
+        '.osu-fav-card{display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid #1e1e1e;align-items:center;transition:background .1s}',
+        '.osu-fav-card:hover{background:var(--bg-card-hover)}',
+        '.osu-fav-cover{width:56px;height:42px;border-radius:2px;overflow:hidden;flex-shrink:0;background:var(--bg-input);display:flex;align-items:center;justify-content:center}',
+        '.osu-fav-cover img{width:100%;height:100%;object-fit:cover}',
+        '.osu-fav-cover-empty{font-size:10px;color:var(--text-muted)}',
+        '.osu-fav-info{flex:1;min-width:0}',
+        '.osu-fav-card-title{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}',
+        '.osu-fav-card-artist{font-size:10px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;display:flex;align-items:center;gap:4px}',
+        '.osu-fav-card-artist span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+        '.osu-fav-card-meta{display:flex;gap:5px;font-size:10px;color:var(--text-muted);margin-top:2px;align-items:center}',
+        '.osu-fav-card-mapper{color:var(--pink);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px}',
+        '.osu-fav-card-status{font-weight:700;text-transform:uppercase;font-size:8px;letter-spacing:.3px}',
+        '.osu-fav-card-bpm{font-size:9px}',
+        '.osu-fav-card-date{font-size:9px;color:var(--text-muted);margin-top:1px}',
+        '.osu-fav-nsfw-badge{font-size:8px;color:#f6c243;border:1px solid #f6c243;border-radius:2px;padding:0 3px;vertical-align:middle;font-weight:600;margin-left:3px;flex-shrink:0}',
+        '.osu-fav-fa-badge{font-size:8px;color:#66ccff;border:1px solid #66ccff;border-radius:2px;padding:0 3px;vertical-align:middle;font-weight:600;flex-shrink:0}',
+        '.osu-fav-card-actions{display:flex;flex-direction:column;gap:2px;flex-shrink:0}',
+        '.osu-fav-open{font-size:10px;padding:2px 6px;border:1px solid var(--border);border-radius:2px;color:var(--text-muted);text-decoration:none;text-align:center;display:block}',
+        '.osu-fav-open:hover{border-color:var(--pink);color:var(--pink)}',
+        '.osu-fav-remove{font-size:10px;padding:2px 6px;border:1px solid var(--border);border-radius:2px;background:none;color:var(--text-muted);cursor:pointer}',
+        '.osu-fav-remove:hover{border-color:#e55;color:#e55}',
+        '.osu-fav-preview{font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:2px;background:none;color:var(--text-muted);cursor:pointer;text-align:center;line-height:1}',
+        '.osu-fav-preview:hover{border-color:var(--pink);color:var(--pink)}',
+        '.osu-fav-preview.playing{border-color:var(--pink);color:var(--pink);background:var(--pink-dim)}',
+        '.osu-fav-progress{height:2px;background:var(--border);border-radius:1px;margin-top:3px;overflow:hidden;display:none}',
+        '.osu-fav-progress.active{display:block}',
+        '.osu-fav-progress-bar{height:100%;width:0%;background:var(--pink);border-radius:1px}',
+        '#osu-fav-footer{padding:6px 14px;background:var(--bg-surface);border-top:1px solid var(--border);flex-shrink:0}',
+        '.osu-fav-remove-all{width:100%;font-size:10px;padding:4px 10px;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--text-muted);cursor:pointer;transition:background .1s,color .1s,border-color .1s}',
+        '.osu-fav-remove-all:hover{border-color:#e55;color:#e55}',
+        '.osu-fav-remove-all.confirming{background:#e55;color:#fff;border-color:#e55;font-weight:600}',
+        '.osu-fav-empty{text-align:center;color:var(--text-muted);padding:40px 20px;font-size:12px}',
+        '.osu-fav-toast{position:fixed;bottom:20px;right:380px;z-index:100001;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;font-size:12px;color:var(--text-secondary);box-shadow:0 2px 8px rgba(0,0,0,.5);pointer-events:none}'
+      ].join('');
+      document.head.appendChild(s);
+    }
+
+    // ── Panel shell ─────────────────────────────────────────────────────────
+    var panel = document.createElement('div');
+    panel.id = 'osu-local-fav-panel';
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    var header = document.createElement('div');
+    header.id = 'osu-fav-header';
+
+    var headerRow = document.createElement('div');
+    headerRow.id = 'osu-fav-header-row';
+
+    var logoEl = document.createElement('img');
+    logoEl.className = 'osu-fav-logo';
+    logoEl.src = chrome.runtime.getURL('icons/icon48.png');
+    logoEl.alt = '';
+
+    var titleEl = document.createElement('h2');
+    titleEl.id = 'osu-fav-title';
+    titleEl.innerHTML = 'osu! <span>Favorites</span>';
+
+    var countBadge = document.createElement('span');
+    countBadge.className = 'osu-fav-count';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'osu-fav-close';
+    closeBtn.textContent = '\u00d7 Close';
+    closeBtn.addEventListener('click', function () { panel.remove(); });
+
+    headerRow.appendChild(logoEl);
+    headerRow.appendChild(titleEl);
+    headerRow.appendChild(countBadge);
+    headerRow.appendChild(closeBtn);
+
+    var searchInput = document.createElement('input');
+    searchInput.id = 'osu-fav-search';
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search title, artist, mapper...';
+    searchInput.addEventListener('input', function () { searchQuery = searchInput.value; renderList(); });
+
+    header.appendChild(headerRow);
+    header.appendChild(searchInput);
+
+    // ── Toolbar ─────────────────────────────────────────────────────────────
+    var toolbar = document.createElement('div');
+    toolbar.id = 'osu-fav-toolbar';
+
+    var sortGroup = document.createElement('div');
+    sortGroup.className = 'osu-fav-sort-group';
+
+    var SORTS = ['date', 'title', 'artist', 'status'];
+    var sortBtns = {};
+    SORTS.forEach(function (s) {
+      var btn = document.createElement('button');
+      btn.className = 'osu-fav-sort-btn';
+      btn.dataset.sort = s;
+      btn.addEventListener('click', function () {
+        if (currentSort === s) { sortAsc = !sortAsc; }
+        else { currentSort = s; sortAsc = false; }
+        updateSortBtns();
+        renderList();
       });
+      sortGroup.appendChild(btn);
+      sortBtns[s] = btn;
+    });
 
-      var panel = document.createElement('div');
-      panel.id = 'osu-local-fav-panel';
-      panel.style.cssText = 'position:fixed;top:0;right:0;z-index:100000;width:360px;height:100vh;background:#111;color:#ddd;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;border-left:1px solid #333;display:flex;flex-direction:column;overflow:hidden;box-shadow:-2px 0 16px rgba(0,0,0,0.5);';
+    function updateSortBtns() {
+      SORTS.forEach(function (s) {
+        var btn = sortBtns[s];
+        var isActive = currentSort === s;
+        btn.textContent = s[0].toUpperCase() + s.slice(1) + (isActive ? (sortAsc ? ' \u2191' : ' \u2193') : '');
+        btn.classList.toggle('active', isActive);
+      });
+    }
 
-      // Header
-      var header = document.createElement('div');
-      header.style.cssText = 'padding:12px 14px;background:#1a1a1a;border-bottom:2px solid #ff66aa;display:flex;justify-content:space-between;align-items:center;flex-shrink:0';
-      header.innerHTML = '<span style="font-weight:600;font-size:14px">Local Favorites <span style="color:#ff66aa">' + entries.length + '</span></span><button id="osu-fav-panel-close" style="background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:12px">&times; Close</button>';
+    var exportBtn = document.createElement('button');
+    exportBtn.className = 'osu-fav-action-btn'; exportBtn.textContent = 'Export';
+    var importBtn = document.createElement('button');
+    importBtn.className = 'osu-fav-action-btn'; importBtn.textContent = 'Import';
+    var importFile = document.createElement('input');
+    importFile.type = 'file'; importFile.accept = '.json'; importFile.style.display = 'none';
 
-      // List
-      var list = document.createElement('div');
-      list.style.cssText = 'flex:1;overflow-y:auto;padding:4px 0';
-      if (entries.length === 0) {
-        list.innerHTML = '<p style="text-align:center;color:#666;padding:40px 20px;font-size:12px">No favorites yet.</p>';
-      }
+    var actionsGroup = document.createElement('div');
+    actionsGroup.className = 'osu-fav-actions';
+    actionsGroup.appendChild(exportBtn);
+    actionsGroup.appendChild(importBtn);
+    actionsGroup.appendChild(importFile);
 
-      entries.forEach(function(entry) {
-        var id = entry[0], f = entry[1];
-        var card = document.createElement('div');
-        card.style.cssText = 'display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid #222;align-items:center';
-        card.onmouseenter = function() { card.style.background = '#1e1e1e'; };
-        card.onmouseleave = function() { card.style.background = ''; };
+    toolbar.appendChild(sortGroup);
+    toolbar.appendChild(actionsGroup);
 
-        var coverUrl = (f.covers && f.covers.card) || (f.covers && f.covers.list) || (f.covers && f.covers.cover) || '';
+    // ── List ────────────────────────────────────────────────────────────────
+    var listEl = document.createElement('div');
+    listEl.id = 'osu-fav-list';
 
-        card.innerHTML =
-          (coverUrl
-            ? '<div style="width:50px;height:38px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#1a1a1a"><img src="' + coverUrl + '" style="width:100%;height:100%;object-fit:cover" loading="lazy" onerror="this.parentElement.innerHTML=\'?\'"></div>'
-            : '<div style="width:50px;height:38px;border-radius:2px;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:18px;color:#666">?</div>') +
-          '<div style="flex:1;min-width:0">' +
-            '<div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (f.title || f.title_unicode || 'Unknown') + (f.nsfw ? ' <span style="font-size:8px;color:#f6c243;border:1px solid #f6c243;border-radius:2px;padding:0 3px;vertical-align:middle">EXPLICIT</span>' : '') + '</div>' +
-            '<div style="font-size:10px;color:#999">' + (f.artist || f.artist_unicode || '') + '</div>' +
-            '<div style="font-size:9px;color:#666">' + (f.creator || '') + (f.bpm ? ' · ' + f.bpm + ' BPM' : '') + '</div>' +
-          '</div>' +
-          '<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">' +
-            '<a href="' + (f.url || 'https://osu.ppy.sh/beatmapsets/' + id) + '" target="_blank" style="font-size:9px;padding:2px 6px;border:1px solid #333;border-radius:2px;color:#999;text-decoration:none;text-align:center">Open</a>' +
-            '<button data-remove="' + id + '" style="font-size:9px;padding:2px 6px;border:1px solid #333;border-radius:2px;background:none;color:#999;cursor:pointer">Remove</button>' +
-          '</div>';
+    // ── Footer ──────────────────────────────────────────────────────────────
+    var footer = document.createElement('div');
+    footer.id = 'osu-fav-footer';
+    var removeAllBtn = document.createElement('button');
+    removeAllBtn.className = 'osu-fav-remove-all';
+    removeAllBtn.textContent = 'Remove all';
+    footer.appendChild(removeAllBtn);
 
-        card.querySelector('[data-remove]').addEventListener('click', function() {
-          getFavorites().then(function(favs) {
-            delete favs[id];
-            var obj2 = {}; obj2[STORAGE_KEY] = favs;
-            chrome.storage.local.set(obj2).then(function() {
-              _favCache = favs;
-              updateBadge();
-              showFavoritesPanel();
-            });
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function statusColor(s) {
+      return ({
+        ranked: '#4caf50', loved: '#ff66aa', qualified: '#4fc3f7',
+        approved: '#4caf50', pending: '#ff9800', wip: '#f44336',
+        graveyard: '#666', vip: '#f6c243'
+      }[s] || '#888');
+    }
+    function formatDate(iso) {
+      if (!iso) return '';
+      var d = new Date(iso), diff = Date.now() - d;
+      if (diff < 60000) return 'just now';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+      if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
+      return d.toLocaleDateString();
+    }
+    function showToast(msg) {
+      var t = document.createElement('div');
+      t.className = 'osu-fav-toast'; t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function () { t.remove(); }, 2500);
+    }
+
+    // ── Render ──────────────────────────────────────────────────────────────
+    function renderList() {
+      getFavorites().then(function (favs) {
+        var entries = Object.entries(favs);
+        countBadge.textContent = Object.keys(favs).length;
+
+        if (searchQuery.trim()) {
+          var q = searchQuery.toLowerCase();
+          entries = entries.filter(function (e) {
+            var f = e[1];
+            return (f.title || '').toLowerCase().includes(q) ||
+              (f.artist || '').toLowerCase().includes(q) ||
+              (f.creator || '').toLowerCase().includes(q) ||
+              (f.tags || '').toLowerCase().includes(q) ||
+              (f.source || '').toLowerCase().includes(q) ||
+              (f.id || '').includes(q);
           });
+        }
+
+        entries.sort(function (a, b) {
+          var fa = a[1], fb = b[1], cmp = 0;
+          if (currentSort === 'date') cmp = (fa.favourited_at || '').localeCompare(fb.favourited_at || '');
+          if (currentSort === 'title') cmp = (fa.title || '').localeCompare(fb.title || '');
+          if (currentSort === 'artist') cmp = (fa.artist || '').localeCompare(fb.artist || '');
+          if (currentSort === 'status') cmp = (fa.status || '').localeCompare(fb.status || '');
+          if (cmp === 0) cmp = b[0].localeCompare(a[0]);
+          return sortAsc ? cmp : -cmp;
         });
 
-        list.appendChild(card);
+        listEl.innerHTML = '';
+
+        if (Object.keys(favs).length === 0) {
+          listEl.innerHTML = '<p class="osu-fav-empty">No favorites yet.</p>';
+          return;
+        }
+        if (entries.length === 0) {
+          listEl.innerHTML = '<p class="osu-fav-empty">No matches.</p>';
+          return;
+        }
+
+        var frag = document.createDocumentFragment();
+
+        // Singleton audio player so only one preview plays at a time
+        if (!window._osuFavAudio) {
+          window._osuFavAudio = new Audio();
+          window._osuFavAudio._activeBtn = null;
+          window._osuFavAudio._activeBar = null;
+          window._osuFavAudio.addEventListener('ended', function () {
+            if (window._osuFavAudio._activeBtn) {
+              window._osuFavAudio._activeBtn.textContent = '\u25b6';
+              window._osuFavAudio._activeBtn.classList.remove('playing');
+            }
+            if (window._osuFavAudio._activeBar) {
+              window._osuFavAudio._activeBar.parentElement.classList.remove('active');
+              window._osuFavAudio._activeBar.style.width = '0%';
+            }
+            window._osuFavAudio._activeBtn = null;
+            window._osuFavAudio._activeBar = null;
+          });
+          window._osuFavAudio.addEventListener('timeupdate', function () {
+            if (window._osuFavAudio._activeBar && window._osuFavAudio.duration) {
+              var pct = (window._osuFavAudio.currentTime / window._osuFavAudio.duration) * 100;
+              window._osuFavAudio._activeBar.style.width = pct + '%';
+            }
+          });
+        }
+
+        entries.forEach(function (entry) {
+          var id = entry[0], f = entry[1];
+          var card = document.createElement('div');
+          card.className = 'osu-fav-card';
+
+          // Cover
+          var coverEl = document.createElement('div');
+          coverEl.className = 'osu-fav-cover';
+          var coverUrl = (f.covers && (f.covers.card || f.covers['card@2x'] || f.covers.list || f.covers.cover)) || '';
+          if (coverUrl) {
+            var img = document.createElement('img');
+            img.src = coverUrl; img.loading = 'lazy';
+            img.addEventListener('error', function () {
+              img.remove();
+              var empty = document.createElement('span');
+              empty.className = 'osu-fav-cover-empty'; empty.textContent = 'No cover';
+              coverEl.appendChild(empty);
+            });
+            coverEl.appendChild(img);
+          } else {
+            var empty2 = document.createElement('span');
+            empty2.className = 'osu-fav-cover-empty'; empty2.textContent = 'No cover';
+            coverEl.appendChild(empty2);
+          }
+
+          // Info
+          var info = document.createElement('div');
+          info.className = 'osu-fav-info';
+
+          var titleDiv = document.createElement('div');
+          titleDiv.className = 'osu-fav-card-title';
+          titleDiv.textContent = f.title || f.title_unicode || 'Unknown';
+          if (f.nsfw) {
+            var nsfwBadge = document.createElement('span');
+            nsfwBadge.className = 'osu-fav-nsfw-badge'; nsfwBadge.textContent = 'EXPLICIT';
+            titleDiv.appendChild(nsfwBadge);
+          }
+
+          var artistDiv = document.createElement('div');
+          artistDiv.className = 'osu-fav-card-artist';
+          var artistText = document.createElement('span');
+          artistText.textContent = f.artist || f.artist_unicode || '';
+          artistDiv.appendChild(artistText);
+          if (f.is_artist_featured) {
+            var faBadge = document.createElement('span');
+            faBadge.className = 'osu-fav-fa-badge'; faBadge.textContent = 'FEATURED ARTIST';
+            artistDiv.appendChild(faBadge);
+          }
+
+          var metaDiv = document.createElement('div');
+          metaDiv.className = 'osu-fav-card-meta';
+          if (f.creator) {
+            var m = document.createElement('span');
+            m.className = 'osu-fav-card-mapper'; m.textContent = f.creator;
+            metaDiv.appendChild(m);
+          }
+          if (f.status) {
+            var st = document.createElement('span');
+            st.className = 'osu-fav-card-status';
+            st.textContent = f.status.toUpperCase();
+            st.style.color = statusColor(f.status);
+            metaDiv.appendChild(st);
+          }
+          if (f.bpm) {
+            var bpm = document.createElement('span');
+            bpm.className = 'osu-fav-card-bpm'; bpm.textContent = f.bpm + ' BPM';
+            metaDiv.appendChild(bpm);
+          }
+
+          var dateDiv = document.createElement('div');
+          dateDiv.className = 'osu-fav-card-date';
+          dateDiv.textContent = formatDate(f.favourited_at);
+
+          // Progress bar (shown when playing)
+          var progressWrap = document.createElement('div');
+          progressWrap.className = 'osu-fav-progress';
+          var progressBar = document.createElement('div');
+          progressBar.className = 'osu-fav-progress-bar';
+          progressWrap.appendChild(progressBar);
+
+          info.appendChild(titleDiv);
+          info.appendChild(artistDiv);
+          info.appendChild(metaDiv);
+          info.appendChild(dateDiv);
+          info.appendChild(progressWrap);
+
+          // Actions
+          var actions = document.createElement('div');
+          actions.className = 'osu-fav-card-actions';
+
+          var openLink = document.createElement('a');
+          openLink.className = 'osu-fav-open';
+          openLink.href = f.url || 'https://osu.ppy.sh/beatmapsets/' + id;
+          openLink.target = '_blank'; openLink.textContent = 'Open';
+
+          var removeBtn2 = document.createElement('button');
+          removeBtn2.className = 'osu-fav-remove'; removeBtn2.textContent = 'Remove';
+          (function (rid) {
+            removeBtn2.addEventListener('click', function () {
+              getFavorites().then(function (favs2) {
+                delete favs2[rid];
+                var obj = {}; obj[STORAGE_KEY] = favs2;
+                chrome.storage.local.set(obj).then(function () {
+                  _favCache = favs2;
+                  updateBadge();
+                  renderList();
+                });
+              });
+            });
+          })(id);
+
+          actions.appendChild(openLink);
+
+          // Preview button (always present — URL is derived from ID)
+          var previewUrl = f.preview || ('https://b.ppy.sh/preview/' + id + '.mp3');
+          var previewBtn = document.createElement('button');
+          previewBtn.className = 'osu-fav-preview';
+          previewBtn.textContent = '\u25b6';
+          previewBtn.title = 'Preview audio';
+          (function (pUrl, pBtn, pBar, pWrap) {
+            pBtn.addEventListener('click', function () {
+              var audio = window._osuFavAudio;
+              var isSame = (audio.src === pUrl || audio.src.replace('https://', '') === pUrl.replace('https://', ''));
+              if (isSame) {
+                if (!audio.paused) {
+                  audio.pause();
+                  pBtn.textContent = '\u25b6';
+                  pBtn.classList.remove('playing');
+                } else {
+                  audio.play();
+                  pBtn.textContent = '\u23f8';
+                  pBtn.classList.add('playing');
+                }
+                return;
+              }
+              // Stop current track
+              if (audio._activeBtn) {
+                audio._activeBtn.textContent = '\u25b6';
+                audio._activeBtn.classList.remove('playing');
+              }
+              if (audio._activeBar) {
+                audio._activeBar.parentElement.classList.remove('active');
+                audio._activeBar.style.width = '0%';
+              }
+              audio.pause();
+              // Start new track
+              audio.src = pUrl;
+              audio._activeBtn = pBtn;
+              audio._activeBar = pBar;
+              pWrap.classList.add('active');
+              pBtn.textContent = '\u23f8';
+              pBtn.classList.add('playing');
+              audio.play().catch(function () {
+                pBtn.textContent = '\u25b6';
+                pBtn.classList.remove('playing');
+              });
+            });
+          })(previewUrl, previewBtn, progressBar, progressWrap);
+          actions.appendChild(previewBtn);
+
+          actions.appendChild(removeBtn2);
+          card.appendChild(coverEl);
+          card.appendChild(info);
+          card.appendChild(actions);
+          frag.appendChild(card);
+        });
+
+        listEl.appendChild(frag);
       });
+    }
 
-      // Footer
-      var footer = document.createElement('div');
-      footer.style.cssText = 'padding:8px 14px;border-top:1px solid #333;background:#1a1a1a;display:flex;gap:6px;flex-shrink:0;justify-content:space-between;align-items:center';
-      footer.innerHTML = '<div style="display:flex;gap:6px"><button id="osu-fav-export" style="font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;background:none;color:#999;cursor:pointer">Export</button><button id="osu-fav-import" style="font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;background:none;color:#999;cursor:pointer">Import</button></div><button id="osu-fav-remove-all" style="font-size:10px;padding:4px 10px;border:1px solid #555;border-radius:3px;background:none;color:#888;cursor:pointer">Remove all</button><input type="file" id="osu-fav-import-file" accept=".json" style="display:none">';
+    // ── Assemble ────────────────────────────────────────────────────────────
+    panel.appendChild(header);
+    panel.appendChild(toolbar);
+    panel.appendChild(listEl);
+    panel.appendChild(footer);
+    document.body.appendChild(panel);
+    updateSortBtns();
+    renderList();
 
-      panel.appendChild(header);
-      panel.appendChild(list);
-      panel.appendChild(footer);
-      document.body.appendChild(panel);
-
-      document.getElementById('osu-fav-panel-close').addEventListener('click', function() { panel.remove(); });
-      document.getElementById('osu-fav-export').addEventListener('click', function() {
+    // ── Events ──────────────────────────────────────────────────────────────
+    exportBtn.addEventListener('click', function () {
+      getFavorites().then(function (favs) {
         var data = JSON.stringify(favs, null, 2);
         var blob = new Blob([data], { type: 'application/json' });
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'osu-favorites-' + new Date().toISOString().slice(0, 10) + '.json';
-        a.click();
-        URL.revokeObjectURL(a.href);
+        a.click(); URL.revokeObjectURL(a.href);
+        showToast('Exported!');
       });
-      document.getElementById('osu-fav-import').addEventListener('click', function() {
-        document.getElementById('osu-fav-import-file').click();
-      });
+    });
 
-      // Two-click confirmation for "Remove all"
-      (function() {
-        var removeBtn = document.getElementById('osu-fav-remove-all');
-        var confirming = false;
-        removeBtn.addEventListener('click', function() {
-          if (!confirming) {
-            confirming = true;
-            removeBtn.textContent = 'You sure?';
-            removeBtn.style.background = '#ff4444';
-            removeBtn.style.color = '#fff';
-            removeBtn.style.borderColor = '#ff4444';
-            removeBtn.style.fontWeight = '600';
-            setTimeout(function() {
-              if (confirming) {
-                confirming = false;
-                removeBtn.textContent = 'Remove all';
-                removeBtn.style.background = 'none';
-                removeBtn.style.color = '#888';
-                removeBtn.style.borderColor = '#555';
-                removeBtn.style.fontWeight = '';
-              }
-            }, 3000);
-          } else {
-            // Second click: clear everything
-            var obj = {}; obj[STORAGE_KEY] = {};
-            chrome.storage.local.set(obj).then(function() {
-              _favCache = {};
+    importBtn.addEventListener('click', function () { importFile.click(); });
+    importFile.addEventListener('change', function (e) {
+      if (!e.target.files[0]) return;
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        try {
+          var data = JSON.parse(ev.target.result);
+          if (typeof data !== 'object' || Array.isArray(data)) throw new Error('Expected JSON object');
+          getFavorites().then(function (existing) {
+            var added = 0;
+            for (var fid in data) {
+              if (!existing[fid]) { existing[fid] = data[fid]; added++; }
+            }
+            var obj2 = {}; obj2[STORAGE_KEY] = existing;
+            chrome.storage.local.set(obj2).then(function () {
+              _favCache = existing;
               updateBadge();
-              panel.remove();
+              renderList();
+              showToast('Added ' + added + '. Total: ' + Object.keys(existing).length);
             });
+          });
+        } catch (err) { showToast('Import failed: ' + err.message); }
+      };
+      reader.readAsText(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    var confirming = false;
+    removeAllBtn.addEventListener('click', function () {
+      if (!confirming) {
+        confirming = true;
+        removeAllBtn.textContent = 'You sure?';
+        removeAllBtn.classList.add('confirming');
+        setTimeout(function () {
+          if (confirming) {
+            confirming = false;
+            removeAllBtn.textContent = 'Remove all';
+            removeAllBtn.classList.remove('confirming');
           }
+        }, 3000);
+      } else {
+        var obj3 = {}; obj3[STORAGE_KEY] = {};
+        chrome.storage.local.set(obj3).then(function () {
+          _favCache = {};
+          updateBadge();
+          panel.remove();
         });
-      })();
-      document.getElementById('osu-fav-import-file').addEventListener('change', function(e) {
-        if (!e.target.files[0]) return;
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-          try {
-            var data = JSON.parse(ev.target.result);
-            if (typeof data !== 'object' || Array.isArray(data)) throw new Error('Expected JSON object');
-            getFavorites().then(function(existing) {
-              var added = 0;
-              for (var id in data) {
-                if (!existing[id]) { existing[id] = data[id]; added++; }
-              }
-              var obj3 = {}; obj3[STORAGE_KEY] = existing;
-              chrome.storage.local.set(obj3).then(function() {
-                _favCache = existing;
-                updateBadge();
-                showFavoritesPanel();
-              });
-            });
-          } catch (err) { alert('Import failed: ' + err.message); }
-        };
-        reader.readAsText(e.target.files[0]);
-      });
+      }
     });
   }
 
   // ── Capture-phase click interception ───────────────────────────
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', function (e) {
     var button = e.target.closest('button, a');
     if (!button) return;
     if (!isFavButton(button)) return;
@@ -790,12 +1159,12 @@
     e.stopPropagation();
     e.stopImmediatePropagation();
 
-    toggleFavorite(ctx.beatmapId, ctx.card).then(function(nowFav) {
+    toggleFavorite(ctx.beatmapId, ctx.card).then(function (nowFav) {
       if (nowFav === null) return;
       updateHeartVisual(button, nowFav);
       button.style.transform = 'scale(1.2)';
       button.style.transition = 'transform 0.1s ease';
-      setTimeout(function() { button.style.transform = 'scale(1)'; }, 120);
+      setTimeout(function () { button.style.transform = 'scale(1)'; }, 120);
     });
   }, true);
 
@@ -810,19 +1179,19 @@
         btn.dataset.osuFavChecked = '1';
         var ctx = resolveBeatmapContext(btn);
         if (ctx.beatmapId) {
-          isFavorited(ctx.beatmapId).then(function(id, b) {
-            return function(fav) { updateHeartVisual(b, fav); };
+          isFavorited(ctx.beatmapId).then(function (id, b) {
+            return function (fav) { updateHeartVisual(b, fav); };
           }(ctx.beatmapId, btn));
         }
       }
-    } catch(e) {}
+    } catch (e) { }
   }
 
   // ── Observer ───────────────────────────────────────────────────
   var observerTimer = null;
-  var observer = new MutationObserver(function() {
+  var observer = new MutationObserver(function () {
     if (observerTimer) return;
-    observerTimer = setTimeout(function() {
+    observerTimer = setTimeout(function () {
       observerTimer = null;
       ensureHeartIndicator();
       addCopyAllButton();
