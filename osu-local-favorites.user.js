@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      3.4.1
+// @version      3.5.2
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
-// @description  Store osu! beatmap favorites locally instead of on osu!'s servers.
+// @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
 // @match        https://osu.ppy.sh/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
-// @run-at       document-idle
+// @run-at       document-start
 // ==/UserScript==
 
 /* === osu! Local Favorites — Tampermonkey Edition === */
@@ -19,9 +19,11 @@
   const STORAGE_KEY = "osu_local_favorites";
 
   // ═══ Page-world XHR/fetch interceptor ═══
+  // Also blocks login redirects triggered by unauthenticated favourite actions.
   function injectInterceptor() {
     const script = document.createElement("script");
     script.textContent = `(${function () {
+      // ── XHR intercept: block /favourites requests ──
       const origOpen = XMLHttpRequest.prototype.open;
       XMLHttpRequest.prototype.open = function (method, url) {
         if (typeof url === "string" && url.includes("/favourites")) {
@@ -57,6 +59,8 @@
         }
         return origSend.apply(this, arguments);
       };
+
+      // ── Fetch intercept: block /favourites and auth-error responses ──
       const origFetch = window.fetch;
       window.fetch = function (url, options) {
         const urlStr = typeof url === "string" ? url : (url && url.url) || "";
@@ -70,6 +74,58 @@
         }
         return origFetch.apply(this, arguments);
       };
+
+      // ── Navigation intercept: block login redirects from favourite clicks ──
+      // osu! SPA navigates via history.pushState when not logged in for some actions.
+      // We trap pushState/replaceState and location.href assignments that redirect to /login.
+      // Only redirects that originate within 500ms of a favourite-click are blocked.
+      let _favClickPending = false;
+      document.addEventListener("click", function (e) {
+        const btn = e.target && e.target.closest && e.target.closest("button, a");
+        if (!btn) return;
+        // Check if this looks like a favourite button
+        const title = (btn.getAttribute("title") || btn.getAttribute("aria-label") || "").toLowerCase();
+        const cls = (btn.className || "").toLowerCase();
+        const text = (btn.textContent || "").toLowerCase();
+        const href = (btn.getAttribute("href") || "");
+        const isFavLike =
+          title.includes("avourite") || title.includes("avorite") ||
+          cls.includes("avourite") || cls.includes("avorite") ||
+          text.includes("avourite") || text.includes("avorite") ||
+          btn.querySelector(".fa-heart, .fas.fa-heart, .far.fa-heart") ||
+          href.includes("/favourites");
+        if (isFavLike) {
+          _favClickPending = true;
+          setTimeout(() => { _favClickPending = false; }, 800);
+        }
+      }, true);
+
+      const _origPushState = history.pushState.bind(history);
+      history.pushState = function (state, title, url) {
+        if (_favClickPending && typeof url === "string" && url.includes("/login")) {
+          return; // block login redirect
+        }
+        return _origPushState(state, title, url);
+      };
+
+      const _origReplaceState = history.replaceState.bind(history);
+      history.replaceState = function (state, title, url) {
+        if (_favClickPending && typeof url === "string" && url.includes("/login")) {
+          return; // block login redirect
+        }
+        return _origReplaceState(state, title, url);
+      };
+
+      // Intercept anchor navigation to /login triggered by favourite actions
+      document.addEventListener("click", function (e) {
+        const a = e.target && e.target.closest && e.target.closest("a");
+        if (!a) return;
+        const href = a.getAttribute("href") || "";
+        if (href.includes("/login") && _favClickPending) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      }, true);
     }})();`;
     (document.head || document.documentElement).appendChild(script);
   }
@@ -363,8 +419,44 @@
   }
 
   // ═══ Favorite button detection ═══
+  // Accepts BUTTON, A, and SPAN elements (the guest-disabled span on listing pages).
   function isFavButton(el) {
-    if (el.tagName !== "BUTTON" && el.tagName !== "A") return false;
+    if (el.id === "osu-local-guest-fav-btn") return false;
+    const tag = el.tagName;
+    const isInteractive = tag === "BUTTON" || tag === "A" || tag === "SPAN";
+    if (!isInteractive) return false;
+
+    // ── Fast path: the guest-disabled span osu! renders when not signed in ──
+    // <span class="beatmapset-panel__menu-item beatmapset-panel__menu-item--disabled"
+    //       data-orig-title="sign in to favourite this beatmap">
+    //   <span class="far fa-heart"></span>
+    // </span>
+    const cls = (el.className || "").toString();
+    if (
+      cls.includes("beatmapset-panel__menu-item") &&
+      (cls.includes("disabled") || cls.includes("avourite") || cls.includes("avorite"))
+    ) return true;
+    if (cls.includes("beatmapset-panel__menu-item") && el.querySelector(".fa-heart"))
+      return true;
+
+    // For SPANs that aren't the specific menu-item, require them to look like a fav button
+    if (tag === "SPAN") {
+      const title = (
+        el.getAttribute("title") ||
+        el.getAttribute("data-orig-title") ||
+        el.getAttribute("aria-label") ||
+        ""
+      ).toLowerCase();
+      if (title.includes("avourite") || title.includes("avorite")) return true;
+      // Only match spans that contain a heart icon and are inside a beatmap panel
+      if (
+        el.querySelector(".fa-heart, .fas.fa-heart, .far.fa-heart") &&
+        el.closest(".beatmapset-panel")
+      ) return true;
+      return false;
+    }
+
+    // BUTTON / A checks below
     if (
       el.querySelector(
         ".fa-heart, .fas.fa-heart, .far.fa-heart, .fal.fa-heart, .fa-solid.fa-heart, .fa-regular.fa-heart",
@@ -399,7 +491,6 @@
     const text = (el.textContent || "").toLowerCase().trim();
     if (text.includes("avourite") || text.includes("avorite")) return true;
 
-    const cls = (el.className || "").toLowerCase();
     if (
       typeof cls === "string" &&
       (cls.includes("avourite") || cls.includes("avorite"))
@@ -431,10 +522,26 @@
 
   // ═══ Visual helpers ═══
   function updateHeartVisual(el, isFav) {
-    const heart = el.querySelector(".fa-heart, .fas.fa-heart, .far.fa-heart");
+    // Update FontAwesome heart solid/outline
+    const heart = el.querySelector(".fa-heart");
     if (heart) {
       heart.classList.toggle("far", !isFav);
       heart.classList.toggle("fas", isFav);
+    }
+    // Also update the container span's disabled/active look
+    const cls = (el.className || "").toString();
+    if (cls.includes("beatmapset-panel__menu-item")) {
+      el.classList.toggle("beatmapset-panel__menu-item--disabled", false);
+      if (isFav) {
+        el.style.color = "#ff3377";
+        el.style.cursor = "pointer";
+        el.removeAttribute("data-orig-title");
+        el.title = "Remove from local favorites";
+      } else {
+        el.style.color = "";
+        el.style.cursor = "pointer";
+        el.title = "Add to local favorites";
+      }
     }
   }
 
@@ -725,6 +832,23 @@
     update();
   }
 
+  function updateGuestButtonVisual() {
+    const btn = document.getElementById("osu-local-guest-fav-btn");
+    if (!btn) return;
+    const bmid = getBeatmapId();
+    if (!bmid) return;
+    const fav = isFavorited(bmid);
+    const heart = btn.querySelector(".fa-heart");
+    if (heart) {
+      heart.classList.toggle("far", !fav);
+      heart.classList.toggle("fas", fav);
+    }
+    btn.setAttribute(
+      "data-orig-title",
+      fav ? "remove from local favorites" : "save to local favorites"
+    );
+  }
+
   function updateFloatingHeart() {
     const ind = document.getElementById("osu-local-fav-ind");
     if (!ind) return;
@@ -735,13 +859,15 @@
     ind.style.boxShadow = fav
       ? "0 2px 20px rgba(255,51,119,0.6)"
       : "0 2px 16px rgba(255,102,170,0.3)";
+    updateGuestButtonVisual();
   }
 
   // ═══ Click interception ═══
   document.addEventListener(
     "click",
     function (e) {
-      const button = e.target.closest("button, a");
+      // Also intercept clicks on the guest-disabled <span> (not just button/a)
+      const button = e.target.closest("button, a, span.beatmapset-panel__menu-item");
       if (!button || !isFavButton(button)) return;
 
       const ctx = resolveBeatmapContext(button);
@@ -765,13 +891,22 @@
 
   // ═══ Refresh visible buttons ═══
   function refreshButtons() {
-    const buttons = document.querySelectorAll("button");
-    buttons.forEach((btn) => {
+    // Also scan disabled <span> elements used when the user is not signed in
+    const candidates = document.querySelectorAll(
+      "button, span.beatmapset-panel__menu-item",
+    );
+    candidates.forEach((btn) => {
       if (!isFavButton(btn) || btn.dataset.osuFavChecked) return;
       btn.dataset.osuFavChecked = "1";
       const ctx = resolveBeatmapContext(btn);
       if (ctx.beatmapId) {
         updateHeartVisual(btn, isFavorited(ctx.beatmapId));
+        // Make the disabled span look clickable
+        if (btn.tagName === "SPAN") {
+          btn.style.cursor = "pointer";
+          btn.style.opacity = "1";
+          btn.style.pointerEvents = "auto";
+        }
       }
     });
   }
@@ -1370,12 +1505,98 @@
   // ═══ Menu command ═══
   GM_registerMenuCommand("View Local Favorites", showFavoritesPanel);
 
+  // ═══ Guest-mode fallback button ═══
+  // On beatmapset detail pages (/beatmapsets/12345), no heart button exists when
+  // not signed in. We inject a standalone button into the page header area.
+  function addGuestFavoriteButton() {
+    const path = location.pathname;
+    // Only on beatmapset detail pages (not the listing /beatmapsets)
+    if (!path.match(/^\/beatmapsets\/\d+/)) return;
+    // Don't inject if already present
+    if (document.getElementById("osu-local-guest-fav-btn")) return;
+
+    const bmid = getBeatmapId();
+    if (!bmid) return;
+
+    // If the native osu! favourite button already exists on the page (user is logged in),
+    // we don't need to inject our guest fallback — our click interceptor handles the native button.
+    if (
+      document.querySelector(".btn-osu-big--beatmapset-header-square-favourite") ||
+      document.querySelector("button[data-orig-title='favourite this beatmap']") ||
+      document.querySelector("button[title='favourite this beatmap']")
+    ) return;
+
+    // Try multiple anchor points in order of preference.
+    // Prefer the header buttons row (.beatmapset-header__buttons) so our button sits alongside
+    // the native download buttons. Fall back progressively for older/different page layouts.
+    const anchor =
+      document.querySelector(".beatmapset-header__buttons") ||
+      document.querySelector(".beatmapset-header__actions") ||
+      document.querySelector("[class*='beatmapset-header__actions']") ||
+      document.querySelector(".beatmapset__header .beatmapset-header__details") ||
+      document.querySelector(".beatmapset__header") ||
+      document.querySelector(".beatmapset-info") ||
+      null;
+
+    if (!anchor) return;
+
+    const fav = isFavorited(bmid);
+
+    // Build the button using the exact same class and inner-HTML structure as osu!'s
+    // native favourite button — so it sits flush with the download buttons and uses
+    // the page's own CSS for sizing, colours, and hover effects.
+    const btn = document.createElement("button");
+    btn.id = "osu-local-guest-fav-btn";
+    btn.type = "button";
+    btn.className =
+      "btn-osu-big btn-osu-big--beatmapset-header-square " +
+      "btn-osu-big--beatmapset-header-square-favourite";
+    btn.setAttribute(
+      "data-orig-title",
+      fav ? "remove from local favorites" : "save to local favorites"
+    );
+    // Inner HTML mirrors the native button exactly:
+    // <span.btn-osu-big__content> > <span.btn-osu-big__icon> > <span.fa.fa-fw> > <span.{far|fas}.fa-heart>
+    btn.innerHTML =
+      '<span class="btn-osu-big__content btn-osu-big__content--center">' +
+        '<span class="btn-osu-big__icon">' +
+          '<span class="fa fa-fw">' +
+            '<span class="' + (fav ? "fas" : "far") + ' fa-heart"></span>' +
+          '</span>' +
+        '</span>' +
+      '</span>';
+
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const nowFav = toggleFavorite(bmid, null);
+      // Mirror the native button's animation
+      btn.style.transform = "scale(1.15)";
+      btn.style.transition = "transform 0.1s";
+      setTimeout(() => { btn.style.transform = "scale(1)"; }, 120);
+      // Toggle the heart icon class
+      const heart = btn.querySelector(".fa-heart");
+      if (heart) {
+        heart.classList.toggle("far", !nowFav);
+        heart.classList.toggle("fas", nowFav);
+      }
+      btn.setAttribute(
+        "data-orig-title",
+        nowFav ? "remove from local favorites" : "save to local favorites"
+      );
+    });
+
+    // Prepend so it appears before the download buttons, matching logged-in position
+    anchor.insertBefore(btn, anchor.firstChild);
+  }
+
   // ═══ Init ═══
   function init() {
     injectInterceptor();
     getFavorites();
     ensureHeartIndicator();
     addCopyAllButton();
+    addGuestFavoriteButton();
 
     // Debounced observer — runs at most once per 600ms to avoid freezing the page
     let timer = null;
@@ -1387,6 +1608,7 @@
         if (!document.getElementById("osu-local-fav-ind"))
           ensureHeartIndicator();
         addCopyAllButton();
+        addGuestFavoriteButton();
         updateFloatingHeart();
       }, 600);
     };
@@ -1404,6 +1626,7 @@
       if (location.href !== lastUrl) {
         lastUrl = location.href;
         ensureHeartIndicator();
+        addGuestFavoriteButton();
         debouncedRefresh();
       }
     }, 800);
@@ -1411,6 +1634,8 @@
     // Initial refresh after page settles
     setTimeout(refreshButtons, 800);
     setTimeout(refreshButtons, 2000);
+    setTimeout(addGuestFavoriteButton, 1200);
+    setTimeout(addGuestFavoriteButton, 2500);
   }
 
   if (document.readyState === "loading") {
