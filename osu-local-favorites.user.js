@@ -1866,6 +1866,94 @@
     });
   }
 
+  // ═══ Update prompt UI ═══
+  function showUpdatePrompt(latestVersion) {
+    const dismissed = GM_getValue("osu_dismissed_version", "");
+    if (dismissed === latestVersion) return;
+
+    if (document.getElementById("osu-local-update-prompt")) return;
+
+    const modal = document.createElement("div");
+    modal.id = "osu-local-update-prompt";
+    Object.assign(modal.style, {
+      position: "fixed",
+      bottom: "20px",
+      right: "20px",
+      zIndex: "100002",
+      width: "320px",
+      background: "#111",
+      border: "1px solid #333",
+      borderRadius: "4px",
+      padding: "16px",
+      color: "#ddd",
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontSize: "13px",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+    });
+
+    const header = document.createElement("div");
+    header.style.cssText =
+      "display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px;color:#ff66aa";
+    header.innerHTML = `<span>✨ Update Available</span>`;
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText =
+      "background:none;border:none;color:#666;cursor:pointer;font-size:14px;padding:0";
+    closeBtn.addEventListener("mouseenter", () => (closeBtn.style.color = "#999"));
+    closeBtn.addEventListener("mouseleave", () => (closeBtn.style.color = "#666"));
+    closeBtn.addEventListener("click", () => {
+      modal.remove();
+      GM_setValue("osu_dismissed_version", latestVersion);
+    });
+    header.appendChild(closeBtn);
+
+    const body = document.createElement("div");
+    body.style.lineHeight = "1.4";
+    body.innerHTML = `A new version of <b>osu! Local Favorites</b> (v${latestVersion}) is available. Would you like to update now?`;
+
+    const footer = document.createElement("div");
+    footer.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:4px";
+
+    const ignoreBtn = document.createElement("button");
+    ignoreBtn.textContent = "Later";
+    ignoreBtn.style.cssText =
+      "background:none;border:1px solid #333;color:#888;padding:5px 12px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:600";
+    ignoreBtn.addEventListener("mouseenter", () => {
+      ignoreBtn.style.borderColor = "#444";
+      ignoreBtn.style.color = "#aaa";
+    });
+    ignoreBtn.addEventListener("mouseleave", () => {
+      ignoreBtn.style.borderColor = "#333";
+      ignoreBtn.style.color = "#888";
+    });
+    ignoreBtn.addEventListener("click", () => {
+      modal.remove();
+      GM_setValue("osu_dismissed_version", latestVersion);
+    });
+
+    const updateBtn = document.createElement("button");
+    updateBtn.textContent = "Update Now";
+    updateBtn.style.cssText =
+      "background:#ff66aa;color:#fff;border:none;padding:5px 12px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:600;transition:background 0.2s";
+    updateBtn.addEventListener("mouseenter", () => (updateBtn.style.background = "#ff3377"));
+    updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "#ff66aa"));
+    updateBtn.addEventListener("click", () => {
+      window.open(
+        "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
+        "_blank",
+      );
+      modal.remove();
+    });
+
+    footer.append(ignoreBtn, updateBtn);
+    modal.append(header, body, footer);
+    document.body.appendChild(modal);
+  }
+
   // ═══ Init ═══
   function init() {
     injectInterceptor();
@@ -1874,6 +1962,14 @@
     addCopyAllButton();
     addGuestFavoriteButton();
     enableGuestDownloads();
+
+    // Auto-check version update on script load
+    checkVersionUpdate().then((latestVersion) => {
+      const currentVersion = typeof GM_info !== "undefined" ? GM_info.script.version : "3.6.1";
+      if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
+        showUpdatePrompt(latestVersion);
+      }
+    });
 
     // Debounced observer — runs at most once per 600ms to avoid freezing the page
     let timer = null;
