@@ -12,14 +12,16 @@ Here is a visual demonstration of the extension in action:
 
 | Beatmap Detail Page & Floating Indicator | Local Favorites Side Panel |
 | :---: | :---: |
-| ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/favoritespanel.jpg) |
+| ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/sidepanel.jpg) |
 
 | Beatmap Listing (With & Without Extension) | Music Previews |
 | :---: | :---: |
 | ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
 
 *The extension also features a heart icon in the bottom-right corner of the page:*
-![Indicator](screenshots/ofnotfavorited.jpg)![Indicator](screenshots/onfavorited.jpg)
+
+| :---: | :---: |
+| ![Comparison](screenshots/onnotfavorited.jpg) | ![Comparison](screenshots/onfavorited.jpg) |
 
 ## How to install
 
