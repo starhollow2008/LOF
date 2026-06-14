@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      3.5.3
+// @version      3.6.1
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -426,12 +426,26 @@
     const isInteractive = tag === "BUTTON" || tag === "A" || tag === "SPAN";
     if (!isInteractive) return false;
 
+    const cls = (el.className || "").toString();
+    const title = (
+      el.getAttribute("title") ||
+      el.getAttribute("data-orig-title") ||
+      el.getAttribute("aria-label") ||
+      ""
+    ).toLowerCase();
+
+    // Reject download buttons immediately — never treat them as fav buttons
+    if (
+      cls.includes("download") ||
+      title.includes("download") ||
+      el.querySelector(".fa-file-download, .fa-download, .fas.fa-file-download, .fas.fa-download")
+    ) return false;
+
     // ── Fast path: the guest-disabled span osu! renders when not signed in ──
     // <span class="beatmapset-panel__menu-item beatmapset-panel__menu-item--disabled"
     //       data-orig-title="sign in to favourite this beatmap">
     //   <span class="far fa-heart"></span>
     // </span>
-    const cls = (el.className || "").toString();
     if (
       cls.includes("beatmapset-panel__menu-item") &&
       (cls.includes("disabled") || cls.includes("avourite") || cls.includes("avorite"))
@@ -441,17 +455,12 @@
 
     // For SPANs that aren't the specific menu-item, require them to look like a fav button
     if (tag === "SPAN") {
-      const title = (
-        el.getAttribute("title") ||
-        el.getAttribute("data-orig-title") ||
-        el.getAttribute("aria-label") ||
-        ""
-      ).toLowerCase();
       if (title.includes("avourite") || title.includes("avorite")) return true;
       // Only match spans that contain a heart icon and are inside a beatmap panel
       if (
         el.querySelector(".fa-heart, .fas.fa-heart, .far.fa-heart") &&
         el.closest(".beatmapset-panel")
+
       ) return true;
       return false;
     }
@@ -480,13 +489,9 @@
       }
     }
 
-    const title = (
-      el.getAttribute("title") ||
-      el.getAttribute("data-orig-title") ||
-      el.getAttribute("aria-label") ||
-      ""
-    ).toLowerCase();
+    // title is already declared at top of function — reuse it
     if (title.includes("avourite") || title.includes("avorite")) return true;
+
 
     const text = (el.textContent || "").toLowerCase().trim();
     if (text.includes("avourite") || text.includes("avorite")) return true;
@@ -1590,6 +1595,121 @@
     anchor.insertBefore(btn, anchor.firstChild);
   }
 
+  // ═══ Enable download buttons for guest/logged-out users ═══
+  // Based on exact DOM structure observed via Kimi WebBridge in logged-in Helium session:
+  //
+  // Logged-in listing/user panel download item:
+  //   <a class="beatmapset-panel__menu-item" href="…/download"
+  //      data-orig-title="download with video"><span class="fas fa-file-download"></span></a>
+  //   (user pages use title= instead of data-orig-title=, but same shape)
+  //
+  // Logged-in detail page:
+  //   <a class="btn-osu-big btn-osu-big--beatmapset-header" href="…/download">…Download with Video…</a>
+  //   <a class="btn-osu-big btn-osu-big--beatmapset-header" href="…/download?noVideo=1">…without Video…</a>
+  function enableGuestDownloads() {
+    // ── 1. Beatmap panel cards (listing + user pages) ────────────────────────
+    // Replace disabled <span class="beatmapset-panel__menu-item"> download spans
+    // with real <a> links that match the logged-in element exactly.
+    document.querySelectorAll("span.beatmapset-panel__menu-item").forEach((span) => {
+      // Already converted — skip
+      if (span.dataset.osuDlFixed) return;
+
+      const hasDownloadIcon = span.querySelector(".fa-file-download, .fa-download");
+      const titleAttr = (
+        span.getAttribute("data-orig-title") ||
+        span.getAttribute("title") ||
+        ""
+      ).toLowerCase();
+
+      const isDisabledDownload =
+        hasDownloadIcon ||
+        titleAttr.includes("download") ||
+        titleAttr.includes("sign in before downloading");
+
+      if (!isDisabledDownload) return;
+
+      const ctx = resolveBeatmapContext(span);
+      if (!ctx.beatmapId) {
+        // Mark so we don't keep retrying on elements where context lookup failed
+        span.dataset.osuDlFixed = "pending";
+        return;
+      }
+
+      const a = document.createElement("a");
+      a.className = "beatmapset-panel__menu-item";
+      a.href = `https://osu.ppy.sh/beatmapsets/${ctx.beatmapId}/download`;
+      // Match logged-in: listing pages use data-orig-title, user pages use title
+      a.setAttribute("data-orig-title", "download with video");
+      a.title = "download with video";
+
+      // Preserve qtip attributes so tooltips work
+      if (span.getAttribute("data-hasqtip"))
+        a.setAttribute("data-hasqtip", span.getAttribute("data-hasqtip"));
+      if (span.getAttribute("aria-describedby"))
+        a.setAttribute("aria-describedby", span.getAttribute("aria-describedby"));
+
+      // Inner content: keep the original icon span (fas fa-file-download)
+      a.innerHTML = span.innerHTML;
+      span.replaceWith(a);
+    });
+
+    // ── 2. Beatmapset detail pages (/beatmapsets/ID) ─────────────────────────
+    // When logged out, osu! renders a "Sign In to access more features" button
+    // instead of the download links. Replace it with the exact logged-in pair.
+    const bmid = getBeatmapId();
+    if (!bmid) return;
+
+    // Guard: if real download links already exist (script ran before, or user logged in),
+    // or if we already injected them, don't duplicate.
+    const downloadLinksExist = !!document.querySelector(
+      `.beatmapset-header__buttons a[href*="/download"]`
+    );
+    if (downloadLinksExist) return;
+
+    const signInBtn = Array.from(document.querySelectorAll("button.btn-osu-big")).find((btn) => {
+      const text = (btn.textContent || "").toLowerCase();
+      return text.includes("sign in") && text.includes("access more features");
+    });
+
+    if (!signInBtn) return;
+
+    // Build "Download with Video" — matches logged-in <a class="btn-osu-big btn-osu-big--beatmapset-header">
+    const aWithVideo = document.createElement("a");
+    aWithVideo.className = "btn-osu-big btn-osu-big--beatmapset-header ";
+    aWithVideo.href = `https://osu.ppy.sh/beatmapsets/${bmid}/download`;
+    aWithVideo.innerHTML =
+      '<span class="btn-osu-big__content">' +
+        '<span class="btn-osu-big__left">' +
+          '<span class="btn-osu-big__text-top">Download</span>' +
+          '<span class="btn-osu-big__text-bottom">with Video</span>' +
+        '</span>' +
+        '<span class="btn-osu-big__icon">' +
+          '<span class="fa fa-fw">' +
+            '<span class="fas fa-download"></span>' +
+          '</span>' +
+        '</span>' +
+      '</span>';
+
+    // Build "Download without Video"
+    const aNoVideo = document.createElement("a");
+    aNoVideo.className = "btn-osu-big btn-osu-big--beatmapset-header ";
+    aNoVideo.href = `https://osu.ppy.sh/beatmapsets/${bmid}/download?noVideo=1`;
+    aNoVideo.innerHTML =
+      '<span class="btn-osu-big__content">' +
+        '<span class="btn-osu-big__left">' +
+          '<span class="btn-osu-big__text-top">Download</span>' +
+          '<span class="btn-osu-big__text-bottom">without Video</span>' +
+        '</span>' +
+        '<span class="btn-osu-big__icon">' +
+          '<span class="fa fa-fw">' +
+            '<span class="fas fa-download"></span>' +
+          '</span>' +
+        '</span>' +
+      '</span>';
+
+    signInBtn.replaceWith(aWithVideo, aNoVideo);
+  }
+
   // ═══ Init ═══
   function init() {
     injectInterceptor();
@@ -1597,6 +1717,7 @@
     ensureHeartIndicator();
     addCopyAllButton();
     addGuestFavoriteButton();
+    enableGuestDownloads();
 
     // Debounced observer — runs at most once per 600ms to avoid freezing the page
     let timer = null;
@@ -1610,6 +1731,7 @@
         addCopyAllButton();
         addGuestFavoriteButton();
         updateFloatingHeart();
+        enableGuestDownloads();
       }, 600);
     };
 
@@ -1627,6 +1749,7 @@
         lastUrl = location.href;
         ensureHeartIndicator();
         addGuestFavoriteButton();
+        enableGuestDownloads();
         debouncedRefresh();
       }
     }, 800);
@@ -1636,6 +1759,8 @@
     setTimeout(refreshButtons, 2000);
     setTimeout(addGuestFavoriteButton, 1200);
     setTimeout(addGuestFavoriteButton, 2500);
+    setTimeout(enableGuestDownloads, 1000);
+    setTimeout(enableGuestDownloads, 2200);
   }
 
   if (document.readyState === "loading") {
