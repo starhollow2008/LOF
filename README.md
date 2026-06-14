@@ -6,6 +6,21 @@ Store osu! beatmap favorites locally in your browser. No server-side limits, no 
 
 Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with local browser storage. Your favorites stay on your machine.
 
+## Demo
+
+Here is a visual demonstration of the extension in action:
+
+| Beatmap Detail Page & Floating Indicator | Local Favorites Side Panel |
+| :---: | :---: |
+| ![Beatmap Page](screenshots/beatmappage.jpg) | ![Favorites Panel](screenshots/onfavoritepage.jpg) |
+
+| Beatmap Listing (With & Without Extension) | Music Previews & Export/Import |
+| :---: | :---: |
+| ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
+
+*The extension also features a clean floating heart indicator in the bottom-right corner of the page:*
+![Indicator](screenshots/iconinactive.jpg)
+
 ## Two ways to use
 
 ### Tampermonkey Userscript
@@ -14,15 +29,6 @@ Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with 
 2. **[Click here to install](https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js)** — Tampermonkey will open the installation page automatically.
 
 The script adds a **View Local Favorites** option in the Tampermonkey menu. Click it to open a side panel with all your favorites.
-
-![Beatmap Page Features](screenshots/beatmappage.jpg)
-*Local Favorites controls integrated directly on the beatmap page*
-
-![Local Favorites Panel & Popups](screenshots/musicprevievs.jpg)
-*Floating heart interface, search, sort, audio previews, and JSON import/export panel*
-
-![With and Without Extension](screenshots/with%20and%20without%20extention.jpg)
-*Comparison showcasing layout options and features active/inactive*
 
 ### [Deprecated] Extension
 
