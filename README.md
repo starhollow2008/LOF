@@ -14,7 +14,7 @@ Here is a visual demonstration of the extension in action:
 | :---: | :---: |
 | ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/sidepanel.jpg) |
 
-# Beatmap Page (WITH LOCAL FAVORITES)
+## Beatmap Page (WITH SIDE PANEL)
 
 ![Beatmap Page](screenshots/beatmappage.jpg)
 
