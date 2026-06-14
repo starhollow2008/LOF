@@ -10,9 +10,11 @@ Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with 
 
 Here is a visual demonstration of the extension in action:
 
-| Beatmap Detail Page & Floating Indicator | Local Favorites Side Panel |
+| Extention button on beatmap page | When clicked it opens Favorites Side Panel |
 | :---: | :---: |
 | ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/sidepanel.jpg) |
+
+![Beatmap Page](screenshots/beatmappage.jpg)
 
 | Beatmap Listing (With & Without Extension) | Music Previews |
 | :---: | :---: |
