@@ -9,6 +9,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
+// @grant        GM_xmlhttpRequest
+// @connect      raw.githubusercontent.com
 // @run-at       document-start
 // ==/UserScript==
 
@@ -933,7 +935,8 @@
       const s = document.createElement("style");
       s.id = "osu-fav-panel-style";
       s.textContent =
-        "#osu-fav-list::-webkit-scrollbar{width:4px}#osu-fav-list::-webkit-scrollbar-thumb{background:#333;border-radius:2px}#osu-fav-list::-webkit-scrollbar-thumb:hover{background:#ff66aa}";
+        "#osu-fav-list::-webkit-scrollbar{width:4px}#osu-fav-list::-webkit-scrollbar-thumb{background:#333;border-radius:2px}#osu-fav-list::-webkit-scrollbar-thumb:hover{background:#ff66aa}" +
+        "@keyframes osuFavSlideDown{from{max-height:0;opacity:0;overflow:hidden}to{max-height:50px;opacity:1}}";
       document.head.appendChild(s);
     }
 
@@ -957,6 +960,56 @@
       overflow: "hidden",
       boxShadow: "-2px 0 16px rgba(0,0,0,.5)",
     });
+
+    const bannerContainer = document.createElement("div");
+    bannerContainer.id = "osu-fav-banner-container";
+
+    function displayUpdateBanner(latestVersion) {
+      if (document.getElementById("osu-fav-update-banner")) return;
+      const dismissed = GM_getValue("osu_dismissed_version", "");
+      if (dismissed === latestVersion) return;
+
+      const banner = document.createElement("div");
+      banner.id = "osu-fav-update-banner";
+      banner.style.cssText =
+        "background:linear-gradient(135deg,#ff66aa,#ff3377);color:#fff;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;font-weight:500;font-size:11px;gap:8px;animation:osuFavSlideDown 0.3s ease-out;border-bottom:1px solid rgba(0,0,0,0.15);flex-shrink:0";
+
+      const textSpan = document.createElement("span");
+      textSpan.style.cssText = "flex:1";
+      textSpan.innerHTML = `✨ New version <b>v${latestVersion}</b> is available!`;
+
+      const actions = document.createElement("div");
+      actions.style.cssText = "display:flex;gap:6px;align-items:center";
+
+      const updateBtn = document.createElement("button");
+      updateBtn.textContent = "Update";
+      updateBtn.style.cssText =
+        "background:#fff;color:#ff3377;border:none;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:600;transition:background 0.2s";
+      updateBtn.addEventListener("mouseenter", () => (updateBtn.style.background = "#fff0f5"));
+      updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "#fff"));
+      updateBtn.addEventListener("click", () => {
+        window.open(
+          "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
+          "_blank",
+        );
+      });
+
+      const dismissBtn = document.createElement("button");
+      dismissBtn.textContent = "✕";
+      dismissBtn.title = "Dismiss";
+      dismissBtn.style.cssText =
+        "background:none;border:none;color:#fff;cursor:pointer;font-size:12px;opacity:0.8;font-weight:bold;padding:0 2px";
+      dismissBtn.addEventListener("mouseenter", () => (dismissBtn.style.opacity = "1"));
+      dismissBtn.addEventListener("mouseleave", () => (dismissBtn.style.opacity = "0.8"));
+      dismissBtn.addEventListener("click", () => {
+        banner.remove();
+        GM_setValue("osu_dismissed_version", latestVersion);
+      });
+
+      actions.append(updateBtn, dismissBtn);
+      banner.append(textSpan, actions);
+      bannerContainer.appendChild(banner);
+    }
 
     // ── Header ─────────────────────────────────────────────
     const header = document.createElement("div");
@@ -1128,24 +1181,7 @@
       return d.toLocaleDateString();
     }
     function showToast(msg) {
-      const t = document.createElement("div");
-      Object.assign(t.style, {
-        position: "fixed",
-        bottom: "20px",
-        right: "380px",
-        zIndex: "100001",
-        background: "#222",
-        border: "1px solid #444",
-        borderRadius: "4px",
-        padding: "7px 14px",
-        fontSize: "12px",
-        color: "#ddd",
-        boxShadow: "0 2px 8px rgba(0,0,0,.5)",
-        pointerEvents: "none",
-      });
-      t.textContent = msg;
-      document.body.appendChild(t);
-      setTimeout(() => t.remove(), 2500);
+      showOsuFavToast(msg, "380px");
     }
 
     // ── Render list ────────────────────────────────────────
@@ -1440,10 +1476,24 @@
     }
 
     // ── Assemble & wire events ─────────────────────────────
-    panel.append(header, toolbar, listEl, footer);
+    panel.append(header, bannerContainer, toolbar, listEl, footer);
     document.body.appendChild(panel);
     updateSortBtns();
     renderList();
+
+    // Check cached latest version and display if newer
+    const cachedLatest = GM_getValue("osu_latest_version", null);
+    const currentVersion = typeof GM_info !== "undefined" ? GM_info.script.version : "3.6.1";
+    if (cachedLatest && isNewerVersion(currentVersion, cachedLatest)) {
+      displayUpdateBanner(cachedLatest);
+    }
+
+    // Trigger update check in background (throttled to 24h)
+    checkVersionUpdate().then((latestVersion) => {
+      if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
+        displayUpdateBanner(latestVersion);
+      }
+    });
 
     exportBtn.addEventListener("click", () => {
       const data = JSON.stringify(getFavorites(), null, 2);
@@ -1507,8 +1557,30 @@
     });
   }
 
-  // ═══ Menu command ═══
+  // ═══ Menu commands ═══
   GM_registerMenuCommand("View Local Favorites", showFavoritesPanel);
+  GM_registerMenuCommand("Check for Updates", () => {
+    showOsuFavToast("Checking for updates...");
+    checkVersionUpdate(true).then((latestVersion) => {
+      const currentVersion = typeof GM_info !== "undefined" ? GM_info.script.version : "3.6.1";
+      if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
+        const panel = document.getElementById("osu-local-fav-panel");
+        if (!panel) {
+          showFavoritesPanel();
+        } else {
+          panel.remove();
+          showFavoritesPanel();
+        }
+        showOsuFavToast(`New version v${latestVersion} is available!`);
+        window.open(
+          "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
+          "_blank",
+        );
+      } else {
+        showOsuFavToast(`You are up to date! (v${currentVersion})`);
+      }
+    });
+  });
 
   // ═══ Guest-mode fallback button ═══
   // On beatmapset detail pages (/beatmapsets/12345), no heart button exists when
@@ -1708,6 +1780,90 @@
       '</span>';
 
     signInBtn.replaceWith(aWithVideo, aNoVideo);
+  }
+
+  // ═══ Toast helper ═══
+  function showOsuFavToast(msg, rightOffset = "20px") {
+    const t = document.createElement("div");
+    Object.assign(t.style, {
+      position: "fixed",
+      bottom: "20px",
+      right: rightOffset,
+      zIndex: "100001",
+      background: "#222",
+      border: "1px solid #444",
+      borderRadius: "4px",
+      padding: "7px 14px",
+      fontSize: "12px",
+      color: "#ddd",
+      boxShadow: "0 2px 8px rgba(0,0,0,.5)",
+      pointerEvents: "none",
+      transition: "opacity 0.2s ease",
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    });
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => {
+      t.style.opacity = "0";
+      setTimeout(() => t.remove(), 200);
+    }, 2500);
+  }
+
+  // ═══ Version check & update helper ═══
+  function isNewerVersion(current, latest) {
+    if (!current || !latest) return false;
+    const cParts = current.split(".").map((n) => parseInt(n, 10) || 0);
+    const lParts = latest.split(".").map((n) => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(cParts.length, lParts.length); i++) {
+      const c = cParts[i] || 0;
+      const l = lParts[i] || 0;
+      if (l > c) return true;
+      if (c > l) return false;
+    }
+    return false;
+  }
+
+  function checkVersionUpdate(force = false) {
+    const currentVersion = typeof GM_info !== "undefined" ? GM_info.script.version : "3.6.1";
+    const lastCheck = GM_getValue("osu_last_version_check", 0);
+    const checkInterval = 24 * 60 * 60 * 1000; // 24 hours
+
+    if (!force && Date.now() - lastCheck < checkInterval) {
+      return Promise.resolve(GM_getValue("osu_latest_version", null));
+    }
+
+    return new Promise((resolve) => {
+      if (typeof GM_xmlhttpRequest === "undefined") {
+        resolve(null);
+        return;
+      }
+      GM_xmlhttpRequest({
+        method: "GET",
+        url: "https://raw.githubusercontent.com/vyroxat/Local-osu-Favorites/main/osu-local-favorites.user.js",
+        timeout: 10000,
+        onload: function (response) {
+          GM_setValue("osu_last_version_check", Date.now());
+          const text = response.responseText;
+          const match = text.match(/@version\s+([0-9.]+)/);
+          if (match) {
+            const latestVersion = match[1].trim();
+            if (isNewerVersion(currentVersion, latestVersion)) {
+              GM_setValue("osu_latest_version", latestVersion);
+              resolve(latestVersion);
+              return;
+            }
+          }
+          GM_setValue("osu_latest_version", null);
+          resolve(null);
+        },
+        onerror: function () {
+          resolve(null);
+        },
+        ontimeout: function () {
+          resolve(null);
+        },
+      });
+    });
   }
 
   // ═══ Init ═══
