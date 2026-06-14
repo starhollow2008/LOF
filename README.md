@@ -14,6 +14,8 @@ Here is a visual demonstration of the extension in action:
 | :---: | :---: |
 | ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/sidepanel.jpg) |
 
+# Beatmap Page (WITH LOCAL FAVORITES)
+
 ![Beatmap Page](screenshots/beatmappage.jpg)
 
 | Beatmap Listing (With & Without Extension) | Music Previews |
