@@ -20,8 +20,8 @@ Here is a visual demonstration of the extension in action:
 
 ## If you go onto an beatmap that is favorited you will see the heart icon has changed its color
 
-| Normaly |  On a favorited beatmap |  
-| :---: | :---: | :---: |
+| Normaly | On a favorited beatmap |  
+| :---: | :---: |
 | ![onnotfavoritepage](screenshots/onnotfavoritepage.jpg) | ![onfavoritedpage](screenshots/onfavoritedpage.jpg) |
 
 ## How to install
