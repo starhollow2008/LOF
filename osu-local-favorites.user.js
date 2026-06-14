@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      3.6.1
+// @version      3.6.2
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -52,7 +52,7 @@
               writable: true,
               configurable: true,
             });
-          } catch (e) {}
+          } catch (e) { }
           setTimeout(() => {
             if (this.onload) this.onload();
             if (this.onreadystatechange) this.onreadystatechange();
@@ -205,7 +205,7 @@
       let title = "";
       const titleEl = card.querySelector(
         '.beatmapset-panel__main-link, a[class*="main-link"], ' +
-          '.beatmapset-panel__title, [class*="beatmapset-panel__title"]',
+        '.beatmapset-panel__title, [class*="beatmapset-panel__title"]',
       );
       if (titleEl) {
         const titleClone = titleEl.cloneNode(true);
@@ -244,7 +244,7 @@
           clone
             .querySelectorAll(
               '.beatmapset-badge, [class*="badge"], i, svg, ' +
-                '[class*="stat"], [class*="count"], [class*="play"], [class*="fav"]',
+              '[class*="stat"], [class*="count"], [class*="play"], [class*="fav"]',
             )
             .forEach((n) => n.remove());
           const txt = clone.textContent.trim();
@@ -280,7 +280,7 @@
           clone
             .querySelectorAll(
               '.beatmapset-badge, [class*="badge"], i, svg, ' +
-                '[class*="stat"], [class*="count"], [class*="play"], [class*="fav"]',
+              '[class*="stat"], [class*="count"], [class*="play"], [class*="fav"]',
             )
             .forEach((n) => n.remove());
           const txt = clone.textContent.trim();
@@ -603,7 +603,7 @@
         };
         setFavorites(favs);
       })
-      .catch(() => {});
+      .catch(() => { });
   }
 
   // Sequentially enriches a list of IDs with a delay between requests
@@ -1159,14 +1159,14 @@
     function statusColor(s) {
       return (
         {
-          ranked:    "#4caf50",
-          loved:     "#ff66aa",
+          ranked: "#4caf50",
+          loved: "#ff66aa",
           qualified: "#4fc3f7",
-          approved:  "#4caf50",
-          pending:   "#ff9800",
-          wip:       "#f44336",
+          approved: "#4caf50",
+          pending: "#ff9800",
+          wip: "#f44336",
           graveyard: "#666",
-          vip:       "#f6c243",
+          vip: "#f6c243",
         }[s] || "#888"
       );
     }
@@ -1636,11 +1636,11 @@
     // <span.btn-osu-big__content> > <span.btn-osu-big__icon> > <span.fa.fa-fw> > <span.{far|fas}.fa-heart>
     btn.innerHTML =
       '<span class="btn-osu-big__content btn-osu-big__content--center">' +
-        '<span class="btn-osu-big__icon">' +
-          '<span class="fa fa-fw">' +
-            '<span class="' + (fav ? "fas" : "far") + ' fa-heart"></span>' +
-          '</span>' +
-        '</span>' +
+      '<span class="btn-osu-big__icon">' +
+      '<span class="fa fa-fw">' +
+      '<span class="' + (fav ? "fas" : "far") + ' fa-heart"></span>' +
+      '</span>' +
+      '</span>' +
       '</span>';
 
     btn.addEventListener("click", (e) => {
@@ -1751,15 +1751,15 @@
     aWithVideo.href = `https://osu.ppy.sh/beatmapsets/${bmid}/download`;
     aWithVideo.innerHTML =
       '<span class="btn-osu-big__content">' +
-        '<span class="btn-osu-big__left">' +
-          '<span class="btn-osu-big__text-top">Download</span>' +
-          '<span class="btn-osu-big__text-bottom">with Video</span>' +
-        '</span>' +
-        '<span class="btn-osu-big__icon">' +
-          '<span class="fa fa-fw">' +
-            '<span class="fas fa-download"></span>' +
-          '</span>' +
-        '</span>' +
+      '<span class="btn-osu-big__left">' +
+      '<span class="btn-osu-big__text-top">Download</span>' +
+      '<span class="btn-osu-big__text-bottom">with Video</span>' +
+      '</span>' +
+      '<span class="btn-osu-big__icon">' +
+      '<span class="fa fa-fw">' +
+      '<span class="fas fa-download"></span>' +
+      '</span>' +
+      '</span>' +
       '</span>';
 
     // Build "Download without Video"
@@ -1768,15 +1768,15 @@
     aNoVideo.href = `https://osu.ppy.sh/beatmapsets/${bmid}/download?noVideo=1`;
     aNoVideo.innerHTML =
       '<span class="btn-osu-big__content">' +
-        '<span class="btn-osu-big__left">' +
-          '<span class="btn-osu-big__text-top">Download</span>' +
-          '<span class="btn-osu-big__text-bottom">without Video</span>' +
-        '</span>' +
-        '<span class="btn-osu-big__icon">' +
-          '<span class="fa fa-fw">' +
-            '<span class="fas fa-download"></span>' +
-          '</span>' +
-        '</span>' +
+      '<span class="btn-osu-big__left">' +
+      '<span class="btn-osu-big__text-top">Download</span>' +
+      '<span class="btn-osu-big__text-bottom">without Video</span>' +
+      '</span>' +
+      '<span class="btn-osu-big__icon">' +
+      '<span class="fa fa-fw">' +
+      '<span class="fas fa-download"></span>' +
+      '</span>' +
+      '</span>' +
       '</span>';
 
     signInBtn.replaceWith(aWithVideo, aNoVideo);
@@ -1897,7 +1897,7 @@
     const header = document.createElement("div");
     header.style.cssText =
       "display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px;color:#ff66aa";
-    header.innerHTML = `<span>✨ Update Available</span>`;
+    header.innerHTML = `<span>Update Available</span>`;
 
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "✕";
