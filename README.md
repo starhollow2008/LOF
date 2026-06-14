@@ -18,10 +18,9 @@ Here is a visual demonstration of the extension in action:
 | :---: | :---: |
 | ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
 
-*The extension also features a heart icon in the bottom-right corner of the page:*
-
+| Floating Heart Button (not favorited) | Floating Heart Button (favorited) |
 | :---: | :---: |
-| ![Comparison](screenshots/onnotfavorited.jpg) | ![Comparison](screenshots/onfavorited.jpg) |
+| ![onnotfavorited](screenshots/onnotfavorited.jpg) | ![onfavorited](screenshots/onfavorited.jpg) |
 
 ## How to install
 
