@@ -1483,7 +1483,7 @@
 
     // Check cached latest version and display if newer
     const cachedLatest = GM_getValue("osu_latest_version", null);
-    const currentVersion = typeof GM_info !== "undefined" ? GM_info.script.version : "3.6.1";
+    const currentVersion = getCurrentVersion();
     if (cachedLatest && isNewerVersion(currentVersion, cachedLatest)) {
       displayUpdateBanner(cachedLatest);
     }
@@ -1562,7 +1562,7 @@
   GM_registerMenuCommand("Check for Updates", () => {
     showOsuFavToast("Checking for updates...");
     checkVersionUpdate(true).then((latestVersion) => {
-      const currentVersion = typeof GM_info !== "undefined" ? GM_info.script.version : "3.6.1";
+      const currentVersion = getCurrentVersion();
       if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
         const panel = document.getElementById("osu-local-fav-panel");
         if (!panel) {
@@ -1824,7 +1824,7 @@
   }
 
   function checkVersionUpdate(force = false) {
-    const currentVersion = typeof GM_info !== "undefined" ? GM_info.script.version : "3.6.1";
+    const currentVersion = getCurrentVersion();
     const lastCheck = GM_getValue("osu_last_version_check", 0);
     const checkInterval = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -1965,7 +1965,7 @@
 
     // Auto-check version update on script load
     checkVersionUpdate().then((latestVersion) => {
-      const currentVersion = typeof GM_info !== "undefined" ? GM_info.script.version : "3.6.1";
+      const currentVersion = getCurrentVersion();
       if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
         showUpdatePrompt(latestVersion);
       }
