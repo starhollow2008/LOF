@@ -15,6 +15,15 @@ Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with 
 
 The script adds a **View Local Favorites** option in the Tampermonkey menu. Click it to open a side panel with all your favorites.
 
+![Beatmap Page Features](screenshots/beatmappage.jpg)
+*Local Favorites controls integrated directly on the beatmap page*
+
+![Local Favorites Panel & Popups](screenshots/musicprevievs.jpg)
+*Floating heart interface, search, sort, audio previews, and JSON import/export panel*
+
+![With and Without Extension](screenshots/with%20and%20without%20extention.jpg)
+*Comparison showcasing layout options and features active/inactive*
+
 ### [Deprecated] Extension
 
 1. Download `osu-favorites-extension.zip` or `osu-favorites-extension.xpi` from the [last extention release](https://github.com/vyroxat/Local-osu-Favorites/releases/tag/v3.4.2)
