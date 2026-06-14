@@ -18,9 +18,11 @@ Here is a visual demonstration of the extension in action:
 | :---: | :---: |
 | ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
 
-| Floating Heart Button (not favorited) | Floating Heart Button (favorited) |
-| :---: | :---: |
-| ![onnotfavoritepage](screenshots/onnotfavoritepage.jpg) | ![onfavoritedpage](screenshots/onfavoritepage.jpg) |
+## If you go onto an beatmap that is favorited you will see the heart icon has changed its color
+
+| Normaly |  On a favorited beatmap |  
+| :---: | :---: | :---: |
+| ![onnotfavoritepage](screenshots/onnotfavoritepage.jpg) | ![onfavoritedpage](screenshots/onfavoritedpage.jpg) |
 
 ## How to install
 
