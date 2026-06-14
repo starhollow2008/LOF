@@ -12,16 +12,16 @@ Here is a visual demonstration of the extension in action:
 
 | Beatmap Detail Page & Floating Indicator | Local Favorites Side Panel |
 | :---: | :---: |
-| ![Beatmap Page](screenshots/beatmappage.jpg) | ![Favorites Panel](screenshots/onfavoritepage.jpg) |
+| ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/favoritespanel.jpg) |
 
-| Beatmap Listing (With & Without Extension) | Music Previews & Export/Import |
+| Beatmap Listing (With & Without Extension) | Music Previews |
 | :---: | :---: |
 | ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
 
-*The extension also features a clean floating heart indicator in the bottom-right corner of the page:*
-![Indicator](screenshots/iconinactive.jpg)
+*The extension also features a heart icon in the bottom-right corner of the page:*
+![Indicator](screenshots/ofnotfavorited.jpg)![Indicator](screenshots/onfavorited.jpg)
 
-## Two ways to use
+## How to install
 
 ### Tampermonkey Userscript
 
