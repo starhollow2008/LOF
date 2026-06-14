@@ -20,7 +20,7 @@ Here is a visual demonstration of the extension in action:
 
 | Floating Heart Button (not favorited) | Floating Heart Button (favorited) |
 | :---: | :---: |
-| ![onnotfavorited](screenshots/onnotfavorited.jpg) | ![onfavorited](screenshots/onfavorited.jpg) |
+| ![onnotfavoritepage](screenshots/onnotfavoritepage.jpg) | ![onfavoritedpage](screenshots/onfavoritedpage.jpg) |
 
 ## How to install
 
