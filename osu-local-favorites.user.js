@@ -976,7 +976,7 @@
 
       const textSpan = document.createElement("span");
       textSpan.style.cssText = "flex:1";
-      textSpan.innerHTML = `✨ New version <b>v${latestVersion}</b> is available!`;
+      textSpan.innerHTML = `New version <b>v${latestVersion}</b> is available!`;
 
       const actions = document.createElement("div");
       actions.style.cssText = "display:flex;gap:6px;align-items:center";
