@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      3.7.0
+// @version      3.7.1
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -975,7 +975,7 @@
       const banner = document.createElement("div");
       banner.id = "osu-fav-update-banner";
       banner.style.cssText =
-        "background:linear-gradient(135deg,#ff66aa,#ff3377);color:#fff;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;font-weight:500;font-size:11px;gap:8px;animation:osuFavSlideDown 0.3s ease-out;border-bottom:1px solid rgba(0,0,0,0.15);flex-shrink:0";
+        "background:(135deg,#ff66aa);color:#fff;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;font-weight:500;font-size:11px;gap:8px;animation:osuFavSlideDown 0.3s ease-out;border-bottom:1px solid rgba(0,0,0,0.15);flex-shrink:0";
 
       const textSpan = document.createElement("span");
       textSpan.style.cssText = "flex:1";
@@ -1917,12 +1917,12 @@
     // Gradient accent bar — same as displayUpdateBanner inside the panel
     const accentBar = document.createElement("div");
     accentBar.style.cssText =
-      "background:linear-gradient(135deg,#ff66aa,#ff3377);padding:8px 14px;" +
+      "background: #ff66aa;padding:8px 14px;" +
       "display:flex;align-items:center;justify-content:space-between;" +
       "font-weight:600;font-size:12px;color:#fff;gap:8px;border-bottom:1px solid rgba(0,0,0,0.15)";
 
     const accentLabel = document.createElement("span");
-    accentLabel.innerHTML = `🎉 New version <b>v${latestVersion}</b> available!`;
+    accentLabel.innerHTML = `New version <b>v${latestVersion}</b> available!`;
 
     const accentClose = document.createElement("button");
     accentClose.textContent = "✕";
