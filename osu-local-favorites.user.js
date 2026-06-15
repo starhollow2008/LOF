@@ -12,7 +12,6 @@
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
-// @grant        GM_updateValue
 // @connect      raw.githubusercontent.com
 // @run-at       document-start
 // ==/UserScript==
@@ -967,54 +966,94 @@
       boxShadow: "-2px 0 16px rgba(0,0,0,.5)",
     });
 
-    const bannerContainer = document.createElement("div");
-    bannerContainer.id = "osu-fav-banner-container";
-
-    function displayUpdateBanner(latestVersion) {
-      if (document.getElementById("osu-fav-update-banner")) return;
+    // Shows an overlay popup centered inside the panel
+    function showPanelUpdateOverlay(latestVersion) {
+      if (document.getElementById("osu-fav-update-overlay")) return;
       const dismissed = GM_getValue("osu_dismissed_version", "");
       if (dismissed === latestVersion) return;
 
-      const banner = document.createElement("div");
-      banner.id = "osu-fav-update-banner";
-      banner.style.cssText =
-        "background:(135deg,#ff66aa);color:#fff;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;font-weight:500;font-size:11px;gap:8px;animation:osuFavSlideDown 0.3s ease-out;border-bottom:1px solid rgba(0,0,0,0.15);flex-shrink:0";
+      // Backdrop — covers the panel content but not the header
+      const backdrop = document.createElement("div");
+      backdrop.id = "osu-fav-update-overlay";
+      backdrop.style.cssText =
+        "position:absolute;inset:0;z-index:10;background:rgba(0,0,0,0.55);" +
+        "display:flex;align-items:center;justify-content:center;padding:20px";
 
-      const textSpan = document.createElement("span");
-      textSpan.style.cssText = "flex:1";
-      textSpan.innerHTML = `New version <b>v${latestVersion}</b> is available!`;
+      // Card
+      const card = document.createElement("div");
+      card.style.cssText =
+        "width:100%;max-width:280px;background:#111;border:1px solid #333;" +
+        "border-radius:4px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.7);" +
+        "animation:osuFavSlideUp 0.2s ease-out";
 
-      const actions = document.createElement("div");
-      actions.style.cssText = "display:flex;gap:6px;align-items:center";
+      // Accent header
+      const accent = document.createElement("div");
+      accent.style.cssText =
+        "background:#ff66aa;padding:10px 14px;display:flex;align-items:center;" +
+        "justify-content:space-between;gap:8px";
+
+      const accentTitle = document.createElement("span");
+      accentTitle.style.cssText = "font-size:12px;font-weight:700;color:#fff";
+      accentTitle.innerHTML = `🎉 Update available — <b>v${latestVersion}</b>`;
+
+      const accentClose = document.createElement("button");
+      accentClose.textContent = "✕";
+      accentClose.style.cssText =
+        "background:none;border:none;color:#fff;cursor:pointer;font-size:13px;" +
+        "font-weight:bold;padding:0 2px;opacity:0.8;flex-shrink:0";
+      accentClose.addEventListener("mouseenter", () => (accentClose.style.opacity = "1"));
+      accentClose.addEventListener("mouseleave", () => (accentClose.style.opacity = "0.8"));
+      accentClose.addEventListener("click", () => {
+        backdrop.remove();
+        GM_setValue("osu_dismissed_version", latestVersion);
+      });
+
+      accent.append(accentTitle, accentClose);
+
+      // Body
+      const body = document.createElement("div");
+      body.style.cssText = "padding:14px;font-size:12px;color:#bbb;line-height:1.5";
+      body.innerHTML =
+        `<b style="color:#ddd">osu! Local Favorites</b> has a new version ready.<br>` +
+        `Install it to get the latest fixes and features.`;
+
+      // Footer
+      const foot = document.createElement("div");
+      foot.style.cssText =
+        "display:flex;justify-content:flex-end;gap:6px;padding:10px 14px;" +
+        "border-top:1px solid #222;background:#1a1a1a";
+
+      const laterBtn = document.createElement("button");
+      laterBtn.textContent = "Later";
+      laterBtn.style.cssText =
+        "font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;" +
+        "background:transparent;color:#888;cursor:pointer;font-weight:500";
+      laterBtn.addEventListener("mouseenter", () => { laterBtn.style.borderColor = "#ff66aa"; laterBtn.style.color = "#ff66aa"; });
+      laterBtn.addEventListener("mouseleave", () => { laterBtn.style.borderColor = "#333"; laterBtn.style.color = "#888"; });
+      laterBtn.addEventListener("click", () => {
+        backdrop.remove();
+        GM_setValue("osu_dismissed_version", latestVersion);
+      });
 
       const updateBtn = document.createElement("button");
-      updateBtn.textContent = "Update";
+      updateBtn.textContent = "Update Now";
       updateBtn.style.cssText =
-        "background:#fff;color:#ff3377;border:none;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:600;transition:background 0.2s";
-      updateBtn.addEventListener("mouseenter", () => (updateBtn.style.background = "#fff0f5"));
-      updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "#fff"));
+        "font-size:10px;padding:4px 10px;border:none;border-radius:3px;" +
+        "background:#ff66aa;color:#fff;cursor:pointer;font-weight:600";
+      updateBtn.addEventListener("mouseenter", () => (updateBtn.style.background = "#ff3377"));
+      updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "#ff66aa"));
       updateBtn.addEventListener("click", () => {
         window.open(
           "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
           "_blank",
         );
+        backdrop.remove();
       });
 
-      const dismissBtn = document.createElement("button");
-      dismissBtn.textContent = "✕";
-      dismissBtn.title = "Dismiss";
-      dismissBtn.style.cssText =
-        "background:none;border:none;color:#fff;cursor:pointer;font-size:12px;opacity:0.8;font-weight:bold;padding:0 2px";
-      dismissBtn.addEventListener("mouseenter", () => (dismissBtn.style.opacity = "1"));
-      dismissBtn.addEventListener("mouseleave", () => (dismissBtn.style.opacity = "0.8"));
-      dismissBtn.addEventListener("click", () => {
-        banner.remove();
-        GM_setValue("osu_dismissed_version", latestVersion);
-      });
-
-      actions.append(updateBtn, dismissBtn);
-      banner.append(textSpan, actions);
-      bannerContainer.appendChild(banner);
+      foot.append(laterBtn, updateBtn);
+      card.append(accent, body, foot);
+      backdrop.appendChild(card);
+      panel.appendChild(backdrop);
     }
 
     // ── Header ─────────────────────────────────────────────
@@ -1482,22 +1521,16 @@
     }
 
     // ── Assemble & wire events ─────────────────────────────
-    panel.append(header, bannerContainer, toolbar, listEl, footer);
+    panel.append(header, toolbar, listEl, footer);
     document.body.appendChild(panel);
     updateSortBtns();
     renderList();
 
-    // Check cached latest version and display if newer
-    const cachedLatest = GM_getValue("osu_latest_version", null);
+    // Always check for updates on panel open (force=true skips 24h throttle)
     const currentVersion = getCurrentVersion();
-    if (cachedLatest && isNewerVersion(currentVersion, cachedLatest)) {
-      displayUpdateBanner(cachedLatest);
-    }
-
-    // Trigger update check in background (throttled to 24h)
-    checkVersionUpdate().then((latestVersion) => {
+    checkVersionUpdate(true).then((latestVersion) => {
       if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
-        displayUpdateBanner(latestVersion);
+        showPanelUpdateOverlay(latestVersion);
       }
     });
 
@@ -1849,7 +1882,8 @@
       }
       GM_xmlhttpRequest({
         method: "GET",
-        url: "https://raw.githubusercontent.com/vyroxat/Local-osu-Favorites/main/osu-local-favorites.user.js",
+        // Pinned to the metadata-only commit so we only pull the header block
+        url: "https://raw.githubusercontent.com/vyroxat/Local-osu-Favorites/478555d798e5094395a5c526d08299f4b9546b87/osu-local-favorites.user.js",
         timeout: 10000,
         onload: function (response) {
           GM_setValue("osu_last_version_check", Date.now());
