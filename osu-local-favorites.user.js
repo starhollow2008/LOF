@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      3.7.1
+// @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
+// @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
+// @version      3.8.0
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -10,6 +12,7 @@
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
+// @grant        GM_updateValue
 // @connect      raw.githubusercontent.com
 // @run-at       document-start
 // ==/UserScript==
