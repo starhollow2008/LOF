@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         osu! Local Favorites
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @version      3.6.2
+// @version      3.7.0
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -930,13 +930,16 @@
       sortAsc = false,
       searchQuery = "";
 
-    // Inject scrollbar style once
+    // Inject shared styles once — covers scrollbar, slide-down banner, and slide-up prompt
     if (!document.getElementById("osu-fav-panel-style")) {
       const s = document.createElement("style");
       s.id = "osu-fav-panel-style";
       s.textContent =
-        "#osu-fav-list::-webkit-scrollbar{width:4px}#osu-fav-list::-webkit-scrollbar-thumb{background:#333;border-radius:2px}#osu-fav-list::-webkit-scrollbar-thumb:hover{background:#ff66aa}" +
-        "@keyframes osuFavSlideDown{from{max-height:0;opacity:0;overflow:hidden}to{max-height:50px;opacity:1}}";
+        "#osu-fav-list::-webkit-scrollbar{width:4px}" +
+        "#osu-fav-list::-webkit-scrollbar-thumb{background:#333;border-radius:2px}" +
+        "#osu-fav-list::-webkit-scrollbar-thumb:hover{background:#ff66aa}" +
+        "@keyframes osuFavSlideDown{from{max-height:0;opacity:0;overflow:hidden}to{max-height:50px;opacity:1}}" +
+        "@keyframes osuFavSlideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}";
       document.head.appendChild(s);
     }
 
@@ -1810,6 +1813,10 @@
   }
 
   // ═══ Version check & update helper ═══
+  // ── Sync this with the @version header at the top of the file ──
+  const CURRENT_VERSION = "3.6.2";
+  function getCurrentVersion() { return CURRENT_VERSION; }
+
   function isNewerVersion(current, latest) {
     if (!current || !latest) return false;
     const cParts = current.split(".").map((n) => parseInt(n, 10) || 0);
@@ -1867,78 +1874,108 @@
   }
 
   // ═══ Update prompt UI ═══
+  // Shown on page load when a new version is detected and the panel isn't open.
+  // Reuses the same gradient + palette as the in-panel banner so both look consistent.
   function showUpdatePrompt(latestVersion) {
     const dismissed = GM_getValue("osu_dismissed_version", "");
     if (dismissed === latestVersion) return;
-
     if (document.getElementById("osu-local-update-prompt")) return;
+
+    // Inject slide-in keyframe if not already present
+    if (!document.getElementById("osu-fav-panel-style")) {
+      const s = document.createElement("style");
+      s.id = "osu-fav-panel-style";
+      s.textContent =
+        "#osu-fav-list::-webkit-scrollbar{width:4px}" +
+        "#osu-fav-list::-webkit-scrollbar-thumb{background:#333;border-radius:2px}" +
+        "#osu-fav-list::-webkit-scrollbar-thumb:hover{background:#ff66aa}" +
+        "@keyframes osuFavSlideDown{from{max-height:0;opacity:0;overflow:hidden}to{max-height:50px;opacity:1}}" +
+        "@keyframes osuFavSlideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}";
+      document.head.appendChild(s);
+    }
 
     const modal = document.createElement("div");
     modal.id = "osu-local-update-prompt";
+    // Matches panel: dark #111 bg, #333 border, same font stack, same shadow
     Object.assign(modal.style, {
       position: "fixed",
       bottom: "20px",
       right: "20px",
       zIndex: "100002",
-      width: "320px",
+      width: "300px",
       background: "#111",
       border: "1px solid #333",
       borderRadius: "4px",
-      padding: "16px",
       color: "#ddd",
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       fontSize: "13px",
       boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
-      display: "flex",
-      flexDirection: "column",
-      gap: "12px",
+      overflow: "hidden",
+      animation: "osuFavSlideUp 0.25s ease-out",
     });
 
-    const header = document.createElement("div");
-    header.style.cssText =
-      "display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px;color:#ff66aa";
-    header.innerHTML = `<span>Update Available</span>`;
+    // Gradient accent bar — same as displayUpdateBanner inside the panel
+    const accentBar = document.createElement("div");
+    accentBar.style.cssText =
+      "background:linear-gradient(135deg,#ff66aa,#ff3377);padding:8px 14px;" +
+      "display:flex;align-items:center;justify-content:space-between;" +
+      "font-weight:600;font-size:12px;color:#fff;gap:8px;border-bottom:1px solid rgba(0,0,0,0.15)";
 
-    const closeBtn = document.createElement("button");
-    closeBtn.textContent = "✕";
-    closeBtn.style.cssText =
-      "background:none;border:none;color:#666;cursor:pointer;font-size:14px;padding:0";
-    closeBtn.addEventListener("mouseenter", () => (closeBtn.style.color = "#999"));
-    closeBtn.addEventListener("mouseleave", () => (closeBtn.style.color = "#666"));
-    closeBtn.addEventListener("click", () => {
+    const accentLabel = document.createElement("span");
+    accentLabel.innerHTML = `🎉 New version <b>v${latestVersion}</b> available!`;
+
+    const accentClose = document.createElement("button");
+    accentClose.textContent = "✕";
+    accentClose.title = "Dismiss";
+    accentClose.style.cssText =
+      "background:none;border:none;color:#fff;cursor:pointer;font-size:12px;" +
+      "opacity:0.8;font-weight:bold;padding:0 2px;flex-shrink:0";
+    accentClose.addEventListener("mouseenter", () => (accentClose.style.opacity = "1"));
+    accentClose.addEventListener("mouseleave", () => (accentClose.style.opacity = "0.8"));
+    accentClose.addEventListener("click", () => {
       modal.remove();
       GM_setValue("osu_dismissed_version", latestVersion);
     });
-    header.appendChild(closeBtn);
 
+    accentBar.append(accentLabel, accentClose);
+
+    // Body — same text color and line-height as panel text
     const body = document.createElement("div");
-    body.style.lineHeight = "1.4";
-    body.innerHTML = `A new version of <b>osu! Local Favorites</b> (v${latestVersion}) is available. Would you like to update now?`;
+    body.style.cssText = "padding:12px 14px;line-height:1.5;font-size:12px;color:#bbb";
+    body.innerHTML =
+      `<b style="color:#ddd">osu! Local Favorites</b> has an update ready.<br>` +
+      `Install it now to get the latest fixes and features.`;
 
+    // Footer buttons — mirror the toolbar makeBtn style from the panel
     const footer = document.createElement("div");
-    footer.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:4px";
+    footer.style.cssText =
+      "display:flex;justify-content:flex-end;gap:6px;padding:8px 14px;" +
+      "border-top:1px solid #222;background:#1a1a1a";
 
-    const ignoreBtn = document.createElement("button");
-    ignoreBtn.textContent = "Later";
-    ignoreBtn.style.cssText =
-      "background:none;border:1px solid #333;color:#888;padding:5px 12px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:600";
-    ignoreBtn.addEventListener("mouseenter", () => {
-      ignoreBtn.style.borderColor = "#444";
-      ignoreBtn.style.color = "#aaa";
+    const laterBtn = document.createElement("button");
+    laterBtn.textContent = "Later";
+    laterBtn.style.cssText =
+      "font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;" +
+      "background:transparent;color:#888;cursor:pointer;font-weight:500";
+    laterBtn.addEventListener("mouseenter", () => {
+      laterBtn.style.borderColor = "#ff66aa";
+      laterBtn.style.color = "#ff66aa";
     });
-    ignoreBtn.addEventListener("mouseleave", () => {
-      ignoreBtn.style.borderColor = "#333";
-      ignoreBtn.style.color = "#888";
+    laterBtn.addEventListener("mouseleave", () => {
+      laterBtn.style.borderColor = "#333";
+      laterBtn.style.color = "#888";
     });
-    ignoreBtn.addEventListener("click", () => {
+    laterBtn.addEventListener("click", () => {
       modal.remove();
       GM_setValue("osu_dismissed_version", latestVersion);
     });
 
+    // "Update" button — same style as the in-panel banner's Update button
     const updateBtn = document.createElement("button");
     updateBtn.textContent = "Update Now";
     updateBtn.style.cssText =
-      "background:#ff66aa;color:#fff;border:none;padding:5px 12px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:600;transition:background 0.2s";
+      "font-size:10px;padding:4px 10px;border:none;border-radius:3px;" +
+      "background:#ff66aa;color:#fff;cursor:pointer;font-weight:600;transition:background 0.2s";
     updateBtn.addEventListener("mouseenter", () => (updateBtn.style.background = "#ff3377"));
     updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "#ff66aa"));
     updateBtn.addEventListener("click", () => {
@@ -1949,8 +1986,8 @@
       modal.remove();
     });
 
-    footer.append(ignoreBtn, updateBtn);
-    modal.append(header, body, footer);
+    footer.append(laterBtn, updateBtn);
+    modal.append(accentBar, body, footer);
     document.body.appendChild(modal);
   }
 
