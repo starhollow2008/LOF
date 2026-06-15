@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      3.8.0
+// @version      3.8.1
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -1850,7 +1850,7 @@
 
   // ═══ Version check & update helper ═══
   // ── Sync this with the @version header at the top of the file ──
-  const CURRENT_VERSION = "3.6.2";
+  const CURRENT_VERSION = "3.8.1";
   function getCurrentVersion() { return CURRENT_VERSION; }
 
   function isNewerVersion(current, latest) {
@@ -1869,7 +1869,7 @@
   function checkVersionUpdate(force = false) {
     const currentVersion = getCurrentVersion();
     const lastCheck = GM_getValue("osu_last_version_check", 0);
-    const checkInterval = 24 * 60 * 60 * 1000; // 24 hours
+    const checkInterval = 12 * 60 * 60 * 1000; // 12 hours
 
     if (!force && Date.now() - lastCheck < checkInterval) {
       return Promise.resolve(GM_getValue("osu_latest_version", null));
@@ -1882,7 +1882,7 @@
       }
       GM_xmlhttpRequest({
         method: "GET",
-        // Pinned to the metadata-only commit so we only pull the header block
+        // Pinned to the metadata-only commit so only pull the header block
         url: "https://raw.githubusercontent.com/vyroxat/Local-osu-Favorites/478555d798e5094395a5c526d08299f4b9546b87/osu-local-favorites.user.js",
         timeout: 10000,
         onload: function (response) {
@@ -1912,7 +1912,7 @@
 
   // ═══ Update prompt UI ═══
   // Shown on page load when a new version is detected and the panel isn't open.
-  // Reuses the same gradient + palette as the in-panel banner so both look consistent.
+  // Reuses the same palette as the panel so it looks consistent.
   function showUpdatePrompt(latestVersion) {
     const dismissed = GM_getValue("osu_dismissed_version", "");
     if (dismissed === latestVersion) return;
