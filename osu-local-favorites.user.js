@@ -1542,7 +1542,7 @@
               previewBtn.style.opacity = "1";
               previewBtn.style.borderColor = "#ff66aa";
               previewBtn.style.color = "#ff66aa";
-              dimOverlay.style.background = "rgba(51,51,51,0.24)";
+              dimOverlay.style.background = "rgba(51,51,51,0.64)";
             }
             return;
           }
