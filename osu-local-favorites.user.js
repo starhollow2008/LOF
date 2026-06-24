@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      3.9.8
+// @version      4.0.0
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -1474,6 +1474,8 @@
             const a = window._osuFavAudio;
             if (a._activeBtn) {
               a._activeBtn.style.opacity = "0";
+              a._activeBtn.style.borderColor = "#333";
+              a._activeBtn.style.color = "#999";
               a._activeBtn.textContent = "\u25b6";
               a._activeBtn._playing = false;
             }
@@ -1502,16 +1504,22 @@
         previewBtn.textContent = "\u25b6";
         previewBtn.title = "Preview audio";
         previewBtn.style.cssText =
-          "position:absolute;inset:0;margin:auto;width:22px;height:22px;" +
-          "border-radius:50%;border:1.5px solid rgba(255,255,255,0.85);" +
-          "background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;" +
-          "font-size:9px;line-height:1;display:flex;align-items:center;justify-content:center;" +
-          "opacity:0;transition:opacity 0.15s;padding:0";
+          "position:absolute;inset:0;margin:auto;width:fit-content;height:fit-content;" +
+          "font-size:11px;padding:2px 6px;border:1px solid #333;border-radius:2px;" +
+          "background:none;color:#999;cursor:pointer;text-align:center;line-height:1;" +
+          "opacity:0;transition:opacity 0.15s";
 
-        // Show/hide button on cover hover
-        coverEl.addEventListener("mouseenter", () => { previewBtn.style.opacity = "1"; });
+        // Show/hide button on cover hover; restore original border/color on hover
+        coverEl.addEventListener("mouseenter", () => {
+          previewBtn.style.opacity = "1";
+          if (!previewBtn._playing) { previewBtn.style.borderColor = "#ff66aa"; previewBtn.style.color = "#ff66aa"; }
+        });
         coverEl.addEventListener("mouseleave", () => {
-          if (!previewBtn._playing) previewBtn.style.opacity = "0";
+          if (!previewBtn._playing) {
+            previewBtn.style.opacity = "0";
+            previewBtn.style.borderColor = "#333";
+            previewBtn.style.color = "#999";
+          }
         });
 
         previewBtn.addEventListener("click", (e) => {
@@ -1524,12 +1532,16 @@
               previewBtn.textContent = "\u25b6";
               previewBtn._playing = false;
               previewBtn.style.opacity = "0";
+              previewBtn.style.borderColor = "#333";
+              previewBtn.style.color = "#999";
               dimOverlay.style.background = "rgba(51,51,51,0)";
             } else {
               audio.play();
               previewBtn.textContent = "\u23f8";
               previewBtn._playing = true;
               previewBtn.style.opacity = "1";
+              previewBtn.style.borderColor = "#ff66aa";
+              previewBtn.style.color = "#ff66aa";
               dimOverlay.style.background = "rgba(51,51,51,0.24)";
             }
             return;
@@ -1540,6 +1552,8 @@
             a._activeBtn.textContent = "\u25b6";
             a._activeBtn._playing = false;
             a._activeBtn.style.opacity = "0";
+            a._activeBtn.style.borderColor = "#333";
+            a._activeBtn.style.color = "#999";
           }
           if (a._activeBar) {
             a._activeBar.parentElement.style.display = "none";
@@ -1556,11 +1570,15 @@
           previewBtn.textContent = "\u23f8";
           previewBtn._playing = true;
           previewBtn.style.opacity = "1";
+          previewBtn.style.borderColor = "#ff66aa";
+          previewBtn.style.color = "#ff66aa";
           dimOverlay.style.background = "rgba(51,51,51,0.24)";
           audio.play().catch(() => {
             previewBtn.textContent = "\u25b6";
             previewBtn._playing = false;
             previewBtn.style.opacity = "0";
+            previewBtn.style.borderColor = "#333";
+            previewBtn.style.color = "#999";
             dimOverlay.style.background = "rgba(51,51,51,0)";
           });
         });
