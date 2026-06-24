@@ -1002,7 +1002,7 @@
 
       const accentTitle = document.createElement("span");
       accentTitle.style.cssText = "font-size:12px;font-weight:700;color:#fff";
-      accentTitle.innerHTML = `🎉 Update available — <b>v${latestVersion}</b>`;
+      accentTitle.innerHTML = `Update available — <b>v${latestVersion}</b>`;
 
       const accentClose = document.createElement("button");
       accentClose.textContent = "✕";
@@ -1857,9 +1857,23 @@
   }
 
   // ═══ Version check & update helper ═══
-  // ── Sync this with the @version header at the top of the file ──
-  const CURRENT_VERSION = "3.9.2";
-  function getCurrentVersion() { return CURRENT_VERSION; }
+  // getCurrentVersion() reads directly from Tampermonkey's GM_info API, which always
+  // mirrors the @version header — no separate constant to keep in sync.
+  function getCurrentVersion() {
+    // Primary: Tampermonkey/Violentmonkey expose GM_info.script.version from the @version tag
+    if (typeof GM_info !== "undefined" && GM_info.script && GM_info.script.version) {
+      return GM_info.script.version;
+    }
+    // Fallback: scan script tags in the document for a @version comment (development use)
+    try {
+      const scripts = document.querySelectorAll("script");
+      for (const s of scripts) {
+        const v = (s.textContent || "").match(/@version\s+([0-9.]+)/);
+        if (v) return v[1];
+      }
+    } catch (_) {}
+    return "0.0.0";
+  }
 
   function isNewerVersion(current, latest) {
     if (!current || !latest) return false;
