@@ -1277,6 +1277,28 @@
 
       listEl.innerHTML = "";
 
+      // Disconnect any previous lazy-load observer so orphaned refs don't linger
+      if (renderList._imgObserver) {
+        renderList._imgObserver.disconnect();
+        renderList._imgObserver = null;
+      }
+      // IntersectionObserver rooted on the scroll container, 100px look-ahead on each side
+      const imgObserver = new IntersectionObserver(
+        (entries, obs) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            const img = entry.target;
+            if (img.dataset.src) {
+              img.src = img.dataset.src;
+              delete img.dataset.src;
+            }
+            obs.unobserve(img);
+          });
+        },
+        { root: listEl, rootMargin: "100px 0px", threshold: 0 },
+      );
+      renderList._imgObserver = imgObserver;
+
       if (Object.keys(favs).length === 0) {
         listEl.innerHTML =
           '<p style="text-align:center;color:#666;padding:40px 20px;font-size:12px">No favorites yet.</p>';
@@ -1309,12 +1331,13 @@
           "";
         const coverEl = document.createElement("div");
         coverEl.style.cssText =
-          "width:56px;height:42px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center";
+          "position:relative;width:56px;height:42px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;cursor:pointer";
         if (coverUrl) {
           const img = document.createElement("img");
-          img.src = coverUrl;
-          img.loading = "lazy";
-          img.style.cssText = "width:100%;height:100%;object-fit:cover";
+          // Don't set src yet — the IntersectionObserver will do it when the row
+          // scrolls within 100px of the list viewport
+          img.dataset.src = coverUrl;
+          img.style.cssText = "width:100%;height:100%;object-fit:cover;display:block";
           img.addEventListener("error", () => {
             img.remove();
             coverEl.style.fontSize = "16px";
@@ -1322,10 +1345,17 @@
             coverEl.textContent = "?";
           });
           coverEl.appendChild(img);
+          imgObserver.observe(img);
         } else {
           coverEl.style.cssText += ";font-size:16px;color:#444";
           coverEl.textContent = "?";
         }
+
+        // Dim overlay — shown at 24% while playing
+        const dimOverlay = document.createElement("div");
+        dimOverlay.style.cssText =
+          "position:absolute;inset:0;background:rgba(51,51,51,0);transition:background 0.15s;pointer-events:none";
+        coverEl.appendChild(dimOverlay);
 
         // Info
         const info = document.createElement("div");
@@ -1439,88 +1469,104 @@
           window._osuFavAudio = new Audio();
           window._osuFavAudio._activeBtn = null;
           window._osuFavAudio._activeBar = null;
+          window._osuFavAudio._activeDim = null;
           window._osuFavAudio.addEventListener("ended", () => {
-            if (window._osuFavAudio._activeBtn) {
-              window._osuFavAudio._activeBtn.textContent = "\u25b6";
-              window._osuFavAudio._activeBtn.style.borderColor = "#333";
-              window._osuFavAudio._activeBtn.style.color = "#999";
+            const a = window._osuFavAudio;
+            if (a._activeBtn) {
+              a._activeBtn.style.opacity = "0";
+              a._activeBtn.textContent = "\u25b6";
+              a._activeBtn._playing = false;
             }
-            if (window._osuFavAudio._activeBar) {
-              window._osuFavAudio._activeBar.parentElement.style.display = "none";
-              window._osuFavAudio._activeBar.style.width = "0%";
+            if (a._activeBar) {
+              a._activeBar.parentElement.style.display = "none";
+              a._activeBar.style.width = "0%";
             }
-            window._osuFavAudio._activeBtn = null;
-            window._osuFavAudio._activeBar = null;
+            if (a._activeDim) a._activeDim.style.background = "rgba(51,51,51,0)";
+            a._activeBtn = null;
+            a._activeBar = null;
+            a._activeDim = null;
           });
           window._osuFavAudio.addEventListener("timeupdate", () => {
-            if (window._osuFavAudio._activeBar && window._osuFavAudio.duration) {
-              const pct = (window._osuFavAudio.currentTime / window._osuFavAudio.duration) * 100;
-              window._osuFavAudio._activeBar.style.width = pct + "%";
+            const a = window._osuFavAudio;
+            if (a._activeBar && a.duration) {
+              const pct = (a.currentTime / a.duration) * 100;
+              a._activeBar.style.width = pct + "%";
             }
           });
         }
 
         const previewUrl = f.preview || `https://b.ppy.sh/preview/${id}.mp3`;
+
+        // Play button — lives inside the cover, centred, shown on hover or while playing
         const previewBtn = document.createElement("button");
         previewBtn.textContent = "\u25b6";
         previewBtn.title = "Preview audio";
         previewBtn.style.cssText =
-          "font-size:11px;padding:2px 6px;border:1px solid #333;border-radius:2px;background:none;color:#999;cursor:pointer;text-align:center;line-height:1";
-        previewBtn.addEventListener("mouseenter", () => {
-          if (!previewBtn._playing) { previewBtn.style.borderColor = "#ff66aa"; previewBtn.style.color = "#ff66aa"; }
+          "position:absolute;inset:0;margin:auto;width:22px;height:22px;" +
+          "border-radius:50%;border:1.5px solid rgba(255,255,255,0.85);" +
+          "background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;" +
+          "font-size:9px;line-height:1;display:flex;align-items:center;justify-content:center;" +
+          "opacity:0;transition:opacity 0.15s;padding:0";
+
+        // Show/hide button on cover hover
+        coverEl.addEventListener("mouseenter", () => { previewBtn.style.opacity = "1"; });
+        coverEl.addEventListener("mouseleave", () => {
+          if (!previewBtn._playing) previewBtn.style.opacity = "0";
         });
-        previewBtn.addEventListener("mouseleave", () => {
-          if (!previewBtn._playing) { previewBtn.style.borderColor = "#333"; previewBtn.style.color = "#999"; }
-        });
-        previewBtn.addEventListener("click", () => {
+
+        previewBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
           const audio = window._osuFavAudio;
           const isSame = audio.src === previewUrl || audio.src.replace("https://", "") === previewUrl.replace("https://", "");
           if (isSame) {
             if (!audio.paused) {
               audio.pause();
               previewBtn.textContent = "\u25b6";
-              previewBtn.style.borderColor = "#333";
-              previewBtn.style.color = "#999";
               previewBtn._playing = false;
+              previewBtn.style.opacity = "0";
+              dimOverlay.style.background = "rgba(51,51,51,0)";
             } else {
               audio.play();
               previewBtn.textContent = "\u23f8";
-              previewBtn.style.borderColor = "#ff66aa";
-              previewBtn.style.color = "#ff66aa";
               previewBtn._playing = true;
+              previewBtn.style.opacity = "1";
+              dimOverlay.style.background = "rgba(51,51,51,0.24)";
             }
             return;
           }
           // Stop previous
-          if (audio._activeBtn) {
-            audio._activeBtn.textContent = "\u25b6";
-            audio._activeBtn.style.borderColor = "#333";
-            audio._activeBtn.style.color = "#999";
-            audio._activeBtn._playing = false;
+          const a = audio;
+          if (a._activeBtn) {
+            a._activeBtn.textContent = "\u25b6";
+            a._activeBtn._playing = false;
+            a._activeBtn.style.opacity = "0";
           }
-          if (audio._activeBar) {
-            audio._activeBar.parentElement.style.display = "none";
-            audio._activeBar.style.width = "0%";
+          if (a._activeBar) {
+            a._activeBar.parentElement.style.display = "none";
+            a._activeBar.style.width = "0%";
           }
+          if (a._activeDim) a._activeDim.style.background = "rgba(51,51,51,0)";
           audio.pause();
           // Start new
           audio.src = previewUrl;
           audio._activeBtn = previewBtn;
           audio._activeBar = progressBar;
+          audio._activeDim = dimOverlay;
           progressWrap.style.display = "block";
           previewBtn.textContent = "\u23f8";
-          previewBtn.style.borderColor = "#ff66aa";
-          previewBtn.style.color = "#ff66aa";
           previewBtn._playing = true;
+          previewBtn.style.opacity = "1";
+          dimOverlay.style.background = "rgba(51,51,51,0.24)";
           audio.play().catch(() => {
             previewBtn.textContent = "\u25b6";
-            previewBtn.style.borderColor = "#333";
-            previewBtn.style.color = "#999";
             previewBtn._playing = false;
+            previewBtn.style.opacity = "0";
+            dimOverlay.style.background = "rgba(51,51,51,0)";
           });
         });
 
-        actions.append(openLink, previewBtn, removeBtn);
+        coverEl.appendChild(previewBtn);
+        actions.append(openLink, removeBtn);
         card.append(coverEl, info, actions);
         frag.appendChild(card);
       });
