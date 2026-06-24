@@ -754,10 +754,14 @@
           // (panel sorts by favourited_at descending)
           const baseTime = Date.now();
           let count = 0;
+          let alreadyHad = 0;
           const newIds = [];
           cards.forEach((card, i) => {
             const data = getBeatmapDataFromCard(card);
-            if (data && !favs[data.id]) {
+            if (!data) return;
+            if (favs[data.id]) {
+              alreadyHad++;
+            } else {
               // Subtract i seconds so first card (top) gets newest timestamp
               data.favourited_at = new Date(baseTime - i * 1000).toISOString();
               favs[data.id] = data;
@@ -773,13 +777,17 @@
             document.getElementById("osu-local-fav-panel").remove();
             showFavoritesPanel();
           }
-          btn.textContent = "Added " + count + ", enriching...";
+          // Show matching/skipped count when some were already favorited
+          const skippedLabel = alreadyHad > 0
+            ? " *[matching " + alreadyHad + "| " + alreadyHad + " not added]"
+            : "";
+          btn.textContent = "Added " + count + skippedLabel + ", enriching...";
           // Enrich each card with full page data sequentially (1000ms between requests to respect the 60 requests/min limit)
           enrichBeatmapsSequential(newIds, 1000);
           setTimeout(() => {
             btn.textContent = "Favorite all";
             btn.disabled = false;
-          }, 2000);
+          }, 3500);
         })
         .catch(() => {
           btn.textContent = "Error";
@@ -1882,13 +1890,15 @@
       }
       GM_xmlhttpRequest({
         method: "GET",
-        // Pinned to the metadata-only commit so only pull the header block
-        url: "https://raw.githubusercontent.com/vyroxat/Local-osu-Favorites/478555d798e5094395a5c526d08299f4b9546b87/osu-local-favorites.user.js",
+        // Always fetch the live main branch so version checks pick up real releases
+        url: "https://raw.githubusercontent.com/vyroxat/Local-osu-Favorites/main/osu-local-favorites.user.js",
         timeout: 10000,
         onload: function (response) {
           GM_setValue("osu_last_version_check", Date.now());
-          const text = response.responseText;
-          const match = text.match(/@version\s+([0-9.]+)/);
+          const text = response.responseText || "";
+          // Only scan the UserScript header block (first 2 KB) for speed
+          const header = text.slice(0, 2048);
+          const match = header.match(/@version\s+([0-9.]+)/);
           if (match) {
             const latestVersion = match[1].trim();
             if (isNewerVersion(currentVersion, latestVersion)) {
