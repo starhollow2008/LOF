@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.0.0
+// @version      3.9.9
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -1427,14 +1427,14 @@
         // Actions
         const actions = document.createElement("div");
         actions.style.cssText =
-          "display:flex;flex-direction:column;gap:2px;flex-shrink:0";
+          "display:flex;flex-direction:column;gap:4px;flex-shrink:0;justify-content:center";
 
         const openLink = document.createElement("a");
         openLink.href = f.url || `https://osu.ppy.sh/beatmapsets/${id}`;
         openLink.target = "_blank";
         openLink.textContent = "Open";
         openLink.style.cssText =
-          "font-size:9px;padding:2px 6px;border:1px solid #333;border-radius:2px;color:#999;text-decoration:none;text-align:center;display:block";
+          "font-size:10px;padding:4px 8px;border:1px solid #333;border-radius:2px;color:#999;text-decoration:none;text-align:center;display:block;white-space:nowrap";
         openLink.addEventListener("mouseenter", () => {
           openLink.style.borderColor = "#ff66aa";
           openLink.style.color = "#ff66aa";
@@ -1447,7 +1447,7 @@
         const removeBtn = document.createElement("button");
         removeBtn.textContent = "Remove";
         removeBtn.style.cssText =
-          "font-size:9px;padding:2px 6px;border:1px solid #333;border-radius:2px;background:none;color:#999;cursor:pointer";
+          "font-size:10px;padding:4px 8px;border:1px solid #333;border-radius:2px;background:none;color:#999;cursor:pointer;white-space:nowrap";
         removeBtn.addEventListener("mouseenter", () => {
           removeBtn.style.borderColor = "#e55";
           removeBtn.style.color = "#e55";
