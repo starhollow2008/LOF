@@ -3,13 +3,14 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.0.1
+// @version      4.1.0
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
 // @match        https://osu.ppy.sh/*
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_addValueChangeListener
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
@@ -135,16 +136,11 @@
   }
 
   // ═══ Storage ═══
-  let favCache = null;
-
   function getFavorites() {
-    if (favCache) return favCache;
-    favCache = GM_getValue(STORAGE_KEY, {});
-    return favCache;
+    return GM_getValue(STORAGE_KEY, {});
   }
 
   function setFavorites(favs) {
-    favCache = favs;
     GM_setValue(STORAGE_KEY, favs);
   }
 
@@ -2119,7 +2115,29 @@
   // ═══ Init ═══
   function init() {
     injectInterceptor();
-    getFavorites();
+
+    // ═══ Cross-tab sync ═══
+    // When another tab writes to the favorites key, refresh all UI in this tab.
+    GM_addValueChangeListener(STORAGE_KEY, (_key, _oldVal, _newVal, remote) => {
+      if (!remote) return; // ignore writes from this same tab
+
+      // Re-render floating heart (❤️/🤍) for the current beatmap
+      updateFloatingHeart();
+
+      // Rebuild the panel if it's already open
+      const panel = document.getElementById("osu-local-fav-panel");
+      if (panel) {
+        panel.remove();
+        showFavoritesPanel();
+      }
+
+      // Re-check all visible card hearts (clear the "already scanned" flag first)
+      document.querySelectorAll("[data-osu-fav-checked]").forEach((btn) => {
+        btn.removeAttribute("data-osu-fav-checked");
+      });
+      refreshButtons();
+    });
+
     ensureHeartIndicator();
     addCopyAllButton();
     addGuestFavoriteButton();
