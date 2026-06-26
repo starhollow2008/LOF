@@ -1979,7 +1979,7 @@
           const text = response.responseText || "";
           // Only scan the UserScript header block (first 2 KB) for speed
           const header = text.slice(0, 2048);
-          const match = header.match(/@version\s+([0-9.]+)/);
+          const match = header.match(/@version\s+(\d+\.\d+\.\d+)/);
           if (match) {
             const latestVersion = match[1].trim();
             if (isNewerVersion(currentVersion, latestVersion)) {
