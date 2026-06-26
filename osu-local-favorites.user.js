@@ -639,6 +639,11 @@
 
     setFavorites(favs);
     updateFloatingHeart();
+    // Refresh the favorites panel if it's already open
+    if (document.getElementById("osu-local-fav-panel")) {
+      document.getElementById("osu-local-fav-panel").remove();
+      showFavoritesPanel();
+    }
     if (needsEnrich) enrichBeatmapData(beatmapId);
     return !wasFav;
   }
@@ -1338,7 +1343,9 @@
             img.remove();
             coverEl.style.fontSize = "16px";
             coverEl.style.color = "#444";
-            coverEl.textContent = "?";
+            // insertBefore instead of textContent= so dimOverlay & previewBtn
+            // (appended after this block) are not destroyed
+            coverEl.insertBefore(document.createTextNode("?"), coverEl.firstChild);
           });
           coverEl.appendChild(img);
           imgObserver.observe(img);
