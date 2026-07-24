@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.1.2
+// @version      4.2.0
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -14,6 +14,8 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
+// @connect      api.github.com
+// @connect      gist.githubusercontent.com
 // @run-at       document-start
 // ==/UserScript==
 
@@ -146,6 +148,150 @@
 
   function isFavorited(id) {
     return !!getFavorites()[id];
+  }
+
+  // ═══ GitHub Gist Backup ═══
+  const GIST_FILENAME = "osu-local-favorites-backup.json";
+  const GH_TOKEN_KEY = "osu_github_token";
+  const GH_USERNAME_KEY = "osu_github_username";
+  const GH_GIST_ID_KEY = "osu_github_gist_id";
+  const GH_GIST_URL_KEY = "osu_github_gist_url";
+  const GH_AUTO_BACKUP_KEY = "osu_gist_auto_backup";
+  const GH_PRIVACY_KEY = "osu_gist_privacy"; // "private" | "public"
+  const GH_LAST_SYNC_KEY = "osu_gist_last_sync";
+
+  function ghApiRequest(method, path, token, body) {
+    return new Promise((resolve, reject) => {
+      if (typeof GM_xmlhttpRequest === "undefined") {
+        reject(new Error("GM_xmlhttpRequest is unavailable"));
+        return;
+      }
+      GM_xmlhttpRequest({
+        method,
+        url: "https://api.github.com" + path,
+        headers: {
+          Authorization: "token " + token,
+          Accept: "application/vnd.github+json",
+          "Content-Type": "application/json",
+        },
+        data: body ? JSON.stringify(body) : undefined,
+        timeout: 15000,
+        onload: (response) => {
+          let json = null;
+          try {
+            json = JSON.parse(response.responseText);
+          } catch (e) { }
+          if (response.status >= 200 && response.status < 300) {
+            resolve(json);
+          } else {
+            reject(new Error((json && json.message) || ("GitHub error " + response.status)));
+          }
+        },
+        onerror: () => reject(new Error("Network error contacting GitHub")),
+        ontimeout: () => reject(new Error("GitHub request timed out")),
+      });
+    });
+  }
+
+  function ghGetUser(token) {
+    return ghApiRequest("GET", "/user", token);
+  }
+
+  // Looks for a gist already containing our backup filename — lets a
+  // reconnect (new browser/device) pick up an existing backup instead of
+  // silently creating a duplicate.
+  function ghFindExistingGist(token) {
+    return ghApiRequest("GET", "/gists?per_page=100", token).then((gists) => {
+      if (!Array.isArray(gists)) return null;
+      return gists.find((g) => g.files && g.files[GIST_FILENAME]) || null;
+    });
+  }
+
+  function ghCreateGist(token, favs, isPublic) {
+    return ghApiRequest("POST", "/gists", token, {
+      description: "osu! Local Favorites backup",
+      public: isPublic,
+      files: { [GIST_FILENAME]: { content: JSON.stringify(favs, null, 2) } },
+    });
+  }
+
+  function ghUpdateGist(token, gistId, favs) {
+    return ghApiRequest("PATCH", "/gists/" + gistId, token, {
+      files: { [GIST_FILENAME]: { content: JSON.stringify(favs, null, 2) } },
+    });
+  }
+
+  // Fetches and parses the backup file from a gist. Falls back to raw_url
+  // when GitHub truncates large file content in the API response.
+  function ghGetGistContent(token, gistId) {
+    return ghApiRequest("GET", "/gists/" + gistId, token).then((gist) => {
+      const file = gist && gist.files && gist.files[GIST_FILENAME];
+      if (!file) throw new Error("Backup file not found in gist");
+      if (!file.truncated) return JSON.parse(file.content);
+      return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: file.raw_url,
+          timeout: 15000,
+          onload: (r) => {
+            try {
+              resolve(JSON.parse(r.responseText));
+            } catch (e) {
+              reject(new Error("Failed to parse backup data"));
+            }
+          },
+          onerror: () => reject(new Error("Network error fetching backup")),
+          ontimeout: () => reject(new Error("Timed out fetching backup")),
+        });
+      });
+    });
+  }
+
+  // Creates the backup gist on first run, otherwise updates the linked one.
+  // Note: GitHub does not allow flipping a gist's public/private flag after
+  // creation, so a privacy change clears GH_GIST_ID_KEY and this naturally
+  // creates a fresh gist with the new visibility on the next call.
+  function performGistBackup() {
+    const token = GM_getValue(GH_TOKEN_KEY, "");
+    if (!token) return Promise.reject(new Error("Not connected to GitHub"));
+    const favs = getFavorites();
+    const gistId = GM_getValue(GH_GIST_ID_KEY, "");
+    const isPublic = GM_getValue(GH_PRIVACY_KEY, "private") === "public";
+
+    const p = gistId
+      ? ghUpdateGist(token, gistId, favs)
+      : ghCreateGist(token, favs, isPublic).then((gist) => {
+        GM_setValue(GH_GIST_ID_KEY, gist.id);
+        GM_setValue(GH_GIST_URL_KEY, gist.html_url || "");
+        return gist;
+      });
+
+    return p.then((gist) => {
+      GM_setValue(GH_LAST_SYNC_KEY, Date.now());
+      return gist;
+    });
+  }
+
+  // Debounced auto-backup — call this after every favorites mutation.
+  // No-ops unless the user has connected GitHub and switched auto-update on.
+  // Debouncing avoids hammering the API when several maps are favorited in
+  // a row (e.g. the "Favorite all" bulk button).
+  let _autoBackupTimer = null;
+  function scheduleAutoBackup() {
+    const token = GM_getValue(GH_TOKEN_KEY, "");
+    const auto = GM_getValue(GH_AUTO_BACKUP_KEY, false);
+    if (!token || !auto) return;
+    if (_autoBackupTimer) clearTimeout(_autoBackupTimer);
+    _autoBackupTimer = setTimeout(() => {
+      _autoBackupTimer = null;
+      performGistBackup()
+        .then(() => {
+          showOsuFavToast("☁ Gist backup updated");
+          const statusEl = document.getElementById("osu-fav-footer-status");
+          if (statusEl && typeof statusEl._refresh === "function") statusEl._refresh();
+        })
+        .catch((err) => showOsuFavToast("Gist backup failed: " + err.message));
+    }, 4000);
   }
 
   // ═══ Beatmap data extraction ═══
@@ -600,6 +746,7 @@
           preview: "https://b.ppy.sh/preview/" + sid + ".mp3",
         };
         setFavorites(favs);
+        scheduleAutoBackup();
       })
       .catch(() => { });
   }
@@ -639,6 +786,7 @@
 
     setFavorites(favs);
     updateFloatingHeart();
+    scheduleAutoBackup();
     // Refresh the favorites panel if it's already open
     if (document.getElementById("osu-local-fav-panel")) {
       document.getElementById("osu-local-fav-panel").remove();
@@ -773,6 +921,7 @@
 
           setFavorites(favs);
           updateFloatingHeart();
+          scheduleAutoBackup();
           // Refresh the favorites panel if it's already open
           if (document.getElementById("osu-local-fav-panel")) {
             document.getElementById("osu-local-fav-panel").remove();
@@ -939,7 +1088,8 @@
 
     let currentSort = "date",
       sortAsc = false,
-      searchQuery = "";
+      searchQuery = "",
+      settingsOpen = false;
 
     // Inject shared styles once — covers scrollbar, slide-down banner, and slide-up prompt
     if (!document.getElementById("osu-fav-panel-style")) {
@@ -949,6 +1099,9 @@
         "#osu-fav-list::-webkit-scrollbar{width:4px}" +
         "#osu-fav-list::-webkit-scrollbar-thumb{background:#333;border-radius:2px}" +
         "#osu-fav-list::-webkit-scrollbar-thumb:hover{background:#ff66aa}" +
+        "#osu-fav-settings::-webkit-scrollbar{width:4px}" +
+        "#osu-fav-settings::-webkit-scrollbar-thumb{background:#333;border-radius:2px}" +
+        "#osu-fav-settings::-webkit-scrollbar-thumb:hover{background:#ff66aa}" +
         "@keyframes osuFavSlideDown{from{max-height:0;opacity:0;overflow:hidden}to{max-height:50px;opacity:1}}" +
         "@keyframes osuFavSlideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}";
       document.head.appendChild(s);
@@ -1091,13 +1244,32 @@
       "color:#ff66aa;background:rgba(255,102,170,.12);padding:2px 8px;border-radius:10px;font-size:11px;margin-left:6px";
     titleEl.append("Local Favorites", countBadge);
 
+    const settingsBtn = document.createElement("button");
+    settingsBtn.textContent = "⚙";
+    settingsBtn.title = "Settings";
+    settingsBtn.style.cssText =
+      "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:13px;flex-shrink:0;line-height:1.4";
+    settingsBtn.addEventListener("mouseenter", () => {
+      if (!settingsOpen) {
+        settingsBtn.style.borderColor = "#ff66aa";
+        settingsBtn.style.color = "#ff66aa";
+      }
+    });
+    settingsBtn.addEventListener("mouseleave", () => {
+      if (!settingsOpen) {
+        settingsBtn.style.borderColor = "#333";
+        settingsBtn.style.color = "#999";
+      }
+    });
+    settingsBtn.addEventListener("click", () => setView(!settingsOpen));
+
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "✕ Close";
     closeBtn.style.cssText =
       "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:12px;flex-shrink:0";
     closeBtn.addEventListener("click", () => panel.remove());
 
-    headerTop.append(logoImg, titleEl, closeBtn);
+    headerTop.append(logoImg, titleEl, settingsBtn, closeBtn);
 
     const searchInput = document.createElement("input");
     searchInput.type = "text";
@@ -1175,19 +1347,12 @@
       return btn;
     }
 
-    const exportBtn = makeBtn("Export");
-    const importBtn = makeBtn("Import");
-    const importFile = document.createElement("input");
-    importFile.type = "file";
-    importFile.accept = ".json";
-    importFile.style.display = "none";
-
-    const actionsGroup = document.createElement("div");
-    actionsGroup.style.cssText = "display:flex;gap:3px;flex-shrink:0";
-    actionsGroup.append(exportBtn, importBtn, importFile);
-
     toolbar.appendChild(sortGroup);
-    toolbar.appendChild(actionsGroup);
+
+    // ── Content area (favorites list + settings view share this space) ──
+    const contentArea = document.createElement("div");
+    contentArea.style.cssText =
+      "flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative";
 
     // ── List ───────────────────────────────────────────────
     const listEl = document.createElement("div");
@@ -1198,16 +1363,52 @@
       padding: "4px 0",
     });
 
-    // ── Footer ─────────────────────────────────────────────
-    const footer = document.createElement("div");
-    footer.style.cssText =
-      "padding:8px 14px;border-top:1px solid #333;background:#1a1a1a;flex-shrink:0";
+    // ── Settings view (hidden until the gear button is clicked) ──
+    const settingsView = document.createElement("div");
+    settingsView.id = "osu-fav-settings";
+    settingsView.style.cssText = "flex:1;overflow-y:auto;display:none";
 
-    const removeAllBtn = document.createElement("button");
-    removeAllBtn.textContent = "Remove all";
-    removeAllBtn.style.cssText =
-      "font-size:10px;padding:4px 10px;border:1px solid #555;border-radius:3px;background:none;color:#888;cursor:pointer;width:100%";
-    footer.appendChild(removeAllBtn);
+    contentArea.append(listEl, settingsView);
+
+    // ── Footer — sync status bar, doubles as a shortcut into Settings ──
+    const footer = document.createElement("div");
+    footer.id = "osu-fav-footer-status";
+    footer.style.cssText =
+      "padding:6px 14px;border-top:1px solid #333;background:#1a1a1a;flex-shrink:0;font-size:10px;color:#555;text-align:center;cursor:pointer;user-select:none";
+    footer.addEventListener("click", () => setView(true));
+    footer.addEventListener("mouseenter", () => (footer.style.color = "#ff66aa"));
+    footer.addEventListener("mouseleave", () => (footer.style.color = "#555"));
+
+    function updateFooterStatus() {
+      const token = GM_getValue(GH_TOKEN_KEY, "");
+      const auto = GM_getValue(GH_AUTO_BACKUP_KEY, false);
+      const lastSync = GM_getValue(GH_LAST_SYNC_KEY, 0);
+      if (!token) {
+        footer.textContent = "⚙ Set up Gist backup in Settings";
+      } else if (auto) {
+        footer.textContent = lastSync
+          ? "☁ Auto-backup on · synced " + formatDate(new Date(lastSync).toISOString())
+          : "☁ Auto-backup on · not yet synced";
+      } else {
+        footer.textContent = lastSync
+          ? "☁ Manual backup · synced " + formatDate(new Date(lastSync).toISOString())
+          : "☁ Manual backup · not yet synced";
+      }
+    }
+    footer._refresh = updateFooterStatus;
+
+    // ── View switching ───────────────────────────────────────
+    function setView(showSettings) {
+      settingsOpen = showSettings;
+      toolbar.style.display = showSettings ? "none" : "flex";
+      listEl.style.display = showSettings ? "none" : "block";
+      settingsView.style.display = showSettings ? "block" : "none";
+      searchInput.style.display = showSettings ? "none" : "block";
+      settingsBtn.style.color = showSettings ? "#ff66aa" : "#999";
+      settingsBtn.style.borderColor = showSettings ? "#ff66aa" : "#333";
+      settingsBtn.title = showSettings ? "Back to favorites" : "Settings";
+      if (showSettings) renderSettingsView();
+    }
 
     // ── Helpers ────────────────────────────────────────────
     function statusColor(s) {
@@ -1236,6 +1437,371 @@
     }
     function showToast(msg) {
       showOsuFavToast(msg, "380px");
+    }
+
+    // ── Settings view helpers ────────────────────────────────
+    function sectionLabel(text) {
+      const el = document.createElement("div");
+      el.style.cssText =
+        "font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#ff66aa;padding:14px 0 8px";
+      el.textContent = text;
+      return el;
+    }
+
+    function divider() {
+      const d = document.createElement("div");
+      d.style.cssText = "height:1px;background:#222;margin:4px 0";
+      return d;
+    }
+
+    function settingsRow(labelText, controlEl, subtitleText) {
+      const row = document.createElement("div");
+      row.style.cssText =
+        "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0";
+      const left = document.createElement("div");
+      left.style.cssText = "flex:1;min-width:0";
+      const lbl = document.createElement("div");
+      lbl.style.cssText = "font-size:11px;color:#ddd;font-weight:500";
+      lbl.textContent = labelText;
+      left.appendChild(lbl);
+      if (subtitleText) {
+        const sub = document.createElement("div");
+        sub.style.cssText = "font-size:10px;color:#666;margin-top:2px;line-height:1.4";
+        sub.textContent = subtitleText;
+        left.appendChild(sub);
+      }
+      row.append(left, controlEl);
+      return row;
+    }
+
+    // Pink pill switch — matches the accent color used throughout the panel
+    function makeToggleSwitch(initialOn, onChange) {
+      const wrap = document.createElement("button");
+      wrap.type = "button";
+      let on = initialOn;
+      wrap.style.cssText = `position:relative;width:34px;height:18px;border-radius:9px;flex-shrink:0;padding:0;cursor:pointer;border:1px solid ${on ? "#ff66aa" : "#333"};background:${on ? "#ff66aa" : "#222"};transition:background .15s,border-color .15s`;
+      const knob = document.createElement("span");
+      knob.style.cssText = `position:absolute;top:1px;left:${on ? "17px" : "1px"};width:14px;height:14px;border-radius:50%;background:#fff;transition:left .15s`;
+      wrap.appendChild(knob);
+      wrap.addEventListener("click", () => {
+        on = !on;
+        wrap.style.background = on ? "#ff66aa" : "#222";
+        wrap.style.borderColor = on ? "#ff66aa" : "#333";
+        knob.style.left = on ? "17px" : "1px";
+        onChange(on);
+      });
+      return wrap;
+    }
+
+    // Two/three-way segmented control — mirrors the sort-button pill style
+    function makeSegmented(options, initial, onChange) {
+      const wrap = document.createElement("div");
+      wrap.style.cssText =
+        "display:flex;gap:2px;background:#111;border:1px solid #333;border-radius:3px;padding:2px;flex-shrink:0";
+      let current = initial;
+      const btns = {};
+      options.forEach(({ value, label }) => {
+        const btn = document.createElement("button");
+        btn.textContent = label;
+        btn.style.cssText = `font-size:10px;font-weight:500;padding:3px 10px;border:none;border-radius:2px;cursor:pointer;background:${value === current ? "#ff66aa" : "transparent"};color:${value === current ? "#fff" : "#666"}`;
+        btn.addEventListener("click", () => {
+          if (current === value) return;
+          current = value;
+          options.forEach((o) => {
+            btns[o.value].style.background = o.value === current ? "#ff66aa" : "transparent";
+            btns[o.value].style.color = o.value === current ? "#fff" : "#666";
+          });
+          onChange(current);
+        });
+        btns[value] = btn;
+        wrap.appendChild(btn);
+      });
+      return wrap;
+    }
+
+    // ── Render settings view ─────────────────────────────────
+    function renderSettingsView() {
+      settingsView.innerHTML = "";
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "padding:0 14px 20px";
+
+      // ── Backup & Restore (Export / Import) ──
+      wrap.appendChild(sectionLabel("Backup & Restore"));
+
+      const backupRow = document.createElement("div");
+      backupRow.style.cssText = "display:flex;gap:6px;padding-bottom:4px";
+
+      const exportBtn = makeBtn("Export JSON", "flex:1;text-align:center;padding:6px");
+      const importBtn = makeBtn("Import JSON", "flex:1;text-align:center;padding:6px");
+      const importFile = document.createElement("input");
+      importFile.type = "file";
+      importFile.accept = ".json";
+      importFile.style.display = "none";
+      backupRow.append(exportBtn, importBtn, importFile);
+      wrap.appendChild(backupRow);
+
+      exportBtn.addEventListener("click", () => {
+        const data = JSON.stringify(getFavorites(), null, 2);
+        const blob = new Blob([data], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `osu-favorites-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast("Exported!");
+      });
+
+      importBtn.addEventListener("click", () => importFile.click());
+      importFile.addEventListener("change", async (e) => {
+        if (!e.target.files[0]) return;
+        try {
+          const text = await e.target.files[0].text();
+          const data = JSON.parse(text);
+          if (typeof data !== "object" || Array.isArray(data))
+            throw new Error("Expected JSON object");
+          const existing = getFavorites();
+          let added = 0;
+          for (const [id, fav] of Object.entries(data)) {
+            if (!existing[id]) {
+              existing[id] = fav;
+              added++;
+            }
+          }
+          setFavorites(existing);
+          updateFloatingHeart();
+          scheduleAutoBackup();
+          renderList();
+          showToast(`Added ${added}. Total: ${Object.keys(existing).length}`);
+        } catch (err) {
+          showToast("Import failed: " + err.message);
+        }
+        e.target.value = "";
+      });
+
+      wrap.appendChild(divider());
+
+      // ── GitHub Gist Backup ──
+      wrap.appendChild(sectionLabel("GitHub Gist Backup"));
+
+      const token = GM_getValue(GH_TOKEN_KEY, "");
+      const username = GM_getValue(GH_USERNAME_KEY, "");
+
+      if (!token) {
+        const hint = document.createElement("div");
+        hint.style.cssText = "font-size:10px;color:#666;line-height:1.5;margin-bottom:8px";
+        hint.innerHTML =
+          "Connect a GitHub account to back up your favorites to a Gist. " +
+          '<a href="https://github.com/settings/tokens/new?scopes=gist&description=osu%20Local%20Favorites" target="_blank" style="color:#ff66aa;text-decoration:none">Create a token →</a>';
+        wrap.appendChild(hint);
+
+        const tokenInput = document.createElement("input");
+        tokenInput.type = "password";
+        tokenInput.placeholder = "Paste a token with 'gist' scope";
+        tokenInput.style.cssText =
+          "width:100%;box-sizing:border-box;padding:6px 10px;background:#111;border:1px solid #333;border-radius:3px;color:#ddd;font-size:12px;outline:none;margin-bottom:6px";
+        tokenInput.addEventListener("focus", () => (tokenInput.style.borderColor = "#ff66aa"));
+        tokenInput.addEventListener("blur", () => (tokenInput.style.borderColor = "#333"));
+        wrap.appendChild(tokenInput);
+
+        const connectBtn = makeBtn("Connect GitHub", "width:100%;box-sizing:border-box;text-align:center;padding:6px");
+        wrap.appendChild(connectBtn);
+
+        connectBtn.addEventListener("click", () => {
+          const t = tokenInput.value.trim();
+          if (!t) {
+            showToast("Enter a token first");
+            return;
+          }
+          connectBtn.textContent = "Connecting...";
+          connectBtn.disabled = true;
+          ghGetUser(t)
+            .then((user) => {
+              GM_setValue(GH_TOKEN_KEY, t);
+              GM_setValue(GH_USERNAME_KEY, user.login);
+              return ghFindExistingGist(t).then((found) => {
+                if (found) {
+                  GM_setValue(GH_GIST_ID_KEY, found.id);
+                  GM_setValue(GH_GIST_URL_KEY, found.html_url || "");
+                  showToast("Connected — linked existing backup gist");
+                } else {
+                  showToast("Connected as " + user.login);
+                }
+              });
+            })
+            .catch((err) => showToast("Connection failed: " + err.message))
+            .then(() => {
+              renderSettingsView();
+              updateFooterStatus();
+            });
+        });
+      } else {
+        const statusRow = document.createElement("div");
+        statusRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:10px";
+        const dot = document.createElement("span");
+        dot.style.cssText = "width:6px;height:6px;border-radius:50%;background:#4caf50;flex-shrink:0";
+        const statusText = document.createElement("span");
+        statusText.style.cssText = "font-size:11px;color:#ddd;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+        statusText.textContent = "Connected as " + (username || "GitHub user");
+        const disconnectBtn = makeBtn("Disconnect");
+        statusRow.append(dot, statusText, disconnectBtn);
+        wrap.appendChild(statusRow);
+
+        disconnectBtn.addEventListener("click", () => {
+          GM_setValue(GH_TOKEN_KEY, "");
+          GM_setValue(GH_USERNAME_KEY, "");
+          GM_setValue(GH_AUTO_BACKUP_KEY, false);
+          showToast("Disconnected from GitHub");
+          renderSettingsView();
+          updateFooterStatus();
+        });
+
+        const autoOn = GM_getValue(GH_AUTO_BACKUP_KEY, false);
+        const autoToggle = makeToggleSwitch(autoOn, (on) => {
+          GM_setValue(GH_AUTO_BACKUP_KEY, on);
+          showToast(on ? "Auto-backup enabled" : "Switched to manual backup");
+          updateFooterStatus();
+          if (on) scheduleAutoBackup();
+        });
+        wrap.appendChild(
+          settingsRow("Auto-update", autoToggle, "Automatically push newly added maps to the Gist"),
+        );
+
+        const privacy = GM_getValue(GH_PRIVACY_KEY, "private");
+        const privacyControl = makeSegmented(
+          [
+            { value: "private", label: "Private" },
+            { value: "public", label: "Public" },
+          ],
+          privacy,
+          (val) => {
+            GM_setValue(GH_PRIVACY_KEY, val);
+            const existingGistId = GM_getValue(GH_GIST_ID_KEY, "");
+            if (existingGistId) {
+              GM_setValue(GH_GIST_ID_KEY, "");
+              GM_setValue(GH_GIST_URL_KEY, "");
+              showToast("Visibility changed — a new gist will be created on next backup");
+              renderSettingsView();
+            }
+          },
+        );
+        wrap.appendChild(
+          settingsRow("Gist visibility", privacyControl, "GitHub can't change visibility later, so switching creates a new gist"),
+        );
+
+        const actionRow = document.createElement("div");
+        actionRow.style.cssText = "display:flex;gap:6px;margin-top:10px";
+        const backupNowBtn = makeBtn("Backup now", "flex:1;text-align:center;padding:6px");
+        const restoreBtn = makeBtn("Restore from Gist", "flex:1;text-align:center;padding:6px");
+        const gistIdNow = GM_getValue(GH_GIST_ID_KEY, "");
+        if (!gistIdNow) restoreBtn.style.opacity = "0.5";
+        actionRow.append(backupNowBtn, restoreBtn);
+        wrap.appendChild(actionRow);
+
+        backupNowBtn.addEventListener("click", () => {
+          backupNowBtn.textContent = "Backing up...";
+          backupNowBtn.disabled = true;
+          performGistBackup()
+            .then(() => {
+              showToast("Backup complete!");
+              updateFooterStatus();
+              renderSettingsView();
+            })
+            .catch((err) => showToast("Backup failed: " + err.message))
+            .then(() => {
+              backupNowBtn.disabled = false;
+              backupNowBtn.textContent = "Backup now";
+            });
+        });
+
+        restoreBtn.addEventListener("click", () => {
+          const gistId = GM_getValue(GH_GIST_ID_KEY, "");
+          if (!gistId) {
+            showToast("No backup gist linked yet — run a backup first");
+            return;
+          }
+          restoreBtn.textContent = "Restoring...";
+          restoreBtn.disabled = true;
+          ghGetGistContent(token, gistId)
+            .then((data) => {
+              if (typeof data !== "object" || Array.isArray(data))
+                throw new Error("Malformed backup data");
+              const existing = getFavorites();
+              let added = 0;
+              for (const [id, fav] of Object.entries(data)) {
+                if (!existing[id]) {
+                  existing[id] = fav;
+                  added++;
+                }
+              }
+              setFavorites(existing);
+              updateFloatingHeart();
+              renderList();
+              showToast(`Restored ${added} maps from Gist backup`);
+            })
+            .catch((err) => showToast("Restore failed: " + err.message))
+            .then(() => {
+              restoreBtn.disabled = false;
+              restoreBtn.textContent = "Restore from Gist";
+            });
+        });
+
+        const gistUrl = GM_getValue(GH_GIST_URL_KEY, "");
+        const lastSync = GM_getValue(GH_LAST_SYNC_KEY, 0);
+        const syncInfo = document.createElement("div");
+        syncInfo.style.cssText =
+          "font-size:10px;color:#666;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px";
+        const syncText = document.createElement("span");
+        syncText.textContent = lastSync
+          ? "Last synced " + formatDate(new Date(lastSync).toISOString())
+          : "Not yet synced";
+        syncInfo.appendChild(syncText);
+        if (gistUrl) {
+          const viewLink = document.createElement("a");
+          viewLink.href = gistUrl;
+          viewLink.target = "_blank";
+          viewLink.textContent = "View on GitHub →";
+          viewLink.style.cssText = "color:#ff66aa;text-decoration:none;flex-shrink:0";
+          syncInfo.appendChild(viewLink);
+        }
+        wrap.appendChild(syncInfo);
+      }
+
+      wrap.appendChild(divider());
+
+      // ── Danger Zone ──
+      wrap.appendChild(sectionLabel("Danger Zone"));
+      const removeAllBtn = document.createElement("button");
+      removeAllBtn.textContent = "Remove all favorites";
+      removeAllBtn.style.cssText =
+        "font-size:10px;padding:6px 10px;border:1px solid #555;border-radius:3px;background:none;color:#888;cursor:pointer;width:100%";
+      wrap.appendChild(removeAllBtn);
+
+      let confirmingRemoveAll = false;
+      removeAllBtn.addEventListener("click", () => {
+        if (!confirmingRemoveAll) {
+          confirmingRemoveAll = true;
+          removeAllBtn.textContent = "Click again to confirm";
+          removeAllBtn.style.cssText =
+            "font-size:10px;padding:6px 10px;border:1px solid #ff4444;border-radius:3px;background:#ff4444;color:#fff;cursor:pointer;width:100%;font-weight:600";
+          setTimeout(() => {
+            if (confirmingRemoveAll) {
+              confirmingRemoveAll = false;
+              removeAllBtn.textContent = "Remove all favorites";
+              removeAllBtn.style.cssText =
+                "font-size:10px;padding:6px 10px;border:1px solid #555;border-radius:3px;background:none;color:#888;cursor:pointer;width:100%";
+            }
+          }, 3000);
+        } else {
+          setFavorites({});
+          updateFloatingHeart();
+          scheduleAutoBackup();
+          renderList();
+          showToast("All favorites removed");
+          setView(false);
+        }
+      });
+
+      settingsView.appendChild(wrap);
     }
 
     // ── Render list ────────────────────────────────────────
@@ -1447,6 +2013,22 @@
           openLink.style.color = "#999";
         });
 
+        const downloadLink = document.createElement("a");
+        downloadLink.href = `https://osu.ppy.sh/beatmapsets/${id}/download`;
+        downloadLink.target = "_blank";
+        downloadLink.title = "Download map";
+        downloadLink.textContent = "Download";
+        downloadLink.style.cssText =
+          "font-size:10px;padding:4px 8px;border:1px solid #333;border-radius:2px;color:#999;text-decoration:none;text-align:center;display:block;white-space:nowrap";
+        downloadLink.addEventListener("mouseenter", () => {
+          downloadLink.style.borderColor = "#ff66aa";
+          downloadLink.style.color = "#ff66aa";
+        });
+        downloadLink.addEventListener("mouseleave", () => {
+          downloadLink.style.borderColor = "#333";
+          downloadLink.style.color = "#999";
+        });
+
         const removeBtn = document.createElement("button");
         removeBtn.textContent = "Remove";
         removeBtn.style.cssText =
@@ -1464,6 +2046,7 @@
           delete favs[id];
           setFavorites(favs);
           updateFloatingHeart();
+          scheduleAutoBackup();
           renderList();
         });
 
@@ -1587,7 +2170,7 @@
         });
 
         coverEl.appendChild(previewBtn);
-        actions.append(openLink, removeBtn);
+        actions.append(openLink, downloadLink, removeBtn);
         card.append(coverEl, info, actions);
         frag.appendChild(card);
       });
@@ -1596,77 +2179,17 @@
     }
 
     // ── Assemble & wire events ─────────────────────────────
-    panel.append(header, toolbar, listEl, footer);
+    panel.append(header, toolbar, contentArea, footer);
     document.body.appendChild(panel);
     updateSortBtns();
     renderList();
+    updateFooterStatus();
 
     // Always check for updates on panel open (force=true skips 24h throttle)
     const currentVersion = getCurrentVersion();
     checkVersionUpdate(true).then((latestVersion) => {
       if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
         showPanelUpdateOverlay(latestVersion);
-      }
-    });
-
-    exportBtn.addEventListener("click", () => {
-      const data = JSON.stringify(getFavorites(), null, 2);
-      const blob = new Blob([data], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `osu-favorites-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      showToast("Exported!");
-    });
-
-    importBtn.addEventListener("click", () => importFile.click());
-
-    importFile.addEventListener("change", async (e) => {
-      if (!e.target.files[0]) return;
-      try {
-        const text = await e.target.files[0].text();
-        const data = JSON.parse(text);
-        if (typeof data !== "object" || Array.isArray(data))
-          throw new Error("Expected JSON object");
-        const existing = getFavorites();
-        let added = 0;
-        for (const [id, fav] of Object.entries(data)) {
-          if (!existing[id]) {
-            existing[id] = fav;
-            added++;
-          }
-        }
-        setFavorites(existing);
-        updateFloatingHeart();
-        renderList();
-        showToast(`Added ${added}. Total: ${Object.keys(existing).length}`);
-      } catch (err) {
-        showToast("Import failed: " + err.message);
-      }
-      e.target.value = "";
-    });
-
-    // Two-click confirm for remove all
-    let confirming = false;
-    removeAllBtn.addEventListener("click", () => {
-      if (!confirming) {
-        confirming = true;
-        removeAllBtn.textContent = "You sure?";
-        removeAllBtn.style.cssText =
-          "font-size:10px;padding:4px 10px;border:1px solid #ff4444;border-radius:3px;background:#ff4444;color:#fff;cursor:pointer;width:100%;font-weight:600";
-        setTimeout(() => {
-          if (confirming) {
-            confirming = false;
-            removeAllBtn.textContent = "Remove all";
-            removeAllBtn.style.cssText =
-              "font-size:10px;padding:4px 10px;border:1px solid #555;border-radius:3px;background:none;color:#888;cursor:pointer;width:100%";
-          }
-        }, 3000);
-      } else {
-        setFavorites({});
-        updateFloatingHeart();
-        panel.remove();
       }
     });
   }
