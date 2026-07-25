@@ -6,28 +6,6 @@ Store osu! beatmap favorites locally in your browser. No server-side limits, no 
 
 Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with local browser storage. Your favorites stay on your machine (or your own private Gist, if you choose to back them up).
 
-## Demo
-
-Here is a visual demonstration of the extension in action:
-
-| Extension button on beatmap page | When clicked it opens Favorites Side Panel |
-| :---: | :---: |
-| ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/sidepanel.jpg) |
-
-## Beatmap Page (WITH SIDE PANEL)
-
-![Beatmap Page](screenshots/beatmappage.jpg)
-
-| Beatmap Listing (With & Without Extension) | Music Previews |
-| :---: | :---: |
-| ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
-
-## If you go onto a beatmap that is favorited you will see the heart icon has changed its color
-
-| Normally | On a favorited beatmap |
-| :---: | :---: |
-| ![onnotfavoritepage](screenshots/onnotfavoritepage.jpg) | ![onfavoritedpage](screenshots/onfavoritedpage.jpg) |
-
 ## How to install
 
 ### Tampermonkey Userscript
@@ -59,6 +37,29 @@ git clone https://github.com/vyroxat/Local-osu-Favorites.git
 Then load the folder in `chrome://extensions/`.
 
 > The old browser-extension build (`manifest.json`, `content.js`, `popup.*`, `background.js`, etc.) is no longer maintained or included in this repository — only the archived v3.4.2 release above still has those files. All active development happens on the Tampermonkey userscript.
+
+
+## Demo
+
+Here is a visual demonstration of the extension in action:
+
+| Extension button on beatmap page | When clicked it opens Favorites Side Panel |
+| :---: | :---: |
+| ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/sidepanel.jpg) |
+
+## Beatmap Page (WITH SIDE PANEL)
+
+![Beatmap Page](screenshots/beatmappage.jpg)
+
+| Beatmap Listing (With & Without Extension) | Music Previews |
+| :---: | :---: |
+| ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
+
+## If you go onto a beatmap that is favorited you will see the heart icon has changed its color
+
+| Normally | On a favorited beatmap |
+| :---: | :---: |
+| ![onnotfavoritepage](screenshots/onnotfavoritepage.jpg) | ![onfavoritedpage](screenshots/onfavoritedpage.jpg) |
 
 ## How it works
 
