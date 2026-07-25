@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.3.0
+// @version      4.3.1
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -1627,6 +1627,11 @@
       settingsView.innerHTML = "";
       const wrap = document.createElement("div");
       wrap.style.cssText = "padding:0 14px 20px";
+      // Attach immediately (while still empty) rather than at the end of this
+      // function — some sub-sections (e.g. Library Maintenance) sync their
+      // initial state via document.getElementById, which only finds nodes
+      // that are actually part of the live document tree.
+      settingsView.appendChild(wrap);
 
       // ── Backup & Restore (Export / Import) ──
       wrap.appendChild(sectionLabel("Backup & Restore"));
@@ -1956,8 +1961,6 @@
           setView(false);
         }
       });
-
-      settingsView.appendChild(wrap);
     }
 
     // ── Render list ────────────────────────────────────────
