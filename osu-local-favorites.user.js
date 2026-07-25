@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.3.1
+// @version      4.3.2
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -2218,7 +2218,7 @@
           window._osuFavAudio.addEventListener("ended", () => {
             const a = window._osuFavAudio;
             if (a._activeBtn) {
-              a._activeBtn.style.opacity = "0";
+              a._activeBtn.style.opacity = "0.15";
               a._activeBtn.style.borderColor = "#333";
               a._activeBtn.style.color = "#999";
               a._activeBtn.textContent = "\u25b6";
@@ -2252,18 +2252,20 @@
           "position:absolute;inset:0;margin:auto;width:fit-content;height:fit-content;" +
           "font-size:11px;padding:2px 6px;border:1px solid #333;border-radius:2px;" +
           "background:none;color:#999;cursor:pointer;text-align:center;line-height:1;" +
-          "opacity:0;transition:opacity 0.15s";
+          "opacity:0.15;transition:opacity 0.15s";
 
         // Show/hide button on cover hover; restore original border/color on hover
         coverEl.addEventListener("mouseenter", () => {
-          previewBtn.style.opacity = "1";
+          previewBtn.style.opacity = "0.8";
+          dimOverlay.style.background = "rgba(51,51,51,0.65)";
           if (!previewBtn._playing) { previewBtn.style.borderColor = "#ff66aa"; previewBtn.style.color = "#ff66aa"; }
         });
         coverEl.addEventListener("mouseleave", () => {
           if (!previewBtn._playing) {
-            previewBtn.style.opacity = "0";
+            previewBtn.style.opacity = "0.15";
             previewBtn.style.borderColor = "#333";
             previewBtn.style.color = "#999";
+            dimOverlay.style.background = "rgba(51,51,51,0)";
           }
         });
 
@@ -2276,7 +2278,7 @@
               audio.pause();
               previewBtn.textContent = "\u25b6";
               previewBtn._playing = false;
-              previewBtn.style.opacity = "0";
+              previewBtn.style.opacity = "0.15";
               previewBtn.style.borderColor = "#333";
               previewBtn.style.color = "#999";
               dimOverlay.style.background = "rgba(51,51,51,0)";
@@ -2284,10 +2286,10 @@
               audio.play();
               previewBtn.textContent = "\u23f8";
               previewBtn._playing = true;
-              previewBtn.style.opacity = "1";
+              previewBtn.style.opacity = "0.8";
               previewBtn.style.borderColor = "#ff66aa";
               previewBtn.style.color = "#ff66aa";
-              dimOverlay.style.background = "rgba(51,51,51,0.64)";
+              dimOverlay.style.background = "rgba(51,51,51,0.65)";
             }
             return;
           }
@@ -2296,7 +2298,7 @@
           if (a._activeBtn) {
             a._activeBtn.textContent = "\u25b6";
             a._activeBtn._playing = false;
-            a._activeBtn.style.opacity = "0";
+            a._activeBtn.style.opacity = "0.15";
             a._activeBtn.style.borderColor = "#333";
             a._activeBtn.style.color = "#999";
           }
@@ -2314,14 +2316,14 @@
           progressWrap.style.display = "block";
           previewBtn.textContent = "\u23f8";
           previewBtn._playing = true;
-          previewBtn.style.opacity = "1";
+          previewBtn.style.opacity = "0.8";
           previewBtn.style.borderColor = "#ff66aa";
           previewBtn.style.color = "#ff66aa";
-          dimOverlay.style.background = "rgba(51,51,51,0.24)";
+          dimOverlay.style.background = "rgba(51,51,51,0.65)";
           audio.play().catch(() => {
             previewBtn.textContent = "\u25b6";
             previewBtn._playing = false;
-            previewBtn.style.opacity = "0";
+            previewBtn.style.opacity = "0.15";
             previewBtn.style.borderColor = "#333";
             previewBtn.style.color = "#999";
             dimOverlay.style.background = "rgba(51,51,51,0)";
