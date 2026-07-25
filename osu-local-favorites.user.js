@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.2.0
+// @version      4.3.0
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -19,7 +19,26 @@
 // @run-at       document-start
 // ==/UserScript==
 
-/* === osu! Local Favorites — Tampermonkey Edition === */
+/* === osu! Local Favorites — Tampermonkey Edition ===
+ *
+ * Table of contents (search for the ═══ markers below):
+ *   1. Page-world XHR/fetch interceptor  — blocks osu!'s own favourite calls
+ *   2. Storage                           — local favourites CRUD (GM_*Value)
+ *   3. GitHub Gist Backup                — connect, manual/auto sync, restore
+ *   4. Beatmap data extraction           — parse JSON / DOM card into a record
+ *   5. Favorite button detection         — find osu!'s heart buttons on page
+ *   6. Visual helpers                    — heart icon fill/outline state
+ *   7. Background enrichment             — fetch full detail-page JSON
+ *   8. Global re-enrichment              — Settings → Library Maintenance
+ *   9. Toggle favorite                   — the core add/remove action
+ *  10. Copy-all button                   — bulk-import from a profile page
+ *  11. Floating heart indicator          — always-on-screen shortcut
+ *  12. Favorites panel                   — the side panel UI + Settings view
+ *  13. Guest-mode fallback button        — heart button on detail pages
+ *  14. Guest downloads                   — unlock download links when logged out
+ *  15. Toast / version-check / update UI — misc helpers
+ *  16. Init                              — observers, polling, menu commands
+ */
 (() => {
   "use strict";
 
@@ -696,10 +715,17 @@
     }
   }
 
-  // ═══ Toggle favorite ═══
   // ═══ Background enrichment ═══
+  // Shared pacing for any sequence of osu! beatmapset detail-page requests —
+  // keeps us comfortably under ~60 requests/min regardless of which feature
+  // (bulk "Favorite all" import or a full-library re-enrichment) is driving it.
+  const ENRICH_RATE_LIMIT_MS = 1000;
+
   // Fetches the beatmapset detail page and merges full JSON data into storage.
   // Fire-and-forget — card data is stored instantly, this fills in the gaps.
+  // Also used standalone by the global re-enrichment feature to refresh
+  // fields (tags/source/genre/language/etc.) that may be stale or were saved
+  // in an older, differently-normalized format.
   function enrichBeatmapData(beatmapId) {
     return fetch("https://osu.ppy.sh/beatmapsets/" + beatmapId, {
       credentials: "include",
@@ -752,7 +778,7 @@
   }
 
   // Sequentially enriches a list of IDs with a delay between requests
-  function enrichBeatmapsSequential(ids, delayMs) {
+  function enrichBeatmapsSequential(ids, delayMs = ENRICH_RATE_LIMIT_MS) {
     let i = 0;
     function next() {
       if (i >= ids.length) return;
@@ -761,6 +787,83 @@
     setTimeout(next, delayMs);
   }
 
+  // ═══ Global re-enrichment (Settings → Library Maintenance) ═══
+  // Re-fetches every favorited map's full data, one request at a time and
+  // rate-limited via ENRICH_RATE_LIMIT_MS. Exposed through a couple of
+  // module-level state vars + ID-lookups (rather than closures) so progress
+  // keeps rendering correctly even if the settings view is torn down and
+  // rebuilt (e.g. re.render on unrelated state changes) while a run is live.
+  let _reenrichRunning = false;
+  let _reenrichCancelFlag = false;
+  let _reenrichDone = 0;
+  let _reenrichTotal = 0;
+
+  // Pushes current progress into the Settings panel's progress bar, if it's
+  // currently mounted. Safe to call even when the panel/settings view isn't
+  // open — the elements simply won't be found and this becomes a no-op.
+  function updateReenrichmentUI(finished, cancelled) {
+    const btn = document.getElementById("osu-fav-reenrich-btn");
+    const progressWrap = document.getElementById("osu-fav-reenrich-progress");
+    const bar = document.getElementById("osu-fav-reenrich-bar");
+    const text = document.getElementById("osu-fav-reenrich-text");
+    const pct = _reenrichTotal ? Math.round((_reenrichDone / _reenrichTotal) * 100) : 0;
+
+    if (progressWrap) progressWrap.style.display = _reenrichRunning || finished || cancelled ? "block" : "none";
+    if (bar) bar.style.width = pct + "%";
+    if (text) {
+      if (cancelled) text.textContent = `Cancelled at ${pct}% (${_reenrichDone}/${_reenrichTotal})`;
+      else if (finished) text.textContent = `Done — refreshed ${_reenrichDone}/${_reenrichTotal} maps`;
+      else text.textContent = `${pct}% (${_reenrichDone}/${_reenrichTotal})`;
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = _reenrichRunning
+        ? "Cancel re-enrichment"
+        : `Re-enrich all maps (${Object.keys(getFavorites()).length})`;
+    }
+  }
+
+  function runGlobalReenrichment() {
+    if (_reenrichRunning) return;
+    const ids = Object.keys(getFavorites());
+    if (ids.length === 0) {
+      showOsuFavToast("No favorites to re-enrich");
+      return;
+    }
+    _reenrichRunning = true;
+    _reenrichCancelFlag = false;
+    _reenrichDone = 0;
+    _reenrichTotal = ids.length;
+    updateReenrichmentUI(false, false);
+
+    function next(i) {
+      if (_reenrichCancelFlag) {
+        _reenrichRunning = false;
+        updateReenrichmentUI(false, true);
+        scheduleAutoBackup();
+        return;
+      }
+      if (i >= ids.length) {
+        _reenrichRunning = false;
+        updateReenrichmentUI(true, false);
+        showOsuFavToast("Re-enrichment complete!");
+        scheduleAutoBackup();
+        return;
+      }
+      enrichBeatmapData(ids[i]).then(() => {
+        _reenrichDone++;
+        updateReenrichmentUI(false, false);
+        setTimeout(() => next(i + 1), ENRICH_RATE_LIMIT_MS);
+      });
+    }
+    next(0);
+  }
+
+  function cancelGlobalReenrichment() {
+    if (_reenrichRunning) _reenrichCancelFlag = true;
+  }
+
+  // ═══ Toggle favorite ═══
   function toggleFavorite(beatmapId, card) {
     if (!beatmapId) return null;
     const favs = getFavorites();
@@ -932,8 +1035,8 @@
             ? " *[matching " + alreadyHad + "| " + alreadyHad + " not added]"
             : "";
           btn.textContent = "Added " + count + skippedLabel + ", enriching...";
-          // Enrich each card with full page data sequentially (1000ms between requests to respect the 60 requests/min limit)
-          enrichBeatmapsSequential(newIds, 1000);
+          // Enrich each card with full page data sequentially (respects ENRICH_RATE_LIMIT_MS)
+          enrichBeatmapsSequential(newIds);
           setTimeout(() => {
             btn.textContent = "Favorite all";
             btn.disabled = false;
@@ -1765,6 +1868,59 @@
         }
         wrap.appendChild(syncInfo);
       }
+
+      wrap.appendChild(divider());
+
+      // ── Library Maintenance ──
+      wrap.appendChild(sectionLabel("Library Maintenance"));
+      const maintHint = document.createElement("div");
+      maintHint.style.cssText = "font-size:10px;color:#666;line-height:1.5;margin-bottom:8px";
+      maintHint.textContent =
+        "Re-fetches full metadata — tags, source, genre, language, BPM, status, cover — " +
+        "for every favorited map. Useful if fields look stale or were saved in an older, " +
+        "differently-formatted version. Runs one map at a time to respect osu!'s rate limits.";
+      wrap.appendChild(maintHint);
+
+      const reenrichBtn = document.createElement("button");
+      reenrichBtn.id = "osu-fav-reenrich-btn";
+      reenrichBtn.style.cssText =
+        "font-size:10px;padding:6px 10px;border:1px solid #333;border-radius:3px;background:transparent;color:#999;cursor:pointer;width:100%;box-sizing:border-box";
+      reenrichBtn.addEventListener("mouseenter", () => {
+        if (!_reenrichRunning) {
+          reenrichBtn.style.borderColor = "#ff66aa";
+          reenrichBtn.style.color = "#ff66aa";
+        }
+      });
+      reenrichBtn.addEventListener("mouseleave", () => {
+        if (!_reenrichRunning) {
+          reenrichBtn.style.borderColor = "#333";
+          reenrichBtn.style.color = "#999";
+        }
+      });
+      reenrichBtn.addEventListener("click", () => {
+        if (_reenrichRunning) cancelGlobalReenrichment();
+        else runGlobalReenrichment();
+      });
+      wrap.appendChild(reenrichBtn);
+
+      const reenrichProgress = document.createElement("div");
+      reenrichProgress.id = "osu-fav-reenrich-progress";
+      reenrichProgress.style.cssText = "display:none;margin-top:8px";
+      const reenrichBarTrack = document.createElement("div");
+      reenrichBarTrack.style.cssText = "height:4px;background:#333;border-radius:2px;overflow:hidden";
+      const reenrichBar = document.createElement("div");
+      reenrichBar.id = "osu-fav-reenrich-bar";
+      reenrichBar.style.cssText = "height:100%;width:0%;background:#ff66aa;border-radius:2px;transition:width .2s";
+      reenrichBarTrack.appendChild(reenrichBar);
+      const reenrichText = document.createElement("div");
+      reenrichText.id = "osu-fav-reenrich-text";
+      reenrichText.style.cssText = "font-size:10px;color:#666;margin-top:4px;text-align:center";
+      reenrichProgress.append(reenrichBarTrack, reenrichText);
+      wrap.appendChild(reenrichProgress);
+
+      // Sync button label/progress bar to the real state in case a run is
+      // already in flight (e.g. started, then user switched view and back)
+      updateReenrichmentUI(false, false);
 
       wrap.appendChild(divider());
 
