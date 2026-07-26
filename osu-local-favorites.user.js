@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.6.0
+// @version      4.6.1
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -822,19 +822,16 @@
     const urlId = getBeatmapId();
     if (urlId) return { beatmapId: urlId, card: null, pageType: "detail" };
 
-    // Primary: use closest() to find the nearest .beatmapset-panel card wrapper.
-    // This avoids the bug where walking up parents and using querySelector on
-    // a multi-card container would pick the first card's link instead of this one.
-    const card = button.closest(".beatmapset-panel");
-    if (card) {
-      const link = card.querySelector('a[href*="/beatmapsets/"]');
-      if (link) {
-        const m = link.href.match(/\/beatmapsets\/(\d+)/);
-        if (m) return { beatmapId: m[1], card: card, pageType: "listing" };
-      }
-    }
-
-    // Fallback: walk up the DOM for cases where .beatmapset-panel doesn't exist
+    // Walk up from the button and find the smallest ancestor that contains
+    // links to exactly one distinct beatmapset id. This works no matter how
+    // deeply the beatmapset link is nested inside the card's markup (some
+    // layouts — e.g. the Featured Artist track grid — wrap it several levels
+    // deep rather than as a direct child), and no matter which wrapper class
+    // a given card layout uses, since we no longer depend on ".beatmapset-panel"
+    // or a direct-child relationship at all. As soon as an ancestor's links
+    // span more than one distinct beatmapset, we've walked past the card
+    // boundary into a container shared by multiple cards, so we stop there
+    // rather than risk grabbing a neighboring card's id.
     let el = button.parentElement;
     while (el && el !== document.body && el !== document.documentElement) {
       const cls = (el.className || "").toString();
@@ -842,12 +839,15 @@
         el = el.parentElement;
         continue;
       }
-      // Only check direct children to avoid cross-card contamination
-      const dlink = el.querySelector(':scope > a[href*="/beatmapsets/"]');
-      if (dlink) {
-        const m = dlink.href.match(/\/beatmapsets\/(\d+)/);
-        if (m) return { beatmapId: m[1], card: el, pageType: "listing" };
+      const ids = new Set();
+      el.querySelectorAll('a[href*="/beatmapsets/"]').forEach((a) => {
+        const m = a.href.match(/\/beatmapsets\/(\d+)/);
+        if (m) ids.add(m[1]);
+      });
+      if (ids.size === 1) {
+        return { beatmapId: [...ids][0], card: el, pageType: "listing" };
       }
+      if (ids.size > 1) break;
       el = el.parentElement;
     }
 
