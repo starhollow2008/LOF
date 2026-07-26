@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.6.1
+// @version      4.6.2
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -1413,21 +1413,46 @@
       const button = e.target.closest("button, a, span.beatmapset-panel__menu-item");
       if (!button || !isFavButton(button)) return;
 
-      const ctx = resolveBeatmapContext(button);
-      if (!ctx.beatmapId) return;
-
+      // As soon as we've identified this as a favorite button, we commit to
+      // handling the click ourselves — block osu!'s own click handler
+      // unconditionally, even if something below fails. Previously this only
+      // happened after beatmap-id resolution succeeded, so a resolution
+      // failure would silently fall through to osu!'s real click handler —
+      // which our own XHR/fetch interceptor then turns into a broken fake
+      // response, since it blindly fakes *any* request to a "/favourites"
+      // URL regardless of whether we handled the click. Blocking here always
+      // avoids that half-broken passthrough state.
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
 
-      const nowFav = toggleFavorite(ctx.beatmapId, ctx.card);
-      updateHeartVisual(button, nowFav);
+      try {
+        const ctx = resolveBeatmapContext(button);
+        if (!ctx.beatmapId) {
+          console.error(
+            "[osu-local-favorites] couldn't resolve a beatmap id for this button",
+            button,
+          );
+          showOsuFavToast(
+            "Local Favorites: couldn't identify this beatmap (see F12 console)",
+          );
+          return;
+        }
 
-      button.style.transform = "scale(1.2)";
-      button.style.transition = "transform 0.1s ease";
-      setTimeout(() => {
-        button.style.transform = "scale(1)";
-      }, 120);
+        const nowFav = toggleFavorite(ctx.beatmapId, ctx.card);
+        updateHeartVisual(button, nowFav);
+
+        button.style.transform = "scale(1.2)";
+        button.style.transition = "transform 0.1s ease";
+        setTimeout(() => {
+          button.style.transform = "scale(1)";
+        }, 120);
+      } catch (err) {
+        console.error("[osu-local-favorites] error while toggling favorite", err);
+        showOsuFavToast(
+          "Local Favorites: something went wrong (see F12 console)",
+        );
+      }
     },
     true,
   );
