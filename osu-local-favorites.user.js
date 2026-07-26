@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.4.0
+// @version      4.5.0
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -179,12 +179,14 @@
   // var(--osu-fav-accent) etc. picks up the change immediately, with no need
   // to touch each individual style string.
   const THEME_ACCENT_KEY = "osu_theme_accent";
+  const THEME_HEART_KEY = "osu_theme_heart_color";
   const THEME_IDLE_OPACITY_KEY = "osu_theme_idle_opacity";
   const THEME_HOVER_DIM_KEY = "osu_theme_hover_dim";
   const THEME_ACTIVE_OPACITY_KEY = "osu_theme_active_opacity";
 
   const THEME_DEFAULTS = {
     accent: "#ff66aa",
+    heartColor: "#ff66aa",
     idleOpacity: 0.15,
     hoverDim: 0.65,
     activeOpacity: 0.8,
@@ -203,6 +205,7 @@
   function getThemeSettings() {
     return {
       accent: GM_getValue(THEME_ACCENT_KEY, THEME_DEFAULTS.accent),
+      heartColor: GM_getValue(THEME_HEART_KEY, THEME_DEFAULTS.heartColor),
       idleOpacity: GM_getValue(THEME_IDLE_OPACITY_KEY, THEME_DEFAULTS.idleOpacity),
       hoverDim: GM_getValue(THEME_HOVER_DIM_KEY, THEME_DEFAULTS.hoverDim),
       activeOpacity: GM_getValue(THEME_ACTIVE_OPACITY_KEY, THEME_DEFAULTS.activeOpacity),
@@ -211,15 +214,28 @@
 
   // Applies the current theme settings to :root as CSS custom properties.
   // Safe to call repeatedly (e.g. right after a Settings change) — it just
-  // overwrites the same four variables.
+  // overwrites the same handful of variables.
   function applyTheme() {
     const t = getThemeSettings();
     const root = document.documentElement.style;
     root.setProperty("--osu-fav-accent", t.accent);
     root.setProperty("--osu-fav-accent-dark", darkenHex(t.accent));
+    root.setProperty("--osu-fav-heart-color", t.heartColor);
     root.setProperty("--osu-fav-idle-opacity", t.idleOpacity);
     root.setProperty("--osu-fav-hover-dim", t.hoverDim);
     root.setProperty("--osu-fav-active-opacity", t.activeOpacity);
+  }
+
+  // Minimal heart glyph as real SVG (not emoji) — emoji hearts render from the
+  // system emoji font with a fixed, non-CSS-colorable presentation, which is
+  // exactly why they can't be recolored. This one uses fill/stroke, so
+  // --osu-fav-heart-color actually takes effect.
+  const HEART_PATH =
+    "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
+  function heartSVG(filled, size = 26) {
+    return filled
+      ? `<svg width="${size}" height="${size}" viewBox="0 0 24 24"><path d="${HEART_PATH}" fill="var(--osu-fav-heart-color)"/></svg>`
+      : `<svg width="${size}" height="${size}" viewBox="0 0 24 24"><path d="${HEART_PATH}" fill="none" stroke="var(--osu-fav-heart-color)" stroke-width="1.6"/></svg>`;
   }
 
   // ═══ Download Mirrors ═══
@@ -234,7 +250,9 @@
       settingKey: "osu_mirror_beatconnect",
       label: "Beatconnect",
       defaultOn: true,
-      variants: (id) => [{ label: "Beatconnect", url: `https://beatconnect.io/b/${id}` }],
+      variants: (id) => [
+        { label: "Beatconnect", top: "Beatconnect", bottom: null, url: `https://beatconnect.io/b/${id}` },
+      ],
     },
     {
       key: "nerinyan",
@@ -242,8 +260,8 @@
       label: "NeriNyan",
       defaultOn: true,
       variants: (id) => [
-        { label: "NeriNyan", url: `https://api.nerinyan.moe/d/${id}` },
-        { label: "NeriNyan (no video)", url: `https://api.nerinyan.moe/d/${id}?nv=1` },
+        { label: "NeriNyan", top: "NeriNyan", bottom: null, url: `https://api.nerinyan.moe/d/${id}` },
+        { label: "NeriNyan (no video)", top: "NeriNyan", bottom: "no video", url: `https://api.nerinyan.moe/d/${id}?nv=1` },
       ],
     },
     {
@@ -252,8 +270,8 @@
       label: "Sayobot",
       defaultOn: false,
       variants: (id) => [
-        { label: "Sayobot", url: `https://dl.sayobot.cn/beatmaps/download/full/${id}` },
-        { label: "Sayobot (no video)", url: `https://dl.sayobot.cn/beatmaps/download/novideo/${id}` },
+        { label: "Sayobot", top: "Sayobot", bottom: null, url: `https://dl.sayobot.cn/beatmaps/download/full/${id}` },
+        { label: "Sayobot (no video)", top: "Sayobot", bottom: "no video", url: `https://dl.sayobot.cn/beatmaps/download/novideo/${id}` },
       ],
     },
     {
@@ -261,7 +279,7 @@
       settingKey: "osu_mirror_mino",
       label: "Mino",
       defaultOn: false,
-      variants: (id) => [{ label: "Mino", url: `https://catboy.best/d/${id}` }],
+      variants: (id) => [{ label: "Mino", top: "Mino", bottom: null, url: `https://catboy.best/d/${id}` }],
     },
   ];
 
@@ -272,8 +290,8 @@
   // Detects a real logged-in osu! session via the page's own current-user
   // JSON blob (empty object "{}" for guests, populated for a real session).
   // Used to decide whether "Official Download" is worth offering at all —
-  // osu!'s download route 404s/redirects for guests regardless of what our
-  // script does, since it requires server-side auth.
+  // osu!'s download route requires server-side auth and simply doesn't work
+  // for guests regardless of what our script does.
   function isLoggedIn() {
     const el = document.getElementById("json-current-user");
     if (!el) return false;
@@ -285,24 +303,44 @@
     }
   }
 
-  // Builds the ordered list of download options for a beatmapset: Official
-  // first when it stands a chance of working (logged in), then every enabled
-  // mirror's variant(s). Returns [] only if logged out with zero mirrors on.
+  // Which video variant to prefer, and whether Official or Mirrors should be
+  // listed first — both user-configurable in Settings → Download Mirrors.
+  // Nothing is ever hidden by these; they only decide ordering, so the full
+  // set of options is always one click away in the dropdown.
+  const DL_VIDEO_PREF_KEY = "osu_dl_video_pref"; // "video" | "novideo"
+  const DL_SOURCE_PREF_KEY = "osu_dl_source_pref"; // "official" | "mirrors"
+
+  // Builds the ordered list of download options for a beatmapset. Official
+  // download offers both a with-video and no-video (confirmed real
+  // ?noVideo=1 param) variant — previously this was hardcoded to
+  // video-only. Guests always see mirrors first, since Official won't work
+  // for them no matter what; logged-in users get their configured order.
   function buildDownloadOptions(id) {
-    const options = [];
+    const videoPref = GM_getValue(DL_VIDEO_PREF_KEY, "video");
+    const sourcePref = GM_getValue(DL_SOURCE_PREF_KEY, "official");
     const loggedIn = isLoggedIn();
+
+    let officialEntries;
     if (loggedIn) {
-      options.push({ label: "Official Download", url: `https://osu.ppy.sh/beatmapsets/${id}/download` });
+      officialEntries = [
+        { label: "Official Download", url: `https://osu.ppy.sh/beatmapsets/${id}/download` },
+        { label: "Official Download (no video)", url: `https://osu.ppy.sh/beatmapsets/${id}/download?noVideo=1` },
+      ];
+      if (videoPref === "novideo") officialEntries.reverse();
+    } else {
+      officialEntries = [{ label: "Official Download (requires sign-in)", url: `https://osu.ppy.sh/beatmapsets/${id}/download` }];
     }
+
+    const mirrorEntries = [];
     MIRRORS.forEach((m) => {
-      if (isMirrorEnabled(m)) options.push(...m.variants(id));
+      if (!isMirrorEnabled(m)) return;
+      const variants = m.variants(id);
+      if (videoPref === "novideo" && variants.length > 1) variants.reverse();
+      mirrorEntries.push(...variants);
     });
-    if (!loggedIn) {
-      // Still list it last, clearly labeled — some non-supporters may still
-      // be logged in via a different tab/cookie state than we detected.
-      options.push({ label: "Official Download (requires sign-in)", url: `https://osu.ppy.sh/beatmapsets/${id}/download` });
-    }
-    return options;
+
+    if (!loggedIn) return [...mirrorEntries, ...officialEntries];
+    return sourcePref === "mirrors" ? [...mirrorEntries, ...officialEntries] : [...officialEntries, ...mirrorEntries];
   }
 
   // Shows a small popover of download options (official + enabled mirrors)
@@ -922,7 +960,7 @@
     if (cls.includes("beatmapset-panel__menu-item")) {
       el.classList.toggle("beatmapset-panel__menu-item--disabled", false);
       if (isFav) {
-        el.style.color = "var(--osu-fav-accent-dark)";
+        el.style.color = "var(--osu-fav-heart-color)";
         el.style.cursor = "pointer";
         el.removeAttribute("data-orig-title");
         el.title = "Remove from local favorites";
@@ -1293,8 +1331,6 @@
       alignItems: "center",
       justifyContent: "center",
       cursor: "pointer",
-      fontSize: "26px",
-      lineHeight: "1",
       transition: "all 0.15s ease",
       userSelect: "none",
     });
@@ -1302,7 +1338,7 @@
     const update = () => {
       const bmid = getBeatmapId();
       const fav = bmid ? isFavorited(bmid) : false;
-      ind.textContent = fav ? "❤️" : "🤍";
+      ind.innerHTML = heartSVG(fav);
       ind.style.border = fav ? "2px solid var(--osu-fav-accent-dark)" : "2px solid var(--osu-fav-accent)";
       ind.style.boxShadow = fav
         ? "0 2px 20px rgba(255,51,119,0.6)"
@@ -1331,6 +1367,10 @@
     if (heart) {
       heart.classList.toggle("far", !fav);
       heart.classList.toggle("fas", fav);
+      // Inline style wins over osu!'s own stylesheet rules, so our button
+      // reads as clearly "ours" rather than an indistinguishable copy of
+      // osu!'s native heart.
+      heart.style.color = "var(--osu-fav-heart-color)";
     }
     btn.setAttribute(
       "data-orig-title",
@@ -1343,7 +1383,7 @@
     if (!ind) return;
     const bmid = getBeatmapId();
     const fav = bmid ? isFavorited(bmid) : false;
-    ind.textContent = fav ? "❤️" : "🤍";
+    ind.innerHTML = heartSVG(fav);
     ind.style.border = fav ? "2px solid var(--osu-fav-accent-dark)" : "2px solid var(--osu-fav-accent)";
     ind.style.boxShadow = fav
       ? "0 2px 20px rgba(255,51,119,0.6)"
@@ -2138,6 +2178,30 @@
         wrap.appendChild(settingsRow(mirror.label, toggle));
       });
 
+      const videoPrefControl = makeSegmented(
+        [
+          { value: "video", label: "With video" },
+          { value: "novideo", label: "No video" },
+        ],
+        GM_getValue(DL_VIDEO_PREF_KEY, "video"),
+        (val) => GM_setValue(DL_VIDEO_PREF_KEY, val),
+      );
+      wrap.appendChild(
+        settingsRow("Preferred video option", videoPrefControl, "Only reorders — every option stays available in the dropdown"),
+      );
+
+      const sourcePrefControl = makeSegmented(
+        [
+          { value: "official", label: "Official first" },
+          { value: "mirrors", label: "Mirrors first" },
+        ],
+        GM_getValue(DL_SOURCE_PREF_KEY, "official"),
+        (val) => GM_setValue(DL_SOURCE_PREF_KEY, val),
+      );
+      wrap.appendChild(
+        settingsRow("Preferred source order", sourcePrefControl, "Guests always see mirrors first — Official won't work without signing in"),
+      );
+
       wrap.appendChild(divider());
 
       // ── Appearance ──
@@ -2161,6 +2225,29 @@
       });
       colorRow.append(colorLabel, colorInput);
       wrap.appendChild(colorRow);
+
+      const heartColorRow = document.createElement("div");
+      heartColorRow.style.cssText =
+        "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0";
+      const heartColorLabel = document.createElement("div");
+      heartColorLabel.style.cssText = "font-size:11px;color:#ddd;font-weight:500";
+      heartColorLabel.textContent = "Heart fill color";
+      const heartColorSub = document.createElement("div");
+      heartColorSub.style.cssText = "font-size:10px;color:#666;margin-top:2px";
+      heartColorSub.textContent = "Independent of accent — keeps our heart distinct from osu!'s own";
+      const heartColorLabelWrap = document.createElement("div");
+      heartColorLabelWrap.append(heartColorLabel, heartColorSub);
+      const heartColorInput = document.createElement("input");
+      heartColorInput.type = "color";
+      heartColorInput.value = theme.heartColor;
+      heartColorInput.style.cssText =
+        "width:40px;height:24px;border:1px solid #333;border-radius:3px;background:none;cursor:pointer;padding:0;flex-shrink:0";
+      heartColorInput.addEventListener("input", () => {
+        GM_setValue(THEME_HEART_KEY, heartColorInput.value);
+        applyTheme();
+      });
+      heartColorRow.append(heartColorLabelWrap, heartColorInput);
+      wrap.appendChild(heartColorRow);
 
       wrap.appendChild(
         settingsRow(
@@ -2196,6 +2283,7 @@
       );
       resetThemeBtn.addEventListener("click", () => {
         GM_setValue(THEME_ACCENT_KEY, THEME_DEFAULTS.accent);
+        GM_setValue(THEME_HEART_KEY, THEME_DEFAULTS.heartColor);
         GM_setValue(THEME_IDLE_OPACITY_KEY, THEME_DEFAULTS.idleOpacity);
         GM_setValue(THEME_HOVER_DIM_KEY, THEME_DEFAULTS.hoverDim);
         GM_setValue(THEME_ACTIVE_OPACITY_KEY, THEME_DEFAULTS.activeOpacity);
@@ -2727,11 +2815,18 @@
     if (!bmid) return;
 
     // If the native osu! favourite button already exists on the page (user is logged in),
-    // we don't need to inject our guest fallback — our click interceptor handles the native button.
+    // we don't need to inject our guest fallback — our click interceptor handles the native
+    // button. Osu!'s own class/title FLIPS once a beatmapset is already favourited
+    // (…-square-favourite/"favourite this beatmap" → …-square-unfavourite/"unfavourite
+    // this beatmap"), so both states must be checked or an already-favourited map's native
+    // button goes undetected and we'd inject a visually-identical duplicate heart next to it.
     if (
-      document.querySelector(".btn-osu-big--beatmapset-header-square-favourite") ||
+      document.querySelector('[class*="-square-favourite"]') ||
+      document.querySelector('[class*="-square-unfavourite"]') ||
       document.querySelector("button[data-orig-title='favourite this beatmap']") ||
-      document.querySelector("button[title='favourite this beatmap']")
+      document.querySelector("button[data-orig-title='unfavourite this beatmap']") ||
+      document.querySelector("button[title='favourite this beatmap']") ||
+      document.querySelector("button[title='unfavourite this beatmap']")
     ) return;
 
     // Try multiple anchor points in order of preference.
@@ -2769,7 +2864,7 @@
       '<span class="btn-osu-big__content btn-osu-big__content--center">' +
       '<span class="btn-osu-big__icon">' +
       '<span class="fa fa-fw">' +
-      '<span class="' + (fav ? "fas" : "far") + ' fa-heart"></span>' +
+      '<span class="' + (fav ? "fas" : "far") + ' fa-heart" style="color:var(--osu-fav-heart-color)"></span>' +
       '</span>' +
       '</span>' +
       '</span>';
@@ -2787,6 +2882,7 @@
       if (heart) {
         heart.classList.toggle("far", !nowFav);
         heart.classList.toggle("fas", nowFav);
+        heart.style.color = "var(--osu-fav-heart-color)";
       }
       btn.setAttribute(
         "data-orig-title",
@@ -2913,18 +3009,54 @@
     signInBtn.replaceWith(aWithVideo, aNoVideo);
   }
 
-  // Injects small mirror-download pills onto the beatmapset detail page,
-  // right after the official download buttons. These work regardless of
-  // login state or a beatmapset's download_disabled flag — a solid fallback
-  // for anything the official button can't do. Cheap to call repeatedly;
-  // only rebuilds when the current beatmapset id actually changes.
+  // Detects osu!plus (limjeck/osuplus) already having injected its own mirror
+  // buttons on this page — it tags them with this exact class in its
+  // makeMirror() function. If present, we skip adding our own to avoid a
+  // cluttered duplicate row of near-identical buttons.
+  function isOsuPlusMirrorsPresent() {
+    return !!document.querySelector(".js-beatmapset-download-link");
+  }
+
+  // Builds a button matching osu!'s own native download-button markup
+  // exactly (same classes osu!'s big buttons and osu!plus's mirror buttons
+  // use) — so ours inherit the page's real CSS instead of looking like a
+  // custom pill glued on top of it.
+  function makeNativeStyleLink(url, topName, bottomName) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.setAttribute("data-turbolinks", "false");
+    a.className = "btn-osu-big btn-osu-big--beatmapset-header osu-fav-mirror-link";
+    a.innerHTML =
+      '<span class="btn-osu-big__content">' +
+      '<span class="btn-osu-big__left">' +
+      `<span class="btn-osu-big__text-top">${topName}</span>` +
+      (bottomName ? `<span class="btn-osu-big__text-bottom">${bottomName}</span>` : "") +
+      "</span>" +
+      '<span class="btn-osu-big__icon"><span class="fa-fw"><i class="fas fa-download"></i></span></span>' +
+      "</span>";
+    return a;
+  }
+
+  // Injects native-styled mirror-download buttons onto the beatmapset detail
+  // page, right after the official download buttons. These work regardless
+  // of login state or a beatmapset's download_disabled flag — a solid
+  // fallback for anything the official button can't do. Cheap to call
+  // repeatedly; only rebuilds when the current beatmapset id actually
+  // changes, and stands down entirely if osu!plus already covers this.
   function injectMirrorButtons() {
     const bmid = getBeatmapId();
     if (!bmid) return;
 
-    const enabledMirrors = MIRRORS.filter(isMirrorEnabled);
     const existing = document.getElementById("osu-fav-mirror-row");
 
+    if (isOsuPlusMirrorsPresent()) {
+      if (existing) existing.remove();
+      return;
+    }
+
+    const enabledMirrors = MIRRORS.filter(isMirrorEnabled);
     if (enabledMirrors.length === 0) {
       if (existing) existing.remove();
       return;
@@ -2932,45 +3064,28 @@
     if (existing && existing.dataset.beatmapsetId === String(bmid)) return; // already current
     if (existing) existing.remove();
 
-    const container =
-      document.querySelector(".beatmapset-header__buttons") ||
-      document.querySelector(".beatmapset-header__more");
-    if (!container) return;
+    const moreContainer = document.querySelector(".beatmapset-header__more");
+    const buttonsContainer = document.querySelector(".beatmapset-header__buttons");
+    if (!moreContainer && !buttonsContainer) return;
 
     const row = document.createElement("div");
     row.id = "osu-fav-mirror-row";
     row.dataset.beatmapsetId = String(bmid);
-    row.style.cssText =
-      "display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;width:100%";
-
-    const label = document.createElement("span");
-    label.textContent = "Mirrors:";
-    label.style.cssText = "font-size:11px;color:#888;margin-right:2px";
-    row.appendChild(label);
+    row.style.cssText = "display:contents";
 
     enabledMirrors.forEach((mirror) => {
       mirror.variants(bmid).forEach((variant) => {
-        const a = document.createElement("a");
-        a.href = variant.url;
-        a.target = "_blank";
-        a.rel = "noopener";
-        a.textContent = variant.label;
-        a.style.cssText =
-          "font-size:11px;padding:4px 10px;border:1px solid #333;border-radius:12px;" +
-          "color:#ddd;text-decoration:none;background:rgba(255,255,255,0.03);white-space:nowrap";
-        a.addEventListener("mouseenter", () => {
-          a.style.borderColor = "var(--osu-fav-accent)";
-          a.style.color = "var(--osu-fav-accent)";
-        });
-        a.addEventListener("mouseleave", () => {
-          a.style.borderColor = "#333";
-          a.style.color = "#ddd";
-        });
-        row.appendChild(a);
+        row.appendChild(makeNativeStyleLink(variant.url, variant.top, variant.bottom));
       });
     });
 
-    container.insertAdjacentElement("afterend", row);
+    // Match osu!plus's own insertion point exactly: before "…more" if it
+    // exists, otherwise appended into the main buttons row.
+    if (moreContainer) {
+      moreContainer.before(row);
+    } else {
+      buttonsContainer.appendChild(row);
+    }
   }
 
   // ═══ Toast helper ═══
@@ -3206,7 +3321,7 @@
     GM_addValueChangeListener(STORAGE_KEY, (_key, _oldVal, _newVal, remote) => {
       if (!remote) return; // ignore writes from this same tab
 
-      // Re-render floating heart (❤️/🤍) for the current beatmap
+      // Re-render floating heart (filled/outline SVG) for the current beatmap
       updateFloatingHeart();
 
       // Rebuild the panel if it's already open
