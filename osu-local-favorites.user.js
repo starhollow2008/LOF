@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.5.0
+// @version      4.6.0
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -181,6 +181,7 @@
   const THEME_ACCENT_KEY = "osu_theme_accent";
   const THEME_HEART_KEY = "osu_theme_heart_color";
   const THEME_IDLE_OPACITY_KEY = "osu_theme_idle_opacity";
+  const THEME_IDLE_DIM_KEY = "osu_theme_idle_dim";
   const THEME_HOVER_DIM_KEY = "osu_theme_hover_dim";
   const THEME_ACTIVE_OPACITY_KEY = "osu_theme_active_opacity";
 
@@ -188,6 +189,7 @@
     accent: "#ff66aa",
     heartColor: "#ff66aa",
     idleOpacity: 0.15,
+    idleDim: 0,
     hoverDim: 0.65,
     activeOpacity: 0.8,
   };
@@ -207,6 +209,7 @@
       accent: GM_getValue(THEME_ACCENT_KEY, THEME_DEFAULTS.accent),
       heartColor: GM_getValue(THEME_HEART_KEY, THEME_DEFAULTS.heartColor),
       idleOpacity: GM_getValue(THEME_IDLE_OPACITY_KEY, THEME_DEFAULTS.idleOpacity),
+      idleDim: GM_getValue(THEME_IDLE_DIM_KEY, THEME_DEFAULTS.idleDim),
       hoverDim: GM_getValue(THEME_HOVER_DIM_KEY, THEME_DEFAULTS.hoverDim),
       activeOpacity: GM_getValue(THEME_ACTIVE_OPACITY_KEY, THEME_DEFAULTS.activeOpacity),
     };
@@ -222,6 +225,7 @@
     root.setProperty("--osu-fav-accent-dark", darkenHex(t.accent));
     root.setProperty("--osu-fav-heart-color", t.heartColor);
     root.setProperty("--osu-fav-idle-opacity", t.idleOpacity);
+    root.setProperty("--osu-fav-idle-dim", t.idleDim);
     root.setProperty("--osu-fav-hover-dim", t.hoverDim);
     root.setProperty("--osu-fav-active-opacity", t.activeOpacity);
   }
@@ -521,6 +525,16 @@
         });
       });
     });
+  }
+
+  // Pulls a gist id out of either a raw id or a pasted gist URL
+  // (https://gist.github.com/user/<id> or the api.github.com form).
+  function parseGistId(input) {
+    const trimmed = (input || "").trim();
+    const hexMatch = trimmed.match(/[0-9a-f]{16,}/i);
+    if (hexMatch) return hexMatch[0];
+    const parts = trimmed.split(/[/?#]/).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : trimmed;
   }
 
   // Creates the backup gist on first run, otherwise updates the linked one.
@@ -1908,8 +1922,58 @@
       return wrap;
     }
 
+    // Color swatch that opens the native picker without letting it hang off
+    // the edge of the screen. The panel is docked flush against the right
+    // edge of the viewport, so a real <input type="color"> sitting in a
+    // settings row only has ~14px of clearance to its right — Chrome anchors
+    // the picker popup to the input's own position and doesn't reliably flip
+    // it back on screen, so the gradient/RGB fields end up clipped or
+    // unreachable. Instead we show a plain, purely decorative swatch box in
+    // the row (so the layout looks identical to before) and keep the real
+    // functional <input> invisible, teleporting it to the center of the
+    // viewport just before it opens — plenty of clearance on every side
+    // regardless of where the panel or the row happens to sit.
+    function makeColorInput(initialHex, onChange) {
+      const swatch = document.createElement("div");
+      swatch.style.cssText =
+        `width:40px;height:24px;border:1px solid #333;border-radius:3px;cursor:pointer;` +
+        `background:${initialHex};flex-shrink:0`;
+
+      const input = document.createElement("input");
+      input.type = "color";
+      input.value = initialHex;
+      input.style.cssText =
+        "position:fixed;opacity:0;width:1px;height:1px;padding:0;border:0;pointer-events:none";
+      document.body.appendChild(input);
+
+      swatch.addEventListener("click", () => {
+        const w = 260, h = 300; // generous estimate of the native picker's footprint
+        const left = Math.max(8, Math.min(window.innerWidth - w - 8, Math.round(window.innerWidth / 2 - w / 2)));
+        const top = Math.max(8, Math.min(window.innerHeight - h - 8, Math.round(window.innerHeight / 2 - h / 2)));
+        input.style.left = left + "px";
+        input.style.top = top + "px";
+        input.click();
+      });
+
+      input.addEventListener("input", () => {
+        swatch.style.background = input.value;
+        onChange(input.value);
+      });
+
+      // The input lives on <body>, independent of the swatch's own position
+      // in the settings row — clean it up if the row is ever torn down
+      // (e.g. Settings re-rendered) so orphaned inputs don't pile up.
+      const cleanup = () => input.remove();
+      settingsView.addEventListener("osu-fav-settings-teardown", cleanup, { once: true });
+
+      return swatch;
+    }
+
     // ── Render settings view ─────────────────────────────────
     function renderSettingsView() {
+      // Clean up any real <input type="color"> elements a previous render
+      // parked on <body> (see makeColorInput) before we rebuild everything.
+      settingsView.dispatchEvent(new Event("osu-fav-settings-teardown"));
       settingsView.innerHTML = "";
       const wrap = document.createElement("div");
       wrap.style.cssText = "padding:0 14px 20px";
@@ -2139,6 +2203,62 @@
             });
         });
 
+        const fetchRow = document.createElement("div");
+        fetchRow.style.cssText = "display:flex;gap:6px;margin-top:6px";
+        const fetchInput = document.createElement("input");
+        fetchInput.type = "text";
+        fetchInput.placeholder = "Gist ID or URL";
+        fetchInput.style.cssText =
+          "flex:1;min-width:0;box-sizing:border-box;padding:6px 10px;background:#111;" +
+          "border:1px solid #333;border-radius:3px;color:#ddd;font-size:11px;outline:none";
+        fetchInput.addEventListener("focus", () => (fetchInput.style.borderColor = "var(--osu-fav-accent)"));
+        fetchInput.addEventListener("blur", () => (fetchInput.style.borderColor = "#333"));
+        const fetchBtn = makeBtn("Fetch", "flex-shrink:0;padding:6px 12px");
+        fetchRow.append(fetchInput, fetchBtn);
+        wrap.appendChild(fetchRow);
+
+        const fetchHint = document.createElement("div");
+        fetchHint.style.cssText = "font-size:10px;color:#666;margin-top:4px;line-height:1.4";
+        fetchHint.textContent =
+          "Pull from any gist — your own or someone else's shared list — without " +
+          "changing what Backup now targets. Handy on a new device before your first backup.";
+        wrap.appendChild(fetchHint);
+
+        fetchBtn.addEventListener("click", () => {
+          const raw = fetchInput.value.trim();
+          if (!raw) {
+            showToast("Paste a gist ID or URL first");
+            return;
+          }
+          const gistId = parseGistId(raw);
+          fetchBtn.textContent = "Fetching...";
+          fetchBtn.disabled = true;
+          ghGetGistContent(token, gistId)
+            .then((data) => {
+              if (typeof data !== "object" || Array.isArray(data))
+                throw new Error("Malformed backup data");
+              const existing = getFavorites();
+              let added = 0;
+              for (const [id, fav] of Object.entries(data)) {
+                if (!existing[id]) {
+                  existing[id] = fav;
+                  added++;
+                }
+              }
+              setFavorites(existing);
+              updateFloatingHeart();
+              scheduleAutoBackup();
+              renderList();
+              fetchInput.value = "";
+              showToast(`Fetched — added ${added} maps`);
+            })
+            .catch((err) => showToast("Fetch failed: " + err.message))
+            .then(() => {
+              fetchBtn.disabled = false;
+              fetchBtn.textContent = "Fetch";
+            });
+        });
+
         const gistUrl = GM_getValue(GH_GIST_URL_KEY, "");
         const lastSync = GM_getValue(GH_LAST_SYNC_KEY, 0);
         const syncInfo = document.createElement("div");
@@ -2208,46 +2328,23 @@
       wrap.appendChild(sectionLabel("Appearance"));
       const theme = getThemeSettings();
 
-      const colorRow = document.createElement("div");
-      colorRow.style.cssText =
-        "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0";
-      const colorLabel = document.createElement("div");
-      colorLabel.style.cssText = "font-size:11px;color:#ddd;font-weight:500";
-      colorLabel.textContent = "Accent color";
-      const colorInput = document.createElement("input");
-      colorInput.type = "color";
-      colorInput.value = theme.accent;
-      colorInput.style.cssText =
-        "width:40px;height:24px;border:1px solid #333;border-radius:3px;background:none;cursor:pointer;padding:0";
-      colorInput.addEventListener("input", () => {
-        GM_setValue(THEME_ACCENT_KEY, colorInput.value);
+      const colorSwatch = makeColorInput(theme.accent, (hex) => {
+        GM_setValue(THEME_ACCENT_KEY, hex);
         applyTheme();
       });
-      colorRow.append(colorLabel, colorInput);
-      wrap.appendChild(colorRow);
+      wrap.appendChild(settingsRow("Accent color", colorSwatch));
 
-      const heartColorRow = document.createElement("div");
-      heartColorRow.style.cssText =
-        "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0";
-      const heartColorLabel = document.createElement("div");
-      heartColorLabel.style.cssText = "font-size:11px;color:#ddd;font-weight:500";
-      heartColorLabel.textContent = "Heart fill color";
-      const heartColorSub = document.createElement("div");
-      heartColorSub.style.cssText = "font-size:10px;color:#666;margin-top:2px";
-      heartColorSub.textContent = "Independent of accent — keeps our heart distinct from osu!'s own";
-      const heartColorLabelWrap = document.createElement("div");
-      heartColorLabelWrap.append(heartColorLabel, heartColorSub);
-      const heartColorInput = document.createElement("input");
-      heartColorInput.type = "color";
-      heartColorInput.value = theme.heartColor;
-      heartColorInput.style.cssText =
-        "width:40px;height:24px;border:1px solid #333;border-radius:3px;background:none;cursor:pointer;padding:0;flex-shrink:0";
-      heartColorInput.addEventListener("input", () => {
-        GM_setValue(THEME_HEART_KEY, heartColorInput.value);
+      const heartColorSwatch = makeColorInput(theme.heartColor, (hex) => {
+        GM_setValue(THEME_HEART_KEY, hex);
         applyTheme();
       });
-      heartColorRow.append(heartColorLabelWrap, heartColorInput);
-      wrap.appendChild(heartColorRow);
+      wrap.appendChild(
+        settingsRow(
+          "Heart fill color",
+          heartColorSwatch,
+          "Independent of accent — keeps our heart distinct from osu!'s own",
+        ),
+      );
 
       wrap.appendChild(
         settingsRow(
@@ -2256,6 +2353,16 @@
             GM_setValue(THEME_IDLE_OPACITY_KEY, v);
             applyTheme();
           }),
+        ),
+      );
+      wrap.appendChild(
+        settingsRow(
+          "Cover dim on idle",
+          makeSlider(Math.round(theme.idleDim * 100), (v) => {
+            GM_setValue(THEME_IDLE_DIM_KEY, v);
+            applyTheme();
+          }),
+          "Baseline darkening on cover art before you hover — 0 leaves it untouched",
         ),
       );
       wrap.appendChild(
@@ -2285,6 +2392,7 @@
         GM_setValue(THEME_ACCENT_KEY, THEME_DEFAULTS.accent);
         GM_setValue(THEME_HEART_KEY, THEME_DEFAULTS.heartColor);
         GM_setValue(THEME_IDLE_OPACITY_KEY, THEME_DEFAULTS.idleOpacity);
+        GM_setValue(THEME_IDLE_DIM_KEY, THEME_DEFAULTS.idleDim);
         GM_setValue(THEME_HOVER_DIM_KEY, THEME_DEFAULTS.hoverDim);
         GM_setValue(THEME_ACTIVE_OPACITY_KEY, THEME_DEFAULTS.activeOpacity);
         applyTheme();
@@ -2497,10 +2605,11 @@
           coverEl.textContent = "?";
         }
 
-        // Dim overlay — shown at 24% while playing
+        // Dim overlay — sits at --osu-fav-idle-dim normally (0 by default,
+        // i.e. invisible) and brightens to --osu-fav-hover-dim on hover/while playing
         const dimOverlay = document.createElement("div");
         dimOverlay.style.cssText =
-          "position:absolute;inset:0;background:rgba(51,51,51,0);transition:background 0.15s;pointer-events:none";
+          "position:absolute;inset:0;background:rgba(51,51,51,var(--osu-fav-idle-dim, 0));transition:background 0.15s;pointer-events:none";
         coverEl.appendChild(dimOverlay);
 
         // Info
@@ -2649,7 +2758,7 @@
               a._activeBar.parentElement.style.display = "none";
               a._activeBar.style.width = "0%";
             }
-            if (a._activeDim) a._activeDim.style.background = "rgba(51,51,51,0)";
+            if (a._activeDim) a._activeDim.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
             a._activeBtn = null;
             a._activeBar = null;
             a._activeDim = null;
@@ -2686,7 +2795,7 @@
             previewBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
             previewBtn.style.borderColor = "#333";
             previewBtn.style.color = "#999";
-            dimOverlay.style.background = "rgba(51,51,51,0)";
+            dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
           }
         });
 
@@ -2702,7 +2811,7 @@
               previewBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
               previewBtn.style.borderColor = "#333";
               previewBtn.style.color = "#999";
-              dimOverlay.style.background = "rgba(51,51,51,0)";
+              dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
             } else {
               audio.play();
               previewBtn.textContent = "\u23f8";
@@ -2727,7 +2836,7 @@
             a._activeBar.parentElement.style.display = "none";
             a._activeBar.style.width = "0%";
           }
-          if (a._activeDim) a._activeDim.style.background = "rgba(51,51,51,0)";
+          if (a._activeDim) a._activeDim.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
           audio.pause();
           // Start new
           audio.src = previewUrl;
@@ -2747,7 +2856,7 @@
             previewBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
             previewBtn.style.borderColor = "#333";
             previewBtn.style.color = "#999";
-            dimOverlay.style.background = "rgba(51,51,51,0)";
+            dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
           });
         });
 
@@ -3369,12 +3478,57 @@
       }, 600);
     };
 
-    if (document.body) {
-      new MutationObserver(debouncedRefresh).observe(document.body, {
-        childList: true,
-        subtree: true,
-      });
+    let mainObserver = null;
+    function attachMainObserver() {
+      if (mainObserver) mainObserver.disconnect();
+      if (!document.body) return;
+      mainObserver = new MutationObserver(debouncedRefresh);
+      mainObserver.observe(document.body, { childList: true, subtree: true });
     }
+    attachMainObserver();
+
+    // ═══ Turbolinks / back-forward resiliency ═══
+    // osu!'s site navigates via Turbolinks — going back restores a *cached
+    // snapshot* of the page rather than loading it fresh. That snapshot is a
+    // clone of whatever was on the page when it got cached, and cloning does
+    // not carry over addEventListener-based handlers. Our own injected
+    // elements (floating heart, panel, guest button, mirror row) come back
+    // looking identical but dead — same ids/classes, so our own "already
+    // there, skip" guards leave the lifeless clone in place instead of
+    // rebuilding a working one, and everything reads as "unresponsive" until
+    // a manual page reload. The MutationObserver above silently stops
+    // working here too, since it's watching whatever <body> existed at
+    // attach time and Turbolinks replaces <body> wholesale on every
+    // navigation. Wiping the known injected ids/classes and reattaching the
+    // observer on every Turbolinks navigation (cache-restore or fresh) fixes
+    // both issues at once.
+    function hardResync() {
+      ["osu-local-fav-ind", "osu-local-fav-panel", "osu-local-guest-fav-btn", "osu-fav-mirror-row", "osu-fav-dl-menu"]
+        .forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.remove();
+        });
+      document.querySelectorAll(".osu-fav-all-btn").forEach((el) => el.remove());
+      document.querySelectorAll("[data-osu-fav-checked]").forEach((btn) => btn.removeAttribute("data-osu-fav-checked"));
+      attachMainObserver();
+      ensureHeartIndicator();
+      addCopyAllButton();
+      addGuestFavoriteButton();
+      updateFloatingHeart();
+      enableGuestDownloads();
+      injectMirrorButtons();
+      refreshButtons();
+    }
+
+    // Turbolinks (classic) fires "turbolinks:load"; Hotwire Turbo renamed it
+    // to "turbo:load" — listen for both since we can't be sure which is live.
+    document.addEventListener("turbolinks:load", hardResync);
+    document.addEventListener("turbo:load", hardResync);
+    // Fallback for a genuine browser back/forward-cache restore, in case any
+    // navigation path bypasses Turbolinks entirely.
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted) hardResync();
+    });
 
     // Polling for SPA navigation (low overhead)
     let lastUrl = location.href;
