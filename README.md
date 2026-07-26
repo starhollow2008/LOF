@@ -6,6 +6,28 @@ Store osu! beatmap favorites locally in your browser. No server-side limits, no 
 
 Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with local browser storage. Your favorites stay on your machine (or your own private Gist, if you choose to back them up).
 
+## Demo
+
+Here is a visual demonstration of the extension in action:
+
+| Extension button on beatmap page | When clicked it opens Favorites Side Panel |
+| :---: | :---: |
+| ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/sidepanel.jpg) |
+
+## Beatmap Page (WITH SIDE PANEL)
+
+![Beatmap Page](screenshots/beatmappage.jpg)
+
+| Beatmap Listing (With & Without Extension) | Music Previews |
+| :---: | :---: |
+| ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
+
+## If you go onto a beatmap that is favorited you will see the heart icon has changed its color
+
+| Normally | On a favorited beatmap |
+| :---: | :---: |
+| ![onnotfavoritepage](screenshots/onnotfavoritepage.jpg) | ![onfavoritedpage](screenshots/onfavoritedpage.jpg) |
+
 ## How to install
 
 ### Tampermonkey Userscript
@@ -38,29 +60,6 @@ Then load the folder in `chrome://extensions/`.
 
 > The old browser-extension build (`manifest.json`, `content.js`, `popup.*`, `background.js`, etc.) is no longer maintained or included in this repository — only the archived v3.4.2 release above still has those files. All active development happens on the Tampermonkey userscript.
 
-
-## Demo
-
-Here is a visual demonstration of the extension in action:
-
-| Extension button on beatmap page | When clicked it opens Favorites Side Panel |
-| :---: | :---: |
-| ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/sidepanel.jpg) |
-
-## Beatmap Page (WITH SIDE PANEL)
-
-![Beatmap Page](screenshots/beatmappage.jpg)
-
-| Beatmap Listing (With & Without Extension) | Music Previews |
-| :---: | :---: |
-| ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
-
-## If you go onto a beatmap that is favorited you will see the heart icon has changed its color
-
-| Normally | On a favorited beatmap |
-| :---: | :---: |
-| ![onnotfavoritepage](screenshots/onnotfavoritepage.jpg) | ![onfavoritedpage](screenshots/onfavoritedpage.jpg) |
-
 ## How it works
 
 - Intercepts favorite button clicks on beatmap pages and listing pages
@@ -79,9 +78,10 @@ Here is a visual demonstration of the extension in action:
 - Favorite beatmaps from detail pages or listing cards, without needing to sign in
 - Search and sort favorites in the side panel (by date added, title, artist, or status)
 - Inline audio previews with a progress bar, right on each card
-- One-click **Open** and **Download** per map, alongside **Remove**
+- One-click **Open** and **Download** per map (official + any mirrors you've enabled), alongside **Remove**
 - Guest download links unlocked on beatmap pages and listing cards (with & without video)
 - Bulk-import your real osu! account favorites via the "Favorite all" button on a profile page
+- Robust against fast scrolling and osu!'s own lazy-loaded content — a periodic background scan keeps heart states, download links, and injected buttons in sync even when a card renders between checks
 
 ### Settings
 
@@ -95,6 +95,8 @@ Everything below lives behind the ⚙ **Settings** button in the side panel head
   - **Private or Public** — choose the Gist's visibility (GitHub doesn't allow changing this after creation, so switching creates a fresh Gist)
   - **Restore from Gist** — pull a backup down on a new device/browser; reconnecting also auto-detects an existing backup Gist so you don't end up with duplicates
   - A small status line in the panel footer always shows whether you're connected and when you last synced
+- **Download Mirrors** — osu!'s own download link requires a real logged-in session (it 404s for guests no matter what), and some maps have downloads disabled outright. Toggle third-party mirrors — Beatconnect, NeriNyan, Sayobot, Mino — and they'll show up in the panel's **Download** button and as extra pill links on the beatmap page itself, official download first when you're actually signed in
+- **Appearance** — pick your own accent color (replaces the default pink everywhere: buttons, badges, toggles, the header bar), and three sliders for the cover-art play button: idle opacity, hover dim, and active opacity
 - **Library Maintenance** — a **Re-enrich all maps** button that re-fetches full metadata (tags, source, genre, language, BPM, status, cover) for every favorite from osu! itself. Useful after a data-format change, or if some fields look stale or were saved in an older/differently-cased format. Runs one map at a time (rate-limited) with a live progress bar, and can be cancelled mid-run
 - **Danger Zone** — remove all favorites, with a two-click confirmation
 
@@ -111,6 +113,7 @@ Everything below lives behind the ⚙ **Settings** button in the side panel head
 
 - Purely local by default — favorites don't sync between devices unless you export/import or connect GitHub Gist backup
 - Gist backup requires a GitHub personal access token with `gist` scope, stored locally by Tampermonkey — treat it like any other credential
+- Download mirrors (Beatconnect, NeriNyan, Sayobot, Mino) are third-party services, not affiliated with or endorsed by osu! — they're off by default except Beatconnect and NeriNyan; enable/disable them in Settings
 - Only works on `osu.ppy.sh` beatmap pages
 - May need updates if osu! changes their page layout
 

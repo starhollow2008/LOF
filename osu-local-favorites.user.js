@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.3.2
+// @version      4.4.0
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -24,20 +24,22 @@
  * Table of contents (search for the ═══ markers below):
  *   1. Page-world XHR/fetch interceptor  — blocks osu!'s own favourite calls
  *   2. Storage                           — local favourites CRUD (GM_*Value)
- *   3. GitHub Gist Backup                — connect, manual/auto sync, restore
- *   4. Beatmap data extraction           — parse JSON / DOM card into a record
- *   5. Favorite button detection         — find osu!'s heart buttons on page
- *   6. Visual helpers                    — heart icon fill/outline state
- *   7. Background enrichment             — fetch full detail-page JSON
- *   8. Global re-enrichment              — Settings → Library Maintenance
- *   9. Toggle favorite                   — the core add/remove action
- *  10. Copy-all button                   — bulk-import from a profile page
- *  11. Floating heart indicator          — always-on-screen shortcut
- *  12. Favorites panel                   — the side panel UI + Settings view
- *  13. Guest-mode fallback button        — heart button on detail pages
- *  14. Guest downloads                   — unlock download links when logged out
- *  15. Toast / version-check / update UI — misc helpers
- *  16. Init                              — observers, polling, menu commands
+ *   3. Theme                             — accent color + opacity, as CSS vars
+ *   4. Download Mirrors                  — 3rd-party download fallback + popover
+ *   5. GitHub Gist Backup                — connect, manual/auto sync, restore
+ *   6. Beatmap data extraction           — parse JSON / DOM card into a record
+ *   7. Favorite button detection         — find osu!'s heart buttons on page
+ *   8. Visual helpers                    — heart icon fill/outline state
+ *   9. Background enrichment             — fetch full detail-page JSON
+ *  10. Global re-enrichment              — Settings → Library Maintenance
+ *  11. Toggle favorite                   — the core add/remove action
+ *  12. Copy-all button                   — bulk-import from a profile page
+ *  13. Floating heart indicator          — always-on-screen shortcut
+ *  14. Favorites panel                   — the side panel UI + Settings view
+ *  15. Guest-mode fallback button        — heart button on detail pages
+ *  16. Guest downloads + mirror pills    — download links when logged out
+ *  17. Toast / version-check / update UI — misc helpers
+ *  18. Init                              — observers, polling, menu commands
  */
 (() => {
   "use strict";
@@ -167,6 +169,223 @@
 
   function isFavorited(id) {
     return !!getFavorites()[id];
+  }
+
+  // ═══ Theme ═══
+  // Accent color and the idle/hover/active opacity levels used by the cover
+  // preview button are all exposed as CSS custom properties on <html>, rather
+  // than hardcoded throughout the UI. Settings → Appearance just updates these
+  // variables (and persists them) — every element that references
+  // var(--osu-fav-accent) etc. picks up the change immediately, with no need
+  // to touch each individual style string.
+  const THEME_ACCENT_KEY = "osu_theme_accent";
+  const THEME_IDLE_OPACITY_KEY = "osu_theme_idle_opacity";
+  const THEME_HOVER_DIM_KEY = "osu_theme_hover_dim";
+  const THEME_ACTIVE_OPACITY_KEY = "osu_theme_active_opacity";
+
+  const THEME_DEFAULTS = {
+    accent: "#ff66aa",
+    idleOpacity: 0.15,
+    hoverDim: 0.65,
+    activeOpacity: 0.8,
+  };
+
+  // Simple hex darken for the accent's hover/pressed shade — mirrors the
+  // original #ff66aa → #ff3377 relationship (roughly -25% lightness)
+  function darkenHex(hex, amount = 0.25) {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!m) return hex;
+    const clamp = (n) => Math.max(0, Math.min(255, Math.round(n)));
+    const [r, g, b] = [1, 2, 3].map((i) => clamp(parseInt(m[i], 16) * (1 - amount)));
+    return "#" + [r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("");
+  }
+
+  function getThemeSettings() {
+    return {
+      accent: GM_getValue(THEME_ACCENT_KEY, THEME_DEFAULTS.accent),
+      idleOpacity: GM_getValue(THEME_IDLE_OPACITY_KEY, THEME_DEFAULTS.idleOpacity),
+      hoverDim: GM_getValue(THEME_HOVER_DIM_KEY, THEME_DEFAULTS.hoverDim),
+      activeOpacity: GM_getValue(THEME_ACTIVE_OPACITY_KEY, THEME_DEFAULTS.activeOpacity),
+    };
+  }
+
+  // Applies the current theme settings to :root as CSS custom properties.
+  // Safe to call repeatedly (e.g. right after a Settings change) — it just
+  // overwrites the same four variables.
+  function applyTheme() {
+    const t = getThemeSettings();
+    const root = document.documentElement.style;
+    root.setProperty("--osu-fav-accent", t.accent);
+    root.setProperty("--osu-fav-accent-dark", darkenHex(t.accent));
+    root.setProperty("--osu-fav-idle-opacity", t.idleOpacity);
+    root.setProperty("--osu-fav-hover-dim", t.hoverDim);
+    root.setProperty("--osu-fav-active-opacity", t.activeOpacity);
+  }
+
+  // ═══ Download Mirrors ═══
+  // Third-party beatmap mirrors, used as a fallback wherever osu!'s own
+  // download doesn't work — guests (osu!'s own download button/route is
+  // gated behind a real logged-in session), beatmaps with downloads disabled,
+  // or just as an alternative when the official servers are slow. Modeled
+  // after the mirror list in limjeck/osuplus.
+  const MIRRORS = [
+    {
+      key: "beatconnect",
+      settingKey: "osu_mirror_beatconnect",
+      label: "Beatconnect",
+      defaultOn: true,
+      variants: (id) => [{ label: "Beatconnect", url: `https://beatconnect.io/b/${id}` }],
+    },
+    {
+      key: "nerinyan",
+      settingKey: "osu_mirror_nerinyan",
+      label: "NeriNyan",
+      defaultOn: true,
+      variants: (id) => [
+        { label: "NeriNyan", url: `https://api.nerinyan.moe/d/${id}` },
+        { label: "NeriNyan (no video)", url: `https://api.nerinyan.moe/d/${id}?nv=1` },
+      ],
+    },
+    {
+      key: "sayobot",
+      settingKey: "osu_mirror_sayobot",
+      label: "Sayobot",
+      defaultOn: false,
+      variants: (id) => [
+        { label: "Sayobot", url: `https://dl.sayobot.cn/beatmaps/download/full/${id}` },
+        { label: "Sayobot (no video)", url: `https://dl.sayobot.cn/beatmaps/download/novideo/${id}` },
+      ],
+    },
+    {
+      key: "mino",
+      settingKey: "osu_mirror_mino",
+      label: "Mino",
+      defaultOn: false,
+      variants: (id) => [{ label: "Mino", url: `https://catboy.best/d/${id}` }],
+    },
+  ];
+
+  function isMirrorEnabled(mirror) {
+    return GM_getValue(mirror.settingKey, mirror.defaultOn);
+  }
+
+  // Detects a real logged-in osu! session via the page's own current-user
+  // JSON blob (empty object "{}" for guests, populated for a real session).
+  // Used to decide whether "Official Download" is worth offering at all —
+  // osu!'s download route 404s/redirects for guests regardless of what our
+  // script does, since it requires server-side auth.
+  function isLoggedIn() {
+    const el = document.getElementById("json-current-user");
+    if (!el) return false;
+    try {
+      const data = JSON.parse(el.textContent);
+      return !!(data && data.id);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Builds the ordered list of download options for a beatmapset: Official
+  // first when it stands a chance of working (logged in), then every enabled
+  // mirror's variant(s). Returns [] only if logged out with zero mirrors on.
+  function buildDownloadOptions(id) {
+    const options = [];
+    const loggedIn = isLoggedIn();
+    if (loggedIn) {
+      options.push({ label: "Official Download", url: `https://osu.ppy.sh/beatmapsets/${id}/download` });
+    }
+    MIRRORS.forEach((m) => {
+      if (isMirrorEnabled(m)) options.push(...m.variants(id));
+    });
+    if (!loggedIn) {
+      // Still list it last, clearly labeled — some non-supporters may still
+      // be logged in via a different tab/cookie state than we detected.
+      options.push({ label: "Official Download (requires sign-in)", url: `https://osu.ppy.sh/beatmapsets/${id}/download` });
+    }
+    return options;
+  }
+
+  // Shows a small popover of download options (official + enabled mirrors)
+  // anchored to the triggering element. Appended to <body> — not the
+  // scrollable panel list — so it's never clipped by overflow:auto. Closes
+  // on outside click, Escape, or if any ancestor (e.g. the panel list)
+  // scrolls out from under it.
+  function showDownloadMenu(anchorEl, beatmapId) {
+    const existing = document.getElementById("osu-fav-dl-menu");
+    const reopening = existing && existing._anchor === anchorEl;
+    if (existing && existing._cleanup) existing._cleanup();
+    if (reopening) return; // Clicking the same button again just closes it
+
+    const options = buildDownloadOptions(beatmapId);
+    const menu = document.createElement("div");
+    menu.id = "osu-fav-dl-menu";
+    menu._anchor = anchorEl;
+    menu.style.cssText =
+      "position:fixed;z-index:100002;min-width:180px;max-width:240px;" +
+      "background:#1a1a1a;border:1px solid #333;border-radius:4px;" +
+      "box-shadow:0 4px 16px rgba(0,0,0,.5);padding:4px;" +
+      "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+
+    function cleanup() {
+      menu.remove();
+      document.removeEventListener("click", onOutsideClick, true);
+      document.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", cleanup, true);
+    }
+    function onOutsideClick(e) {
+      if (menu.contains(e.target)) return;
+      cleanup();
+    }
+    function onKey(e) {
+      if (e.key === "Escape") cleanup();
+    }
+    menu._cleanup = cleanup;
+
+    if (options.length === 0) {
+      const empty = document.createElement("div");
+      empty.style.cssText = "font-size:11px;color:#666;padding:8px 10px;line-height:1.4";
+      empty.textContent = "No download source available — enable a mirror in Settings.";
+      menu.appendChild(empty);
+    } else {
+      options.forEach((opt) => {
+        const row = document.createElement("a");
+        row.href = opt.url;
+        row.target = "_blank";
+        row.rel = "noopener";
+        row.textContent = opt.label;
+        row.style.cssText =
+          "display:block;padding:6px 10px;font-size:11px;color:#ddd;text-decoration:none;" +
+          "border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+        row.addEventListener("mouseenter", () => {
+          row.style.background = "var(--osu-fav-accent)";
+          row.style.color = "#fff";
+        });
+        row.addEventListener("mouseleave", () => {
+          row.style.background = "transparent";
+          row.style.color = "#ddd";
+        });
+        row.addEventListener("click", cleanup);
+        menu.appendChild(row);
+      });
+    }
+
+    document.body.appendChild(menu);
+
+    // Position under the anchor, right-aligned, flipping above if it would
+    // overflow the bottom of the viewport
+    const rect = anchorEl.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    let top = rect.bottom + 4;
+    if (top + menuRect.height > window.innerHeight) top = Math.max(8, rect.top - menuRect.height - 4);
+    let left = rect.right - menuRect.width;
+    left = Math.max(8, Math.min(left, window.innerWidth - menuRect.width - 8));
+    menu.style.top = top + "px";
+    menu.style.left = left + "px";
+
+    // Defer attaching so this same click doesn't immediately close the menu
+    setTimeout(() => document.addEventListener("click", onOutsideClick, true), 0);
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", cleanup, true);
   }
 
   // ═══ GitHub Gist Backup ═══
@@ -703,7 +922,7 @@
     if (cls.includes("beatmapset-panel__menu-item")) {
       el.classList.toggle("beatmapset-panel__menu-item--disabled", false);
       if (isFav) {
-        el.style.color = "#ff3377";
+        el.style.color = "var(--osu-fav-accent-dark)";
         el.style.cursor = "pointer";
         el.removeAttribute("data-orig-title");
         el.title = "Remove from local favorites";
@@ -919,7 +1138,7 @@
       marginLeft: "10px",
       padding: "2px 10px",
       fontSize: "11px",
-      background: "#ff66aa",
+      background: "var(--osu-fav-accent)",
       color: "#fff",
       border: "none",
       borderRadius: "3px",
@@ -1084,7 +1303,7 @@
       const bmid = getBeatmapId();
       const fav = bmid ? isFavorited(bmid) : false;
       ind.textContent = fav ? "❤️" : "🤍";
-      ind.style.border = fav ? "2px solid #ff3377" : "2px solid #ff66aa";
+      ind.style.border = fav ? "2px solid var(--osu-fav-accent-dark)" : "2px solid var(--osu-fav-accent)";
       ind.style.boxShadow = fav
         ? "0 2px 20px rgba(255,51,119,0.6)"
         : "0 2px 16px rgba(255,102,170,0.3)";
@@ -1125,7 +1344,7 @@
     const bmid = getBeatmapId();
     const fav = bmid ? isFavorited(bmid) : false;
     ind.textContent = fav ? "❤️" : "🤍";
-    ind.style.border = fav ? "2px solid #ff3377" : "2px solid #ff66aa";
+    ind.style.border = fav ? "2px solid var(--osu-fav-accent-dark)" : "2px solid var(--osu-fav-accent)";
     ind.style.boxShadow = fav
       ? "0 2px 20px rgba(255,51,119,0.6)"
       : "0 2px 16px rgba(255,102,170,0.3)";
@@ -1167,16 +1386,22 @@
     );
     candidates.forEach((btn) => {
       if (!isFavButton(btn) || btn.dataset.osuFavChecked) return;
-      btn.dataset.osuFavChecked = "1";
       const ctx = resolveBeatmapContext(btn);
-      if (ctx.beatmapId) {
-        updateHeartVisual(btn, isFavorited(ctx.beatmapId));
-        // Make the disabled span look clickable
-        if (btn.tagName === "SPAN") {
-          btn.style.cursor = "pointer";
-          btn.style.opacity = "1";
-          btn.style.pointerEvents = "auto";
-        }
+      // Context couldn't be resolved yet — this is common when a card is
+      // still mid-render (fast scroll / infinite-load on search & profile
+      // pages). Do NOT mark it checked here, or it'll be skipped forever and
+      // silently show the wrong (unfavorited) heart state even though it's
+      // actually in local favorites — clicking it would then remove it
+      // instead of doing nothing. Leave it unmarked so the next pass (mutation
+      // observer or periodic fallback) retries once the card has settled.
+      if (!ctx.beatmapId) return;
+      btn.dataset.osuFavChecked = "1";
+      updateHeartVisual(btn, isFavorited(ctx.beatmapId));
+      // Make the disabled span look clickable
+      if (btn.tagName === "SPAN") {
+        btn.style.cursor = "pointer";
+        btn.style.opacity = "1";
+        btn.style.pointerEvents = "auto";
       }
     });
   }
@@ -1201,10 +1426,10 @@
       s.textContent =
         "#osu-fav-list::-webkit-scrollbar{width:4px}" +
         "#osu-fav-list::-webkit-scrollbar-thumb{background:#333;border-radius:2px}" +
-        "#osu-fav-list::-webkit-scrollbar-thumb:hover{background:#ff66aa}" +
+        "#osu-fav-list::-webkit-scrollbar-thumb:hover{background:var(--osu-fav-accent)}" +
         "#osu-fav-settings::-webkit-scrollbar{width:4px}" +
         "#osu-fav-settings::-webkit-scrollbar-thumb{background:#333;border-radius:2px}" +
-        "#osu-fav-settings::-webkit-scrollbar-thumb:hover{background:#ff66aa}" +
+        "#osu-fav-settings::-webkit-scrollbar-thumb:hover{background:var(--osu-fav-accent)}" +
         "@keyframes osuFavSlideDown{from{max-height:0;opacity:0;overflow:hidden}to{max-height:50px;opacity:1}}" +
         "@keyframes osuFavSlideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}";
       document.head.appendChild(s);
@@ -1254,7 +1479,7 @@
       // Accent header
       const accent = document.createElement("div");
       accent.style.cssText =
-        "background:#ff66aa;padding:10px 14px;display:flex;align-items:center;" +
+        "background:var(--osu-fav-accent);padding:10px 14px;display:flex;align-items:center;" +
         "justify-content:space-between;gap:8px";
 
       const accentTitle = document.createElement("span");
@@ -1293,7 +1518,7 @@
       laterBtn.style.cssText =
         "font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;" +
         "background:transparent;color:#888;cursor:pointer;font-weight:500";
-      laterBtn.addEventListener("mouseenter", () => { laterBtn.style.borderColor = "#ff66aa"; laterBtn.style.color = "#ff66aa"; });
+      laterBtn.addEventListener("mouseenter", () => { laterBtn.style.borderColor = "var(--osu-fav-accent)"; laterBtn.style.color = "var(--osu-fav-accent)"; });
       laterBtn.addEventListener("mouseleave", () => { laterBtn.style.borderColor = "#333"; laterBtn.style.color = "#888"; });
       laterBtn.addEventListener("click", () => {
         backdrop.remove();
@@ -1304,9 +1529,9 @@
       updateBtn.textContent = "Update Now";
       updateBtn.style.cssText =
         "font-size:10px;padding:4px 10px;border:none;border-radius:3px;" +
-        "background:#ff66aa;color:#fff;cursor:pointer;font-weight:600";
-      updateBtn.addEventListener("mouseenter", () => (updateBtn.style.background = "#ff3377"));
-      updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "#ff66aa"));
+        "background:var(--osu-fav-accent);color:#fff;cursor:pointer;font-weight:600";
+      updateBtn.addEventListener("mouseenter", () => (updateBtn.style.background = "var(--osu-fav-accent-dark)"));
+      updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "var(--osu-fav-accent)"));
       updateBtn.addEventListener("click", () => {
         window.open(
           "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
@@ -1326,7 +1551,7 @@
     Object.assign(header.style, {
       padding: "10px 14px 8px",
       background: "#1a1a1a",
-      borderBottom: "2px solid #ff66aa",
+      borderBottom: "2px solid var(--osu-fav-accent)",
       flexShrink: "0",
     });
 
@@ -1344,7 +1569,7 @@
     const countBadge = document.createElement("span");
     countBadge.id = "osu-fav-count";
     countBadge.style.cssText =
-      "color:#ff66aa;background:rgba(255,102,170,.12);padding:2px 8px;border-radius:10px;font-size:11px;margin-left:6px";
+      "color:var(--osu-fav-accent);background:rgba(255,102,170,.12);padding:2px 8px;border-radius:10px;font-size:11px;margin-left:6px";
     titleEl.append("Local Favorites", countBadge);
 
     const settingsBtn = document.createElement("button");
@@ -1354,8 +1579,8 @@
       "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:13px;flex-shrink:0;line-height:1.4";
     settingsBtn.addEventListener("mouseenter", () => {
       if (!settingsOpen) {
-        settingsBtn.style.borderColor = "#ff66aa";
-        settingsBtn.style.color = "#ff66aa";
+        settingsBtn.style.borderColor = "var(--osu-fav-accent)";
+        settingsBtn.style.color = "var(--osu-fav-accent)";
       }
     });
     settingsBtn.addEventListener("mouseleave", () => {
@@ -1381,7 +1606,7 @@
       "width:100%;padding:6px 10px;background:#111;border:1px solid #333;border-radius:3px;color:#ddd;font-size:12px;outline:none";
     searchInput.addEventListener(
       "focus",
-      () => (searchInput.style.borderColor = "#ff66aa"),
+      () => (searchInput.style.borderColor = "var(--osu-fav-accent)"),
     );
     searchInput.addEventListener(
       "blur",
@@ -1429,9 +1654,9 @@
         const label = s[0].toUpperCase() + s.slice(1);
         btn.textContent =
           label + (currentSort === s ? (sortAsc ? " ↑" : " ↓") : "");
-        btn.style.background = currentSort === s ? "#ff66aa" : "transparent";
+        btn.style.background = currentSort === s ? "var(--osu-fav-accent)" : "transparent";
         btn.style.color = currentSort === s ? "#fff" : "#666";
-        btn.style.borderColor = currentSort === s ? "#ff66aa" : "transparent";
+        btn.style.borderColor = currentSort === s ? "var(--osu-fav-accent)" : "transparent";
       });
     }
 
@@ -1440,8 +1665,8 @@
       btn.textContent = label;
       btn.style.cssText = `font-size:10px;padding:3px 7px;border:1px solid #333;border-radius:3px;background:transparent;color:#999;cursor:pointer;${extraStyle}`;
       btn.addEventListener("mouseenter", () => {
-        btn.style.borderColor = "#ff66aa";
-        btn.style.color = "#ff66aa";
+        btn.style.borderColor = "var(--osu-fav-accent)";
+        btn.style.color = "var(--osu-fav-accent)";
       });
       btn.addEventListener("mouseleave", () => {
         btn.style.borderColor = "#333";
@@ -1479,7 +1704,7 @@
     footer.style.cssText =
       "padding:6px 14px;border-top:1px solid #333;background:#1a1a1a;flex-shrink:0;font-size:10px;color:#555;text-align:center;cursor:pointer;user-select:none";
     footer.addEventListener("click", () => setView(true));
-    footer.addEventListener("mouseenter", () => (footer.style.color = "#ff66aa"));
+    footer.addEventListener("mouseenter", () => (footer.style.color = "var(--osu-fav-accent)"));
     footer.addEventListener("mouseleave", () => (footer.style.color = "#555"));
 
     function updateFooterStatus() {
@@ -1507,8 +1732,8 @@
       listEl.style.display = showSettings ? "none" : "block";
       settingsView.style.display = showSettings ? "block" : "none";
       searchInput.style.display = showSettings ? "none" : "block";
-      settingsBtn.style.color = showSettings ? "#ff66aa" : "#999";
-      settingsBtn.style.borderColor = showSettings ? "#ff66aa" : "#333";
+      settingsBtn.style.color = showSettings ? "var(--osu-fav-accent)" : "#999";
+      settingsBtn.style.borderColor = showSettings ? "var(--osu-fav-accent)" : "#333";
       settingsBtn.title = showSettings ? "Back to favorites" : "Settings";
       if (showSettings) renderSettingsView();
     }
@@ -1518,7 +1743,7 @@
       return (
         {
           ranked: "#4caf50",
-          loved: "#ff66aa",
+          loved: "var(--osu-fav-accent)",
           qualified: "#4fc3f7",
           approved: "#4caf50",
           pending: "#ff9800",
@@ -1546,7 +1771,7 @@
     function sectionLabel(text) {
       const el = document.createElement("div");
       el.style.cssText =
-        "font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#ff66aa;padding:14px 0 8px";
+        "font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--osu-fav-accent);padding:14px 0 8px";
       el.textContent = text;
       return el;
     }
@@ -1582,14 +1807,14 @@
       const wrap = document.createElement("button");
       wrap.type = "button";
       let on = initialOn;
-      wrap.style.cssText = `position:relative;width:34px;height:18px;border-radius:9px;flex-shrink:0;padding:0;cursor:pointer;border:1px solid ${on ? "#ff66aa" : "#333"};background:${on ? "#ff66aa" : "#222"};transition:background .15s,border-color .15s`;
+      wrap.style.cssText = `position:relative;width:34px;height:18px;border-radius:9px;flex-shrink:0;padding:0;cursor:pointer;border:1px solid ${on ? "var(--osu-fav-accent)" : "#333"};background:${on ? "var(--osu-fav-accent)" : "#222"};transition:background .15s,border-color .15s`;
       const knob = document.createElement("span");
       knob.style.cssText = `position:absolute;top:1px;left:${on ? "17px" : "1px"};width:14px;height:14px;border-radius:50%;background:#fff;transition:left .15s`;
       wrap.appendChild(knob);
       wrap.addEventListener("click", () => {
         on = !on;
-        wrap.style.background = on ? "#ff66aa" : "#222";
-        wrap.style.borderColor = on ? "#ff66aa" : "#333";
+        wrap.style.background = on ? "var(--osu-fav-accent)" : "#222";
+        wrap.style.borderColor = on ? "var(--osu-fav-accent)" : "#333";
         knob.style.left = on ? "17px" : "1px";
         onChange(on);
       });
@@ -1606,12 +1831,12 @@
       options.forEach(({ value, label }) => {
         const btn = document.createElement("button");
         btn.textContent = label;
-        btn.style.cssText = `font-size:10px;font-weight:500;padding:3px 10px;border:none;border-radius:2px;cursor:pointer;background:${value === current ? "#ff66aa" : "transparent"};color:${value === current ? "#fff" : "#666"}`;
+        btn.style.cssText = `font-size:10px;font-weight:500;padding:3px 10px;border:none;border-radius:2px;cursor:pointer;background:${value === current ? "var(--osu-fav-accent)" : "transparent"};color:${value === current ? "#fff" : "#666"}`;
         btn.addEventListener("click", () => {
           if (current === value) return;
           current = value;
           options.forEach((o) => {
-            btns[o.value].style.background = o.value === current ? "#ff66aa" : "transparent";
+            btns[o.value].style.background = o.value === current ? "var(--osu-fav-accent)" : "transparent";
             btns[o.value].style.color = o.value === current ? "#fff" : "#666";
           });
           onChange(current);
@@ -1619,6 +1844,27 @@
         btns[value] = btn;
         wrap.appendChild(btn);
       });
+      return wrap;
+    }
+
+    // 0–100 percentage slider with a live-updating label — used by Appearance
+    function makeSlider(initialPct, onChange) {
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex;align-items:center;gap:8px;flex-shrink:0;width:130px";
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "0";
+      slider.max = "100";
+      slider.value = String(initialPct);
+      slider.style.cssText = "flex:1;min-width:0;accent-color:var(--osu-fav-accent);cursor:pointer";
+      const valSpan = document.createElement("span");
+      valSpan.style.cssText = "font-size:10px;color:#666;width:32px;text-align:right;flex-shrink:0";
+      valSpan.textContent = initialPct + "%";
+      slider.addEventListener("input", () => {
+        valSpan.textContent = slider.value + "%";
+        onChange(Number(slider.value) / 100);
+      });
+      wrap.append(slider, valSpan);
       return wrap;
     }
 
@@ -1699,7 +1945,7 @@
         hint.style.cssText = "font-size:10px;color:#666;line-height:1.5;margin-bottom:8px";
         hint.innerHTML =
           "Connect a GitHub account to back up your favorites to a Gist. " +
-          '<a href="https://github.com/settings/tokens/new?scopes=gist&description=osu%20Local%20Favorites" target="_blank" style="color:#ff66aa;text-decoration:none">Create a token →</a>';
+          '<a href="https://github.com/settings/tokens/new?scopes=gist&description=osu%20Local%20Favorites" target="_blank" style="color:var(--osu-fav-accent);text-decoration:none">Create a token →</a>';
         wrap.appendChild(hint);
 
         const tokenInput = document.createElement("input");
@@ -1707,7 +1953,7 @@
         tokenInput.placeholder = "Paste a token with 'gist' scope";
         tokenInput.style.cssText =
           "width:100%;box-sizing:border-box;padding:6px 10px;background:#111;border:1px solid #333;border-radius:3px;color:#ddd;font-size:12px;outline:none;margin-bottom:6px";
-        tokenInput.addEventListener("focus", () => (tokenInput.style.borderColor = "#ff66aa"));
+        tokenInput.addEventListener("focus", () => (tokenInput.style.borderColor = "var(--osu-fav-accent)"));
         tokenInput.addEventListener("blur", () => (tokenInput.style.borderColor = "#333"));
         wrap.appendChild(tokenInput);
 
@@ -1868,11 +2114,95 @@
           viewLink.href = gistUrl;
           viewLink.target = "_blank";
           viewLink.textContent = "View on GitHub →";
-          viewLink.style.cssText = "color:#ff66aa;text-decoration:none;flex-shrink:0";
+          viewLink.style.cssText = "color:var(--osu-fav-accent);text-decoration:none;flex-shrink:0";
           syncInfo.appendChild(viewLink);
         }
         wrap.appendChild(syncInfo);
       }
+
+      wrap.appendChild(divider());
+
+      // ── Download Mirrors ──
+      wrap.appendChild(sectionLabel("Download Mirrors"));
+      const mirrorHint = document.createElement("div");
+      mirrorHint.style.cssText = "font-size:10px;color:#666;line-height:1.5;margin-bottom:4px";
+      mirrorHint.textContent =
+        "osu!'s own download requires being signed in, and some maps have downloads " +
+        "disabled entirely. Enable mirrors below to download anyway — they're offered " +
+        "on the Download button in this panel and injected on beatmap pages.";
+      wrap.appendChild(mirrorHint);
+      MIRRORS.forEach((mirror) => {
+        const toggle = makeToggleSwitch(isMirrorEnabled(mirror), (on) => {
+          GM_setValue(mirror.settingKey, on);
+        });
+        wrap.appendChild(settingsRow(mirror.label, toggle));
+      });
+
+      wrap.appendChild(divider());
+
+      // ── Appearance ──
+      wrap.appendChild(sectionLabel("Appearance"));
+      const theme = getThemeSettings();
+
+      const colorRow = document.createElement("div");
+      colorRow.style.cssText =
+        "display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0";
+      const colorLabel = document.createElement("div");
+      colorLabel.style.cssText = "font-size:11px;color:#ddd;font-weight:500";
+      colorLabel.textContent = "Accent color";
+      const colorInput = document.createElement("input");
+      colorInput.type = "color";
+      colorInput.value = theme.accent;
+      colorInput.style.cssText =
+        "width:40px;height:24px;border:1px solid #333;border-radius:3px;background:none;cursor:pointer;padding:0";
+      colorInput.addEventListener("input", () => {
+        GM_setValue(THEME_ACCENT_KEY, colorInput.value);
+        applyTheme();
+      });
+      colorRow.append(colorLabel, colorInput);
+      wrap.appendChild(colorRow);
+
+      wrap.appendChild(
+        settingsRow(
+          "Play button idle opacity",
+          makeSlider(Math.round(theme.idleOpacity * 100), (v) => {
+            GM_setValue(THEME_IDLE_OPACITY_KEY, v);
+            applyTheme();
+          }),
+        ),
+      );
+      wrap.appendChild(
+        settingsRow(
+          "Cover dim on hover",
+          makeSlider(Math.round(theme.hoverDim * 100), (v) => {
+            GM_setValue(THEME_HOVER_DIM_KEY, v);
+            applyTheme();
+          }),
+        ),
+      );
+      wrap.appendChild(
+        settingsRow(
+          "Play button active opacity",
+          makeSlider(Math.round(theme.activeOpacity * 100), (v) => {
+            GM_setValue(THEME_ACTIVE_OPACITY_KEY, v);
+            applyTheme();
+          }),
+        ),
+      );
+
+      const resetThemeBtn = makeBtn(
+        "Reset appearance to defaults",
+        "width:100%;box-sizing:border-box;text-align:center;padding:6px;margin-top:6px",
+      );
+      resetThemeBtn.addEventListener("click", () => {
+        GM_setValue(THEME_ACCENT_KEY, THEME_DEFAULTS.accent);
+        GM_setValue(THEME_IDLE_OPACITY_KEY, THEME_DEFAULTS.idleOpacity);
+        GM_setValue(THEME_HOVER_DIM_KEY, THEME_DEFAULTS.hoverDim);
+        GM_setValue(THEME_ACTIVE_OPACITY_KEY, THEME_DEFAULTS.activeOpacity);
+        applyTheme();
+        renderSettingsView();
+      });
+      wrap.appendChild(resetThemeBtn);
 
       wrap.appendChild(divider());
 
@@ -1892,8 +2222,8 @@
         "font-size:10px;padding:6px 10px;border:1px solid #333;border-radius:3px;background:transparent;color:#999;cursor:pointer;width:100%;box-sizing:border-box";
       reenrichBtn.addEventListener("mouseenter", () => {
         if (!_reenrichRunning) {
-          reenrichBtn.style.borderColor = "#ff66aa";
-          reenrichBtn.style.color = "#ff66aa";
+          reenrichBtn.style.borderColor = "var(--osu-fav-accent)";
+          reenrichBtn.style.color = "var(--osu-fav-accent)";
         }
       });
       reenrichBtn.addEventListener("mouseleave", () => {
@@ -1915,7 +2245,7 @@
       reenrichBarTrack.style.cssText = "height:4px;background:#333;border-radius:2px;overflow:hidden";
       const reenrichBar = document.createElement("div");
       reenrichBar.id = "osu-fav-reenrich-bar";
-      reenrichBar.style.cssText = "height:100%;width:0%;background:#ff66aa;border-radius:2px;transition:width .2s";
+      reenrichBar.style.cssText = "height:100%;width:0%;background:var(--osu-fav-accent);border-radius:2px;transition:width .2s";
       reenrichBarTrack.appendChild(reenrichBar);
       const reenrichText = document.createElement("div");
       reenrichText.id = "osu-fav-reenrich-text";
@@ -2122,7 +2452,7 @@
         if (f.creator) {
           const m = document.createElement("span");
           m.style.cssText =
-            "font-size:10px;color:#ff66aa;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px";
+            "font-size:10px;color:var(--osu-fav-accent);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px";
           m.textContent = f.creator;
           metaDiv.appendChild(m);
         }
@@ -2147,7 +2477,7 @@
         const progressWrap = document.createElement("div");
         progressWrap.style.cssText = "height:2px;background:#333;border-radius:1px;margin-top:3px;overflow:hidden;display:none";
         const progressBar = document.createElement("div");
-        progressBar.style.cssText = "height:100%;width:0%;background:#ff66aa;border-radius:1px";
+        progressBar.style.cssText = "height:100%;width:0%;background:var(--osu-fav-accent);border-radius:1px";
         progressWrap.appendChild(progressBar);
 
         info.append(titleDiv, artistDiv, metaDiv, dateDiv, progressWrap);
@@ -2164,28 +2494,31 @@
         openLink.style.cssText =
           "font-size:10px;padding:4px 8px;border:1px solid #333;border-radius:2px;color:#999;text-decoration:none;text-align:center;display:block;white-space:nowrap";
         openLink.addEventListener("mouseenter", () => {
-          openLink.style.borderColor = "#ff66aa";
-          openLink.style.color = "#ff66aa";
+          openLink.style.borderColor = "var(--osu-fav-accent)";
+          openLink.style.color = "var(--osu-fav-accent)";
         });
         openLink.addEventListener("mouseleave", () => {
           openLink.style.borderColor = "#333";
           openLink.style.color = "#999";
         });
 
-        const downloadLink = document.createElement("a");
-        downloadLink.href = `https://osu.ppy.sh/beatmapsets/${id}/download`;
-        downloadLink.target = "_blank";
-        downloadLink.title = "Download map";
-        downloadLink.textContent = "Download";
+        const downloadLink = document.createElement("button");
+        downloadLink.type = "button";
+        downloadLink.title = "Download map (official + mirrors)";
+        downloadLink.textContent = "Download ▾";
         downloadLink.style.cssText =
-          "font-size:10px;padding:4px 8px;border:1px solid #333;border-radius:2px;color:#999;text-decoration:none;text-align:center;display:block;white-space:nowrap";
+          "font-size:10px;padding:4px 8px;border:1px solid #333;border-radius:2px;background:none;color:#999;cursor:pointer;text-align:center;white-space:nowrap;width:100%";
         downloadLink.addEventListener("mouseenter", () => {
-          downloadLink.style.borderColor = "#ff66aa";
-          downloadLink.style.color = "#ff66aa";
+          downloadLink.style.borderColor = "var(--osu-fav-accent)";
+          downloadLink.style.color = "var(--osu-fav-accent)";
         });
         downloadLink.addEventListener("mouseleave", () => {
           downloadLink.style.borderColor = "#333";
           downloadLink.style.color = "#999";
+        });
+        downloadLink.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showDownloadMenu(downloadLink, id);
         });
 
         const removeBtn = document.createElement("button");
@@ -2218,7 +2551,7 @@
           window._osuFavAudio.addEventListener("ended", () => {
             const a = window._osuFavAudio;
             if (a._activeBtn) {
-              a._activeBtn.style.opacity = "0.15";
+              a._activeBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
               a._activeBtn.style.borderColor = "#333";
               a._activeBtn.style.color = "#999";
               a._activeBtn.textContent = "\u25b6";
@@ -2252,17 +2585,17 @@
           "position:absolute;inset:0;margin:auto;width:fit-content;height:fit-content;" +
           "font-size:11px;padding:2px 6px;border:1px solid #333;border-radius:2px;" +
           "background:none;color:#999;cursor:pointer;text-align:center;line-height:1;" +
-          "opacity:0.15;transition:opacity 0.15s";
+          "opacity:var(--osu-fav-idle-opacity, 0.15);transition:opacity 0.15s";
 
         // Show/hide button on cover hover; restore original border/color on hover
         coverEl.addEventListener("mouseenter", () => {
-          previewBtn.style.opacity = "0.8";
-          dimOverlay.style.background = "rgba(51,51,51,0.65)";
-          if (!previewBtn._playing) { previewBtn.style.borderColor = "#ff66aa"; previewBtn.style.color = "#ff66aa"; }
+          previewBtn.style.opacity = "var(--osu-fav-active-opacity, 0.8)";
+          dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
+          if (!previewBtn._playing) { previewBtn.style.borderColor = "var(--osu-fav-accent)"; previewBtn.style.color = "var(--osu-fav-accent)"; }
         });
         coverEl.addEventListener("mouseleave", () => {
           if (!previewBtn._playing) {
-            previewBtn.style.opacity = "0.15";
+            previewBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
             previewBtn.style.borderColor = "#333";
             previewBtn.style.color = "#999";
             dimOverlay.style.background = "rgba(51,51,51,0)";
@@ -2278,7 +2611,7 @@
               audio.pause();
               previewBtn.textContent = "\u25b6";
               previewBtn._playing = false;
-              previewBtn.style.opacity = "0.15";
+              previewBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
               previewBtn.style.borderColor = "#333";
               previewBtn.style.color = "#999";
               dimOverlay.style.background = "rgba(51,51,51,0)";
@@ -2286,10 +2619,10 @@
               audio.play();
               previewBtn.textContent = "\u23f8";
               previewBtn._playing = true;
-              previewBtn.style.opacity = "0.8";
-              previewBtn.style.borderColor = "#ff66aa";
-              previewBtn.style.color = "#ff66aa";
-              dimOverlay.style.background = "rgba(51,51,51,0.65)";
+              previewBtn.style.opacity = "var(--osu-fav-active-opacity, 0.8)";
+              previewBtn.style.borderColor = "var(--osu-fav-accent)";
+              previewBtn.style.color = "var(--osu-fav-accent)";
+              dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
             }
             return;
           }
@@ -2298,7 +2631,7 @@
           if (a._activeBtn) {
             a._activeBtn.textContent = "\u25b6";
             a._activeBtn._playing = false;
-            a._activeBtn.style.opacity = "0.15";
+            a._activeBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
             a._activeBtn.style.borderColor = "#333";
             a._activeBtn.style.color = "#999";
           }
@@ -2316,14 +2649,14 @@
           progressWrap.style.display = "block";
           previewBtn.textContent = "\u23f8";
           previewBtn._playing = true;
-          previewBtn.style.opacity = "0.8";
-          previewBtn.style.borderColor = "#ff66aa";
-          previewBtn.style.color = "#ff66aa";
-          dimOverlay.style.background = "rgba(51,51,51,0.65)";
+          previewBtn.style.opacity = "var(--osu-fav-active-opacity, 0.8)";
+          previewBtn.style.borderColor = "var(--osu-fav-accent)";
+          previewBtn.style.color = "var(--osu-fav-accent)";
+          dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
           audio.play().catch(() => {
             previewBtn.textContent = "\u25b6";
             previewBtn._playing = false;
-            previewBtn.style.opacity = "0.15";
+            previewBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
             previewBtn.style.borderColor = "#333";
             previewBtn.style.color = "#999";
             dimOverlay.style.background = "rgba(51,51,51,0)";
@@ -2500,8 +2833,8 @@
 
       const ctx = resolveBeatmapContext(span);
       if (!ctx.beatmapId) {
-        // Mark so we don't keep retrying on elements where context lookup failed
-        span.dataset.osuDlFixed = "pending";
+        // Context not resolvable yet (card still mid-render) — leave unmarked
+        // so the next pass retries instead of skipping this element forever.
         return;
       }
 
@@ -2578,6 +2911,66 @@
       '</span>';
 
     signInBtn.replaceWith(aWithVideo, aNoVideo);
+  }
+
+  // Injects small mirror-download pills onto the beatmapset detail page,
+  // right after the official download buttons. These work regardless of
+  // login state or a beatmapset's download_disabled flag — a solid fallback
+  // for anything the official button can't do. Cheap to call repeatedly;
+  // only rebuilds when the current beatmapset id actually changes.
+  function injectMirrorButtons() {
+    const bmid = getBeatmapId();
+    if (!bmid) return;
+
+    const enabledMirrors = MIRRORS.filter(isMirrorEnabled);
+    const existing = document.getElementById("osu-fav-mirror-row");
+
+    if (enabledMirrors.length === 0) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing && existing.dataset.beatmapsetId === String(bmid)) return; // already current
+    if (existing) existing.remove();
+
+    const container =
+      document.querySelector(".beatmapset-header__buttons") ||
+      document.querySelector(".beatmapset-header__more");
+    if (!container) return;
+
+    const row = document.createElement("div");
+    row.id = "osu-fav-mirror-row";
+    row.dataset.beatmapsetId = String(bmid);
+    row.style.cssText =
+      "display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;width:100%";
+
+    const label = document.createElement("span");
+    label.textContent = "Mirrors:";
+    label.style.cssText = "font-size:11px;color:#888;margin-right:2px";
+    row.appendChild(label);
+
+    enabledMirrors.forEach((mirror) => {
+      mirror.variants(bmid).forEach((variant) => {
+        const a = document.createElement("a");
+        a.href = variant.url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = variant.label;
+        a.style.cssText =
+          "font-size:11px;padding:4px 10px;border:1px solid #333;border-radius:12px;" +
+          "color:#ddd;text-decoration:none;background:rgba(255,255,255,0.03);white-space:nowrap";
+        a.addEventListener("mouseenter", () => {
+          a.style.borderColor = "var(--osu-fav-accent)";
+          a.style.color = "var(--osu-fav-accent)";
+        });
+        a.addEventListener("mouseleave", () => {
+          a.style.borderColor = "#333";
+          a.style.color = "#ddd";
+        });
+        row.appendChild(a);
+      });
+    });
+
+    container.insertAdjacentElement("afterend", row);
   }
 
   // ═══ Toast helper ═══
@@ -2700,7 +3093,7 @@
       s.textContent =
         "#osu-fav-list::-webkit-scrollbar{width:4px}" +
         "#osu-fav-list::-webkit-scrollbar-thumb{background:#333;border-radius:2px}" +
-        "#osu-fav-list::-webkit-scrollbar-thumb:hover{background:#ff66aa}" +
+        "#osu-fav-list::-webkit-scrollbar-thumb:hover{background:var(--osu-fav-accent)}" +
         "@keyframes osuFavSlideDown{from{max-height:0;opacity:0;overflow:hidden}to{max-height:50px;opacity:1}}" +
         "@keyframes osuFavSlideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}";
       document.head.appendChild(s);
@@ -2729,7 +3122,7 @@
     // Gradient accent bar — same as displayUpdateBanner inside the panel
     const accentBar = document.createElement("div");
     accentBar.style.cssText =
-      "background: #ff66aa;padding:8px 14px;" +
+      "background: var(--osu-fav-accent);padding:8px 14px;" +
       "display:flex;align-items:center;justify-content:space-between;" +
       "font-weight:600;font-size:12px;color:#fff;gap:8px;border-bottom:1px solid rgba(0,0,0,0.15)";
 
@@ -2770,8 +3163,8 @@
       "font-size:10px;padding:4px 10px;border:1px solid #333;border-radius:3px;" +
       "background:transparent;color:#888;cursor:pointer;font-weight:500";
     laterBtn.addEventListener("mouseenter", () => {
-      laterBtn.style.borderColor = "#ff66aa";
-      laterBtn.style.color = "#ff66aa";
+      laterBtn.style.borderColor = "var(--osu-fav-accent)";
+      laterBtn.style.color = "var(--osu-fav-accent)";
     });
     laterBtn.addEventListener("mouseleave", () => {
       laterBtn.style.borderColor = "#333";
@@ -2787,9 +3180,9 @@
     updateBtn.textContent = "Update Now";
     updateBtn.style.cssText =
       "font-size:10px;padding:4px 10px;border:none;border-radius:3px;" +
-      "background:#ff66aa;color:#fff;cursor:pointer;font-weight:600;transition:background 0.2s";
-    updateBtn.addEventListener("mouseenter", () => (updateBtn.style.background = "#ff3377"));
-    updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "#ff66aa"));
+      "background:var(--osu-fav-accent);color:#fff;cursor:pointer;font-weight:600;transition:background 0.2s";
+    updateBtn.addEventListener("mouseenter", () => (updateBtn.style.background = "var(--osu-fav-accent-dark)"));
+    updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "var(--osu-fav-accent)"));
     updateBtn.addEventListener("click", () => {
       window.open(
         "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
@@ -2805,6 +3198,7 @@
 
   // ═══ Init ═══
   function init() {
+    applyTheme();
     injectInterceptor();
 
     // ═══ Cross-tab sync ═══
@@ -2833,6 +3227,7 @@
     addCopyAllButton();
     addGuestFavoriteButton();
     enableGuestDownloads();
+    injectMirrorButtons();
 
     // Auto-check version update on script load
     checkVersionUpdate().then((latestVersion) => {
@@ -2855,6 +3250,7 @@
         addGuestFavoriteButton();
         updateFloatingHeart();
         enableGuestDownloads();
+        injectMirrorButtons();
       }, 600);
     };
 
@@ -2873,9 +3269,26 @@
         ensureHeartIndicator();
         addGuestFavoriteButton();
         enableGuestDownloads();
+        injectMirrorButtons();
         debouncedRefresh();
       }
     }, 800);
+
+    // Periodic fallback scan — the MutationObserver above catches almost
+    // everything, but some osu! content (e.g. the lazy-loaded "Beatmaps" tab
+    // on profile pages, which only fetches its data once scrolled into view)
+    // renders on its own schedule and can occasionally land between observer
+    // callbacks. This is a cheap, unconditional re-scan that guarantees
+    // hearts, the "Favorite all" button, and download links all settle into
+    // the correct state within ~1.5s no matter what triggered the render.
+    setInterval(() => {
+      refreshButtons();
+      addCopyAllButton();
+      addGuestFavoriteButton();
+      enableGuestDownloads();
+      injectMirrorButtons();
+      if (!document.getElementById("osu-local-fav-ind")) ensureHeartIndicator();
+    }, 1500);
 
     // Initial refresh after page settles
     setTimeout(refreshButtons, 800);
@@ -2884,6 +3297,8 @@
     setTimeout(addGuestFavoriteButton, 2500);
     setTimeout(enableGuestDownloads, 1000);
     setTimeout(enableGuestDownloads, 2200);
+    setTimeout(injectMirrorButtons, 1000);
+    setTimeout(injectMirrorButtons, 2200);
   }
 
   if (document.readyState === "loading") {
