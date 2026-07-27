@@ -3,7 +3,7 @@
 // @namespace    https://github.com/vyroxat/Local-osu-Favorites
 // @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @version      4.6.2
+// @version      4.7.1
 // @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -19,7 +19,7 @@
 // @run-at       document-start
 // ==/UserScript==
 
-/* === osu! Local Favorites — Tampermonkey Edition ===
+/* === osu! Local Favorites ===
  *
  * Table of contents (search for the ═══ markers below):
  *   1. Page-world XHR/fetch interceptor  — blocks osu!'s own favourite calls
@@ -37,7 +37,7 @@
  *  13. Floating heart indicator          — always-on-screen shortcut
  *  14. Favorites panel                   — the side panel UI + Settings view
  *  15. Guest-mode fallback button        — heart button on detail pages
- *  16. Guest downloads + mirror pills    — download links when logged out
+ *  16. Guest downloads + mirror buttons    — download links when logged out
  *  17. Toast / version-check / update UI — misc helpers
  *  18. Init                              — observers, polling, menu commands
  */
@@ -45,6 +45,79 @@
   "use strict";
 
   const STORAGE_KEY = "osu_local_favorites";
+
+  // ═══ GM storage compatibility shim ═══
+  // Some userscript-manager environments (seen on certain mobile browsers)
+  // only partially implement the GM_ API: GM_getValue/GM_setValue exist as
+  // callable no-op stubs that log "GM_getValue is not supported" to the
+  // console instead of throwing — so a plain `typeof GM_getValue ===
+  // "function"` check passes even though nothing is actually being
+  // persisted, and every read comes back undefined regardless of the
+  // default value passed in. That alone was enough to make favoriting
+  // crash outright (toggleFavorite indexing into an undefined favorites
+  // object). We do a real write-then-read round trip once at startup and,
+  // if it doesn't survive, silently redirect all GM_getValue/GM_setValue
+  // calls to localStorage instead. Every one of this script's ~60 existing
+  // call sites keeps calling GM_getValue/GM_setValue exactly as before —
+  // shadowing the names here at the top of the IIFE is enough to redirect
+  // all of them, no need to touch each call site individually.
+  const _nativeGM_getValue = typeof GM_getValue === "function" ? GM_getValue : null;
+  const _nativeGM_setValue = typeof GM_setValue === "function" ? GM_setValue : null;
+  const _GM_FALLBACK_LS_KEY = "__osu_local_favorites_gm_fallback__";
+
+  function _lsReadAll() {
+    try {
+      const raw = localStorage.getItem(_GM_FALLBACK_LS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function _lsWriteAll(all) {
+    try {
+      localStorage.setItem(_GM_FALLBACK_LS_KEY, JSON.stringify(all));
+    } catch (e) {
+      // Nothing more we can do if localStorage is also unavailable/full.
+    }
+  }
+
+  const _gmStorageWorks = (() => {
+    if (!_nativeGM_getValue || !_nativeGM_setValue) return false;
+    try {
+      const probeKey = "__osu_local_favorites_probe__";
+      const probeValue = "ok-" + Date.now();
+      _nativeGM_setValue(probeKey, probeValue);
+      return _nativeGM_getValue(probeKey, null) === probeValue;
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  function GM_getValue(key, defaultValue) {
+    if (_gmStorageWorks) {
+      const v = _nativeGM_getValue(key, defaultValue);
+      return v === undefined ? defaultValue : v;
+    }
+    const all = _lsReadAll();
+    return key in all ? all[key] : defaultValue;
+  }
+
+  function GM_setValue(key, value) {
+    if (_gmStorageWorks) {
+      _nativeGM_setValue(key, value);
+      return;
+    }
+    const all = _lsReadAll();
+    all[key] = value;
+    _lsWriteAll(all);
+  }
+
+  if (!_gmStorageWorks) {
+    console.warn(
+      "[osu-local-favorites] this userscript manager's GM storage isn't working — falling back to localStorage",
+    );
+  }
 
   // ═══ Page-world XHR/fetch interceptor ═══
   // Also blocks login redirects triggered by unauthenticated favourite actions.
@@ -2838,6 +2911,16 @@
               previewBtn.style.color = "#999";
               dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
             } else {
+              // Re-link the bar/dim to this card every time we (re)start
+              // playback, not just on a genuinely new src — if the previous
+              // play ran to completion, the "ended" handler already cleared
+              // audio._activeBar/_activeDim and hid the progress wrap, so a
+              // plain audio.play() here would resume sound with nothing
+              // wired up to draw progress for it.
+              audio._activeBtn = previewBtn;
+              audio._activeBar = progressBar;
+              audio._activeDim = dimOverlay;
+              progressWrap.style.display = "block";
               audio.play();
               previewBtn.textContent = "\u23f8";
               previewBtn._playing = true;
@@ -2911,29 +2994,43 @@
   }
 
   // ═══ Menu commands ═══
-  GM_registerMenuCommand("View Local Favorites", showFavoritesPanel);
-  GM_registerMenuCommand("Check for Updates", () => {
-    showOsuFavToast("Checking for updates...");
-    checkVersionUpdate(true).then((latestVersion) => {
-      const currentVersion = getCurrentVersion();
-      if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
-        const panel = document.getElementById("osu-local-fav-panel");
-        if (!panel) {
-          showFavoritesPanel();
-        } else {
-          panel.remove();
-          showFavoritesPanel();
-        }
-        showOsuFavToast(`New version v${latestVersion} is available!`);
-        window.open(
-          "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
-          "_blank",
-        );
-      } else {
-        showOsuFavToast(`You are up to date! (v${currentVersion})`);
-      }
-    });
-  });
+  // These run at top-level, before init() — an unguarded throw here (rather
+  // than the graceful no-op-stub behavior GM_getValue/GM_setValue fall back
+  // to in some environments) would silently prevent everything below,
+  // including init() itself, from ever running.
+  try {
+    if (typeof GM_registerMenuCommand === "function") {
+      GM_registerMenuCommand("View Local Favorites", showFavoritesPanel);
+      GM_registerMenuCommand("Check for Updates", () => {
+        showOsuFavToast("Checking for updates...");
+        checkVersionUpdate(true).then((latestVersion) => {
+          const currentVersion = getCurrentVersion();
+          if (latestVersion && isNewerVersion(currentVersion, latestVersion)) {
+            const panel = document.getElementById("osu-local-fav-panel");
+            if (!panel) {
+              showFavoritesPanel();
+            } else {
+              panel.remove();
+              showFavoritesPanel();
+            }
+            showOsuFavToast(`New version v${latestVersion} is available!`);
+            window.open(
+              "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
+              "_blank",
+            );
+          } else {
+            showOsuFavToast(`You are up to date! (v${currentVersion})`);
+          }
+        });
+      });
+    } else {
+      console.warn(
+        "[osu-local-favorites] GM_registerMenuCommand not supported by this userscript manager — menu commands disabled",
+      );
+    }
+  } catch (e) {
+    console.warn("[osu-local-favorites] menu command registration failed:", e);
+  }
 
   // ═══ Guest-mode fallback button ═══
   // On beatmapset detail pages (/beatmapsets/12345), no heart button exists when
@@ -3452,25 +3549,42 @@
 
     // ═══ Cross-tab sync ═══
     // When another tab writes to the favorites key, refresh all UI in this tab.
-    GM_addValueChangeListener(STORAGE_KEY, (_key, _oldVal, _newVal, remote) => {
-      if (!remote) return; // ignore writes from this same tab
+    // GM_addValueChangeListener isn't implemented at all in some userscript
+    // managers (a hard ReferenceError rather than a graceful no-op stub like
+    // GM_getValue/GM_setValue get) — left unguarded, that throw would abort
+    // every line below it in this function, including the MutationObserver
+    // setup further down that keeps the page's hearts working after the
+    // first render. Cross-tab sync is a nice-to-have; losing it silently is
+    // far better than losing everything after it.
+    if (typeof GM_addValueChangeListener === "function") {
+      try {
+        GM_addValueChangeListener(STORAGE_KEY, (_key, _oldVal, _newVal, remote) => {
+          if (!remote) return; // ignore writes from this same tab
 
-      // Re-render floating heart (filled/outline SVG) for the current beatmap
-      updateFloatingHeart();
+          // Re-render floating heart (filled/outline SVG) for the current beatmap
+          updateFloatingHeart();
 
-      // Rebuild the panel if it's already open
-      const panel = document.getElementById("osu-local-fav-panel");
-      if (panel) {
-        panel.remove();
-        showFavoritesPanel();
+          // Rebuild the panel if it's already open
+          const panel = document.getElementById("osu-local-fav-panel");
+          if (panel) {
+            panel.remove();
+            showFavoritesPanel();
+          }
+
+          // Re-check all visible card hearts (clear the "already scanned" flag first)
+          document.querySelectorAll("[data-osu-fav-checked]").forEach((btn) => {
+            btn.removeAttribute("data-osu-fav-checked");
+          });
+          refreshButtons();
+        });
+      } catch (e) {
+        console.warn("[osu-local-favorites] cross-tab sync unavailable:", e);
       }
-
-      // Re-check all visible card hearts (clear the "already scanned" flag first)
-      document.querySelectorAll("[data-osu-fav-checked]").forEach((btn) => {
-        btn.removeAttribute("data-osu-fav-checked");
-      });
-      refreshButtons();
-    });
+    } else {
+      console.warn(
+        "[osu-local-favorites] GM_addValueChangeListener not supported by this userscript manager — cross-tab sync disabled",
+      );
+    }
 
     ensureHeartIndicator();
     addCopyAllButton();

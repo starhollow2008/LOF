@@ -40,25 +40,23 @@ Then load the folder in `chrome://extensions/`.
 
 ## Demo
 
-Here is a visual demonstration of the extension in action:
-
-| Extension button on beatmap page | When clicked it opens Favorites Side Panel |
+| Beatmap listing | Side panel open |
 | :---: | :---: |
-| ![Beatmap Page](screenshots/beatmapsearch.jpg) | ![Favorites Panel](screenshots/sidepanel.jpg) |
+| ![Beatmap listing](screenshots/beatmapsearch.png) | ![Side panel open](screenshots/beatmapspage.png) |
 
-## Beatmap Page (WITH SIDE PANEL)
+## Side Panel
 
-![Beatmap Page](screenshots/beatmappage.jpg)
+Search, sort, preview, and download every favorite without leaving the panel — including per-map access to any download mirrors you've enabled.
 
-| Beatmap Listing (With & Without Extension) | Music Previews |
+| Full panel | Inline preview & download mirrors |
 | :---: | :---: |
-| ![Comparison](screenshots/with%20and%20without%20extention.jpg) | ![Music Previews](screenshots/musicprevievs.jpg) |
+| ![Side panel detail](screenshots/sidepanel.png) | ![Music previews and download options](screenshots/musicpreviewsanddownloadoptions.png) |
 
 ## If you go onto a beatmap that is favorited you will see the heart icon has changed its color
 
 | Normally | On a favorited beatmap |
 | :---: | :---: |
-| ![onnotfavoritepage](screenshots/onnotfavoritepage.jpg) | ![onfavoritedpage](screenshots/onfavoritedpage.jpg) |
+| ![onnotfavoritepage](screenshots/onnotfavoritepage.png) | ![onfavoritedpage](screenshots/onfavoritedpage.png) |
 
 ## How it works
 
