@@ -44,13 +44,34 @@ Then load the folder in `chrome://extensions/`.
 | :---: | :---: |
 | ![Beatmap listing](screenshots/beatmapsearch.png) | ![Side panel open](screenshots/beatmapspage.png) |
 
+| Inline preview & download mirrors |
+| :---: | 
+| ![Music previews and download options](screenshots/musicpreviewsanddownloadoptions.png) |
+
 ## Side Panel
 
 Search, sort, preview, and download every favorite without leaving the panel — including per-map access to any download mirrors you've enabled.
 
-| Full panel | Inline preview & download mirrors |
+| Full panel | Settings panel |
 | :---: | :---: |
-| ![Side panel detail](screenshots/sidepanel.png) | ![Music previews and download options](screenshots/musicpreviewsanddownloadoptions.png) |
+| ![Side panel detail](screenshots/sidepanel.png) | ![Settings panel](screenshots/settingspanel.png) |
+
+### Settings
+
+Everything below lives behind the ⚙ **Settings** button in the side panel header:
+
+- **Backup & Restore** — export your whole library to a JSON file, or import one back in (merges, skips duplicates)
+- **GitHub Gist Backup** — connect a GitHub account (personal access token, `gist` scope) and back your favorites up to a Gist:
+  - **Manual or Auto** — flip a switch to have every new/removed favorite pushed automatically, or trigger backups yourself with **Backup now**
+  - **Private or Public** — choose the Gist's visibility (GitHub doesn't allow changing this after creation, so switching creates a fresh Gist)
+  - **Restore from Gist** — pull a backup down on a new device/browser; reconnecting also auto-detects an existing backup Gist so you don't end up with duplicates
+  - **Fetch from Gist** — pull from any gist by pasting its ID or URL, without changing what **Backup now** targets. Useful on a new device before your first backup, or for grabbing someone else's shared favorites list
+  - A small status line in the panel footer always shows whether you're connected and when you last synced
+- **Download Mirrors** — osu!'s own download link requires a real logged-in session (it 404s for guests no matter what), and some maps have downloads disabled outright. Toggle third-party mirrors — Beatconnect, NeriNyan, Sayobot, Mino — and they'll show up in the panel's **Download** button and as extra buttons on the beatmap page itself, styled to match osu!'s own download buttons exactly. Two more controls decide ordering (nothing is ever hidden, just reordered): **Preferred video option** (with video vs. no video first) and **Preferred source order** (official vs. mirrors first — guests always see mirrors first regardless, since Official won't work without signing in). If osu!plus is already injecting its own mirror buttons on a page, ours steps aside to avoid a duplicate row
+- **Appearance** — pick your own accent color (replaces the default pink everywhere: buttons, badges, toggles, the header bar), a separate **Heart fill color** for the favorite icon itself (independent of accent, so it stays visually distinct from osu!'s own heart), and four sliders for the cover-art play button and its dim overlay: idle opacity, idle dim, hover dim, and active opacity
+- **Library Maintenance** — a **Re-enrich all maps** button that re-fetches full metadata (tags, source, genre, language, BPM, status, cover) for every favorite from osu! itself. Useful after a data-format change, or if some fields look stale or were saved in an older/differently-cased format. Runs one map at a time (rate-limited) with a live progress bar, and can be cancelled mid-run
+- **Danger Zone** — remove all favorites, with a two-click confirmation
+
 
 ## If you go onto a beatmap that is favorited you will see the heart icon has changed its color
 
@@ -66,6 +87,7 @@ Search, sort, preview, and download every favorite without leaving the panel —
 - Floating heart button in the bottom-right corner of every osu! page
 - A side panel (☰ from the floating heart, or **View Local Favorites** in the Tampermonkey menu) to browse, search, sort, play previews, download, and manage everything
 - Periodically checks GitHub for a newer script version and shows an in-panel prompt when one's available
+- Its accent(glow) and colour of the heart itself can be changed by accent and heart border/fill color
 
 ![Update prompt](screenshots/updateprompt.png)
 
@@ -80,24 +102,6 @@ Search, sort, preview, and download every favorite without leaving the panel —
 - Guest download links unlocked on beatmap pages and listing cards (with & without video)
 - Bulk-import your real osu! account favorites via the "Favorite all" button on a profile page
 - Robust against fast scrolling and osu!'s own lazy-loaded content — a periodic background scan keeps heart states, download links, and injected buttons in sync even when a card renders between checks
-
-### Settings
-
-Everything below lives behind the ⚙ **Settings** button in the side panel header:
-
-![Settings panel](screenshots/settingspanel.png)
-
-- **Backup & Restore** — export your whole library to a JSON file, or import one back in (merges, skips duplicates)
-- **GitHub Gist Backup** — connect a GitHub account (personal access token, `gist` scope) and back your favorites up to a Gist:
-  - **Manual or Auto** — flip a switch to have every new/removed favorite pushed automatically, or trigger backups yourself with **Backup now**
-  - **Private or Public** — choose the Gist's visibility (GitHub doesn't allow changing this after creation, so switching creates a fresh Gist)
-  - **Restore from Gist** — pull a backup down on a new device/browser; reconnecting also auto-detects an existing backup Gist so you don't end up with duplicates
-  - **Fetch from Gist** — pull from any gist by pasting its ID or URL, without changing what **Backup now** targets. Useful on a new device before your first backup, or for grabbing someone else's shared favorites list
-  - A small status line in the panel footer always shows whether you're connected and when you last synced
-- **Download Mirrors** — osu!'s own download link requires a real logged-in session (it 404s for guests no matter what), and some maps have downloads disabled outright. Toggle third-party mirrors — Beatconnect, NeriNyan, Sayobot, Mino — and they'll show up in the panel's **Download** button and as extra buttons on the beatmap page itself, styled to match osu!'s own download buttons exactly. Two more controls decide ordering (nothing is ever hidden, just reordered): **Preferred video option** (with video vs. no video first) and **Preferred source order** (official vs. mirrors first — guests always see mirrors first regardless, since Official won't work without signing in). If osu!plus is already injecting its own mirror buttons on a page, ours steps aside to avoid a duplicate row
-- **Appearance** — pick your own accent color (replaces the default pink everywhere: buttons, badges, toggles, the header bar), a separate **Heart fill color** for the favorite icon itself (independent of accent, so it stays visually distinct from osu!'s own heart), and four sliders for the cover-art play button and its dim overlay: idle opacity, idle dim, hover dim, and active opacity
-- **Library Maintenance** — a **Re-enrich all maps** button that re-fetches full metadata (tags, source, genre, language, BPM, status, cover) for every favorite from osu! itself. Useful after a data-format change, or if some fields look stale or were saved in an older/differently-cased format. Runs one map at a time (rate-limited) with a live progress bar, and can be cancelled mid-run
-- **Danger Zone** — remove all favorites, with a two-click confirmation
 
 ## Files
 
