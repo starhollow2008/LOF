@@ -2028,9 +2028,9 @@
     // it back on screen, so the gradient/RGB fields end up clipped or
     // unreachable. Instead we show a plain, purely decorative swatch box in
     // the row (so the layout looks identical to before) and keep the real
-    // functional <input> invisible, teleporting it to the center of the
-    // viewport just before it opens — plenty of clearance on every side
-    // regardless of where the panel or the row happens to sit.
+    // functional <input> invisible, teleporting it right next to the swatch
+    // just before it opens — offset to the side that actually has room, and
+    // clamped so its full footprint always stays on screen.
     function makeColorInput(initialHex, onChange) {
       const swatch = document.createElement("div");
       swatch.style.cssText =
@@ -2046,8 +2046,18 @@
 
       swatch.addEventListener("click", () => {
         const w = 260, h = 300; // generous estimate of the native picker's footprint
-        const left = Math.max(8, Math.min(window.innerWidth - w - 8, Math.round(window.innerWidth / 2 - w / 2)));
-        const top = Math.max(8, Math.min(window.innerHeight - h - 8, Math.round(window.innerHeight / 2 - h / 2)));
+        const rect = swatch.getBoundingClientRect();
+
+        // Prefer opening just to the left of the swatch — the panel is
+        // docked to the right edge, so that's almost always where the
+        // clearance is. Fall back to the right if there isn't enough room
+        // on the left, then clamp either way so it can't run off-screen.
+        let left = rect.left - w - 8;
+        if (left < 8) left = rect.right + 8;
+        left = Math.max(8, Math.min(window.innerWidth - w - 8, left));
+
+        const top = Math.max(8, Math.min(window.innerHeight - h - 8, rect.top));
+
         input.style.left = left + "px";
         input.style.top = top + "px";
         input.click();
