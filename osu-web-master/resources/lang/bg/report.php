@@ -1,0 +1,46 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'beatmapset' => [
+        'button' => 'Докладване',
+        'title' => 'Докладвате бийтмапа на :username?',
+    ],
+
+    'beatmapset_discussion_post' => [
+        'button' => 'Докладване',
+        'title' => 'Докладвате публикацията на :username?',
+    ],
+
+    'comment' => [
+        'button' => 'Докладване',
+        'title' => 'Докладвате коментара на :username?',
+    ],
+
+    'forum_post' => [
+        'button' => 'Докладване',
+        'title' => 'Докладвате публикацията на :username?',
+    ],
+
+    'message' => [
+        'button' => 'Докладвай съобщение',
+        'title' => 'Да се докладва ли съобщението на :username?',
+    ],
+
+    'scores' => [
+        'button' => 'Докладване на Резултат',
+        'title' => 'Докладвате резултата на :username?',
+    ],
+
+    'team' => [
+        'button' => 'Докладвай отбора',
+        'title' => 'Докладване отбора на :username?',
+    ],
+
+    'user' => [
+        'button' => 'Докладване',
+        'title' => 'Докладване на :username?',
+    ],
+];

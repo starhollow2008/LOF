@@ -1,0 +1,39 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'load_failed' => '',
+    'missing_route' => 'لینک یا متد درخواست اشتباه.',
+    'no_restricted_access' => 'شما نمیتوانید این کار را موقعی که حسابتان در وضعیت محدود شده قرار دارد، انجام دهید.',
+    'param_too_large' => '',
+    'supporter_only' => 'شما باید حامی osu! باشید تا بتوانید از این قابلیت استفاده کنیذ.',
+    'unknown' => 'خطای نامشخصی رخ داد.',
+
+    'codes' => [
+        'http-401' => 'لطفا برای ادامه وارد شوید.',
+        'http-403' => 'دسترسی امکان‌پذیر نیست.',
+        'http-404' => 'یافت نشد.',
+        'http-429' => 'تلاش بیش از حد. بعدآً دوباره امتحان کنید.',
+    ],
+    'account' => [
+        'profile-order' => [
+            'generic' => 'خطایی رخ داد، بارگذاری مجدد صفحه را امتحان کنید.',
+        ],
+    ],
+    'checkout' => [
+        'generic' => 'هنگام آماده سازی سبد تسویه حساب شما خطایی رخ داد.',
+    ],
+    'scores' => [
+        'invalid_id' => '',
+    ],
+    'search' => [
+        'default' => 'هیچ نتیجه ای نمیتوان گفت، بعدا امتحان کنید.',
+        'invalid_cursor_exception' => 'پارامتر مکان نما نامعتبر مشخص شد.',
+        'operation_timeout_exception' => 'جستجو از حد معمول شلوغ تر است، بعدا امتحان کنید.',
+    ],
+    'user_report' => [
+        'recently_reported' => "",
+    ],
+];

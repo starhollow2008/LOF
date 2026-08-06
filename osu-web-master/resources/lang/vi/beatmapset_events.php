@@ -1,0 +1,87 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'event' => [
+        'approve' => 'Được Chấp Nhận.',
+        'beatmap_owner_change' => 'Chủ sở hữu của chế độ :beatmap thay đổi để :new_user.',
+        'discussion_delete' => 'Moderator đã xóa cuộc thảo luận :discussion.',
+        'discussion_lock' => 'Chức năng bàn luận của beatmap này đã bị vô hiệu hóa. (:text)',
+        'discussion_post_delete' => 'Moderator đã xóa bài viết từ cuộc thảo luận :discussion.',
+        'discussion_post_restore' => 'Moderator đã phục hồi bài viết từ cuộc thảo luận :discussion.',
+        'discussion_restore' => 'Moderator đã phục hồi cuộc thảo luận :discussion.',
+        'discussion_unlock' => 'Chức năng bàn luận của beatmap này đã được kich hoạt.',
+        'disqualify' => 'Bị loại bởi :user. Lý do: :discussion (:text).',
+        'disqualify_legacy' => 'Disqualified bởi :user. Lí do: :text.',
+        'genre_edit' => 'Đã thay đổi thể loại từ :old thành :new.',
+        'issue_reopen' => 'Đã giải quyết vấn đề: :discussion bởi :discussion_user được mở lại bởi :user.',
+        'issue_resolve' => 'Vấn đề :discussion bởi :discussion_user đã được đánh dấu là đã giải quyết bởi :user.',
+        'kudosu_allow' => 'Kudosu của cuộc thảo luận :discussion đã không còn bị từ chối nữa.',
+        'kudosu_deny' => 'Cuộc thảo luận :discussion đã bị từ chối kudosu.',
+        'kudosu_gain' => 'Cuộc thảo luận :discussion bởi :user đã nhận được đủ votes để có kudosu.',
+        'kudosu_lost' => 'Cuộc thảo luận :discussion bởi :user đã mất votes và kudosu đã nhận được bị loại bỏ.',
+        'kudosu_recalculate' => 'Kudosu của cuộc thảo luận :discussion đã được tính lại.',
+        'language_edit' => 'Đã thay đổi ngôn ngữ từ :old thành :new.',
+        'love' => 'Được Yêu Thích bởi :user',
+        'nominate' => 'Được đề cử (nominated) bởi :user.',
+        'nominate_modes' => 'Được đề cử bởi :user (:modes).',
+        'nomination_reset' => 'Vấn đề mới :discussion (:text) đã kích hoạt đặt lại đề cử.',
+        'nomination_reset_received' => ' Đề cử bởi :user đã được đặt lại bởi :source_user (:text)',
+        'nomination_reset_received_profile' => ' Đề cử đã được đặt lại bởi :user (:text)',
+        'offset_edit' => 'Độ trễ chơi trực tuyến đã thay đổi từ :old thành:new.',
+        'qualify' => 'Beatmap này đã đạt được số đề cử (nominations) cần thiết và đã qualified.',
+        'rank' => 'Đã được xếp hạng (Ranked).',
+        'remove_from_loved' => 'Yêu thích bị loại bỏ bởi :user. (:text)',
+        'tags_edit' => 'Thể loại đã được thay đổi từ ":old" sang ":new".',
+
+        'nsfw_toggle' => [
+            'to_0' => 'Đã xóa đánh dấu nội dung không lành mạnh',
+            'to_1' => 'Đã đánh dấu có nội dung không lành mạnh',
+        ],
+    ],
+
+    'index' => [
+        'title' => 'Những Sự Kiện Của Beatmapset',
+
+        'form' => [
+            'period' => 'Giai đoạn',
+            'types' => 'Loại',
+        ],
+    ],
+
+    'item' => [
+        'content' => 'Nội dung',
+        'discussion_deleted' => '[deleted]',
+        'type' => 'Loại',
+    ],
+
+    'type' => [
+        'approve' => 'Chấp nhận',
+        'beatmap_owner_change' => 'Thay đổi chủ chế độ',
+        'discussion_delete' => 'Xóa cuộc thảo luận',
+        'discussion_post_delete' => 'Xóa trả lời của cuộc thảo luận',
+        'discussion_post_restore' => 'Phục hồi trả lời của cuộc thảo luận',
+        'discussion_restore' => 'Phục hồi cuộc thảo luận',
+        'disqualify' => 'Disqualification',
+        'genre_edit' => 'Thay đổi thể loại',
+        'issue_reopen' => 'Mở lại cuộc thảo luận',
+        'issue_resolve' => 'Giải quyết cuộc thảo luận',
+        'kudosu_allow' => 'Cho phép kudosu',
+        'kudosu_deny' => 'Từ chối kudosu',
+        'kudosu_gain' => 'Kudosu đạt được',
+        'kudosu_lost' => 'Kudosu giảm',
+        'kudosu_recalculate' => 'Tính lại kudosu',
+        'language_edit' => 'Thay đổi ngôn ngữ',
+        'love' => 'Love',
+        'nominate' => 'Đề cử',
+        'nomination_reset' => 'Đặt lại đề cử',
+        'nomination_reset_received' => 'Đã nhận được đặt lại đề cử',
+        'nsfw_toggle' => 'Đánh dấu không lành mạnh',
+        'offset_edit' => 'Chính sửa độ trễ',
+        'qualify' => 'Qualification',
+        'rank' => 'Xếp hạng',
+        'remove_from_loved' => 'Yêu thích loại bỏ',
+    ],
+];

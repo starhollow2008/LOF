@@ -1,0 +1,70 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'loading_users' => 'nalaganje igralcev...',
+    'searching_users' => '',
+    'talking_in' => 'tipkaš v :channel',
+    'talking_with' => 'pogovor z :name',
+    'title_compact' => 'klepet',
+    'unread_messages' => 'neprebrana sporočila',
+
+    'cannot_send' => [
+        'channel' => 'Trenutno ne moreš poslati sporočil v tem kanalu.',
+        'user' => 'Trenutno se ne moreš pogovarjati s tem igralcem.',
+    ],
+
+    'channels' => [
+        'confirm_part' => 'Ali želiš skriti ta kanal? Kljub temu boš še vedno dobil sporočila iz tega kanala.',
+        'create' => 'ustvari obvestilo',
+        'join' => '',
+        'none' => '',
+
+        'list' => [
+            'title' => [
+                'ANNOUNCE' => 'Obvestila',
+                'GROUP' => 'Skupine',
+                'PM' => 'Neposredna sporočila',
+                'PUBLIC' => 'Kanali',
+                'TEAM' => '',
+            ],
+        ],
+    ],
+
+    'form' => [
+        'title' => [
+            'announcement' => 'Ustvari Novo Obvestilo',
+        ],
+
+        'labels' => [
+            'description' => 'opis',
+            'message' => 'sporočilo',
+            'name' => 'ime sobe',
+            'users' => 'igralci, ki jih želiš dodati',
+        ],
+    ],
+
+    'not_found' => [
+        'message' => 'Tukaj ni nič, mogoče si zapustil kanal ali ta kanal ne obstaja...',
+        'title' => 'kanal ni najden',
+    ],
+
+    'not_joined' => [
+        'message' => '',
+        'join' => '',
+    ],
+
+    'input' => [
+        'create' => 'Ustvari',
+        'disabled' => 'ni možno poslati sporočila...',
+        'disconnected' => 'Povezava je prekinjena',
+        'placeholder' => 'vnesi sporočilo...',
+        'send' => 'Pošlji',
+    ],
+
+    'join_channels' => [
+        'loading' => '',
+    ],
+];

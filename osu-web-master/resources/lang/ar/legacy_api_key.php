@@ -1,0 +1,30 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'new' => 'مفتاح API كلاسيكي جديد',
+    'none' => 'لا يوجد مفتاح.',
+
+    'docs' => [
+        '_' => 'الوثائق متاحة على :github.',
+        'github' => 'GitHub',
+    ],
+
+    'form' => [
+        'create' => 'أنشئ مفتاحًا',
+    ],
+
+    'view' => [
+        'hide' => 'إخفاء المفتاح',
+        'show' => 'إظهار المفتاح',
+        'delete' => 'حذف',
+    ],
+
+    'warning' => [
+        'line1' => 'لا تشاركه مع الآخرين.',
+        'line2' => "إنه يعادل إعطاء كلمة مرورك.",
+        'line3' => 'قد يتعرض حسابك للخطر.',
+    ],
+];

@@ -1,0 +1,64 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.mobile-menu-tab {
+  .reset-input();
+  .link-plain();
+
+  --height: 40px;
+  flex: none;
+  color: @osu-colour-l3;
+  width: var(--height);
+  height: var(--height);
+  position: relative;
+  --hover-line-margin: 25%;
+
+  &--link-button {
+    .center-content();
+    display: flex;
+  }
+
+  &--user {
+    --avatar-spacing: 8px;
+    margin-right: auto;
+    padding: var(--avatar-spacing);
+    flex: 1;
+    max-width: max-content;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    --hover-line-margin: var(--avatar-spacing);
+  }
+
+  &--wrapped-first {
+    animation:
+      glow-pulse 2s infinite,
+      grow-and-shrink 2s infinite;
+  }
+
+  &:hover,
+  &.js-click-menu--active {
+    color: @osu-colour-c1;
+
+    &::before {
+      content: "";
+      display: block;
+      position: absolute;
+      height: 4px;
+      border-radius: 10000px;
+      background-color: @osu-colour-h1;
+      left: var(--hover-line-margin);
+      right: $left;
+      bottom: -2px;
+      z-index: 1; // inside z-index--nav-bar
+    }
+  }
+
+  &__avatar {
+    height: calc(var(--height) - var(--avatar-spacing) * 2);
+    width: $height;
+    margin-right: var(--avatar-spacing);
+    position: relative;
+    flex: none;
+  }
+}

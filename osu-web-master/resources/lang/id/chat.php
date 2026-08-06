@@ -1,0 +1,70 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'loading_users' => 'memuat pengguna...',
+    'searching_users' => '',
+    'talking_in' => 'berbicara di :channel',
+    'talking_with' => 'berbicara dengan :name',
+    'title_compact' => 'obrolan',
+    'unread_messages' => 'pesan yang belum dibaca',
+
+    'cannot_send' => [
+        'channel' => 'Kamu sedang tidak bisa mengirim pesan pada kanal percakapan ini.',
+        'user' => 'Kamu sedang tidak bisa mengirimkan pesan kepada pengguna ini.',
+    ],
+
+    'channels' => [
+        'confirm_part' => 'Apakah kamu ingin menyembunyikan kanal percakapan ini? Kamu akan tetap menerima pesan dari kanal percakapan ini.',
+        'create' => 'buat pengumuman',
+        'join' => 'gabung kanal baru',
+        'none' => 'tidak ada kanal',
+
+        'list' => [
+            'title' => [
+                'ANNOUNCE' => 'Pengumuman',
+                'GROUP' => 'Grup',
+                'PM' => 'Pesan pribadi',
+                'PUBLIC' => 'Kanal Percakapan',
+                'TEAM' => 'Tim',
+            ],
+        ],
+    ],
+
+    'form' => [
+        'title' => [
+            'announcement' => 'Buat Pengumuman Baru',
+        ],
+
+        'labels' => [
+            'description' => 'keterangan',
+            'message' => 'pesan',
+            'name' => 'nama ruangan',
+            'users' => 'pemain yang akan ditambahkan',
+        ],
+    ],
+
+    'not_found' => [
+        'message' => 'Tidak ada apa-apa di sini. Mungkin kamu sudah meninggalkan kanal percakapan ini, atau kanal yang ingin kamu tuju sudah tidak ada...',
+        'title' => 'kanal percakapan tidak ditemukan',
+    ],
+
+    'not_joined' => [
+        'message' => 'Bergabunglah ke kanal ini untuk melihat isi pesan di dalamnya.',
+        'join' => 'Gabung Kanal',
+    ],
+
+    'input' => [
+        'create' => 'Buat',
+        'disabled' => 'pesan tidak bisa dikirim...',
+        'disconnected' => 'Terputus',
+        'placeholder' => 'ketik pesan...',
+        'send' => 'Kirim',
+    ],
+
+    'join_channels' => [
+        'loading' => 'Memuat daftar kanal percakapan...',
+    ],
+];

@@ -1,2 +1,63 @@
-*.zip
+```
+# Dependencies
+node_modules/
+
+# Logs and temp files
 *.log
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# PHP/Laravel specific
+vendor/
+composer.lock
+bootstrap/cache/
+storage/framework/cache/data/
+storage/framework/sessions/
+storage/framework/views/
+
+# Build artifacts
+dist/
+build/
+public/assets/
+
+# IDE and editor files
+*.swp
+*.swo
+*.tmp
+
+# Compression files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+
+```

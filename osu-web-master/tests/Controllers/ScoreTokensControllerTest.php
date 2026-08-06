@@ -1,0 +1,171 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+declare(strict_types=1);
+
+namespace Tests\Controllers;
+
+use App\Models\Beatmap;
+use App\Models\Build;
+use App\Models\ScoreToken;
+use App\Models\User;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\TestCase;
+
+class ScoreTokensControllerTest extends TestCase
+{
+    private Build $build;
+    private User $user;
+
+    #[DataProvider('dataProviderForTestStore')]
+    public function testStore(string $beatmapState, int $status): void
+    {
+        $beatmap = Beatmap::factory()->$beatmapState()->create();
+
+        $routeParams = [
+            'beatmap' => $beatmap->getKey(),
+            'ruleset_id' => $beatmap->playmode,
+        ];
+        $bodyParams = ['beatmap_hash' => $beatmap->checksum];
+        $this->withHeaders(['x-token' => static::createClientToken($this->build)]);
+
+        $this->expectCountChange(fn () => ScoreToken::count(), $status >= 200 && $status < 300 ? 1 : 0);
+
+        $this->actAsScopedUser($this->user, ['*']);
+        $this->json(
+            'POST',
+            route('api.beatmaps.solo.score-tokens.store', $routeParams),
+            $bodyParams
+        )->assertStatus($status);
+    }
+
+    #[DataProvider('dataProviderForTestStoreInvalidParameter')]
+    public function testStoreInvalidParameter(string $paramKey, ?string $paramValue, int $status, string $errorMessage): void
+    {
+        $origClientCheckVersion = $GLOBALS['cfg']['osu']['client']['check_version'];
+        config_set('osu.client.check_version', true);
+        $beatmap = Beatmap::factory()->ranked()->create();
+
+        $this->actAsScopedUser($this->user, ['*']);
+
+        $params = [
+            'beatmap' => $beatmap->getKey(),
+            'ruleset_id' => $beatmap->playmode,
+            'beatmap_hash' => $beatmap->checksum,
+        ];
+        $this->withHeaders([
+            'x-token' => $paramKey === 'client_token'
+                ? $paramValue
+                : static::createClientToken($this->build),
+        ]);
+
+        if ($paramKey !== 'client_token') {
+            $params[$paramKey] = $paramValue;
+        }
+
+        $routeParams = [
+            'beatmap' => $params['beatmap'],
+            'ruleset_id' => $params['ruleset_id'],
+        ];
+        $bodyParams = [
+            'beatmap_hash' => $params['beatmap_hash'],
+        ];
+
+        $this->expectCountChange(fn () => ScoreToken::count(), 0);
+
+        $this->json(
+            'POST',
+            route('api.beatmaps.solo.score-tokens.store', $routeParams),
+            $bodyParams
+        )->assertStatus($status)
+        ->assertJson([
+            'error' => $errorMessage,
+        ]);
+
+        config_set('osu.client.check_version', $origClientCheckVersion);
+    }
+
+    public function testStoreValidRulesetConversion(): void
+    {
+        $beatmap = Beatmap::factory()->create([
+            'playmode' => 0,
+        ]);
+
+        $routeParams = [
+            'beatmap' => $beatmap->getKey(),
+            'ruleset_id' => 1,
+        ];
+        $bodyParams = ['beatmap_hash' => $beatmap->checksum];
+        $this->withHeaders(['x-token' => static::createClientToken($this->build)]);
+
+        $this->expectCountChange(fn () => ScoreToken::count(), 1);
+
+        $this->actAsScopedUser($this->user, ['*']);
+        $this->json(
+            'POST',
+            route('api.beatmaps.solo.score-tokens.store', $routeParams),
+            $bodyParams
+        )->assertStatus(200);
+    }
+
+    public function testStoreInvalidRulesetConversion(): void
+    {
+        $beatmap = Beatmap::factory()->create([
+            'playmode' => 2,
+        ]);
+
+        $routeParams = [
+            'beatmap' => $beatmap->getKey(),
+            'ruleset_id' => 1,
+        ];
+        $bodyParams = ['beatmap_hash' => $beatmap->checksum];
+        $this->withHeaders(['x-token' => static::createClientToken($this->build)]);
+
+        $this->expectCountChange(fn () => ScoreToken::count(), 0);
+
+        $this->actAsScopedUser($this->user, ['*']);
+        $this->json(
+            'POST',
+            route('api.beatmaps.solo.score-tokens.store', $routeParams),
+            $bodyParams
+        )->assertStatus(422)
+        ->assertJson([
+            'error' => 'invalid ruleset_id',
+        ]);
+    }
+
+    public static function dataProviderForTestStore(): array
+    {
+        return [
+            ['deleted', 404],
+            ['deletedBeatmapset', 404],
+            ['inactive', 404],
+            ['ranked', 200],
+            ['wip', 200],
+        ];
+    }
+
+    public static function dataProviderForTestStoreInvalidParameter(): array
+    {
+        return [
+            'invalid client token' => ['client_token', md5('invalid_'), 422, 'invalid client hash'],
+            'missing client token' => ['client_token', null, 422, 'missing token header'],
+
+            'invalid ruleset id' => ['ruleset_id', '5', 422, 'invalid ruleset_id'],
+            'missing ruleset id' => ['ruleset_id', null, 422, 'missing ruleset_id'],
+
+            'invalid beatmap hash' => ['beatmap_hash', 'xxx', 422, 'invalid or missing beatmap_hash'],
+            'missing beatmap hash' => ['beatmap_hash', null, 422, 'invalid or missing beatmap_hash'],
+        ];
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->user = User::factory()->create();
+        $this->build = Build::factory()->create(['allow_ranking' => true]);
+    }
+}

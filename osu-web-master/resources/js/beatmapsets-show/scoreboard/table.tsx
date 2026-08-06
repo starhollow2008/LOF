@@ -1,0 +1,103 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+import { computed, observable, makeObservable } from 'mobx';
+import { observer } from 'mobx-react';
+import * as React from 'react';
+import { ActiveKeyState, ContainerContext, KeyContext } from 'stateful-activation-context';
+import { shouldShowPp } from 'utils/beatmap-helper';
+import { classWithModifiers } from 'utils/css';
+import { trans } from 'utils/lang';
+import { scoreStatisticsMapping } from 'utils/score-helper';
+import Controller from './controller';
+import TableRow from './table-row';
+
+const bn = 'beatmap-scoreboard-table';
+
+interface Props {
+  controller: Controller;
+}
+
+@observer
+export default class Table extends React.Component<Props> {
+  @observable private readonly activeKeyState = new ActiveKeyState<number>();
+
+  @computed
+  get showPp() {
+    return shouldShowPp(this.props.controller.beatmap);
+  }
+
+  constructor(props: Props) {
+    super(props);
+
+    makeObservable(this);
+  }
+
+  render() {
+    return (
+      <ContainerContext.Provider value={this.activeKeyState}>
+        <div className={classWithModifiers(bn, { 'menu-active': this.activeKeyState.value != null })}>
+          <table className={`${bn}__table`}>
+            <thead>
+              <tr>
+                <th className={`${bn}__header ${bn}__header--rank`}>
+                  {trans('beatmapsets.show.scoreboard.headers.rank')}
+                </th>
+                <th className={`${bn}__header ${bn}__header--grade`} />
+                <th className={`${bn}__header ${bn}__header--score`}>
+                  {trans('beatmapsets.show.scoreboard.headers.score')}
+                </th>
+                <th className={`${bn}__header ${bn}__header--accuracy`}>
+                  {trans('beatmapsets.show.scoreboard.headers.accuracy')}
+                </th>
+                <th className={`${bn}__header ${bn}__header--flag`} />
+                <th className={`${bn}__header ${bn}__header--player`}>
+                  {trans('beatmapsets.show.scoreboard.headers.player')}
+                </th>
+                <th className={`${bn}__header ${bn}__header--maxcombo`}>
+                  {trans('beatmapsets.show.scoreboard.headers.combo')}
+                </th>
+                {scoreStatisticsMapping[this.props.controller.beatmap.mode]
+                  .filter((stat) => stat.relevantTypes.includes('leaderboard'))
+                  .map((stat) => (
+                    <th
+                      key={stat.label.short}
+                      className={classWithModifiers(`${bn}__header`, ['hitstat', `hit-${stat.attributes[0]}`])}
+                    >
+                      {stat.label.short}
+                    </th>
+                  ))}
+                {this.showPp &&
+                  <th className={`${bn}__header ${bn}__header--pp`}>
+                    {trans('beatmapsets.show.scoreboard.headers.pp')}
+                  </th>
+                }
+                <th className={`${bn}__header ${bn}__header--time`}>
+                  {trans('beatmapsets.show.scoreboard.headers.time')}
+                </th>
+                <th className={`${bn}__header ${bn}__header--mods`}>
+                  {trans('beatmapsets.show.scoreboard.headers.mods')}
+                </th>
+                <th className={`${bn}__header ${bn}__header--popup-menu`} />
+              </tr>
+            </thead>
+            <tbody className={`${bn}__body`}>
+              {this.props.controller.data.scores.map((score, index) => (
+                <KeyContext.Provider key={index} value={index}>
+                  <TableRow
+                    activated={this.activeKeyState.value === index}
+                    beatmap={this.props.controller.beatmap}
+                    highlightFriends={this.props.controller.currentType !== 'friend'}
+                    index={index}
+                    score={score}
+                    showPp={this.showPp}
+                  />
+                </KeyContext.Provider>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </ContainerContext.Provider>
+    );
+  }
+}

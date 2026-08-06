@@ -1,0 +1,40 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'error' => [
+        'chat' => [
+            'empty' => 'لا يمكن إرسال رسالة فارغة.',
+            'limit_exceeded' => 'انت تقوم بإرسال الرسائل بسرعة كبيرة، الرجاء الانتظار قليلاً قبل المحاولة مرة أخرى.',
+            'too_long' => 'الرسالة التي تحاول إرسالها طويلة جداً.',
+        ],
+    ],
+
+    'scopes' => [
+        'bot' => 'مثل كبوت دردشة.',
+        'identify' => 'يتعرف عليك ويقرأ ملفك الشخصي العام.',
+
+        'chat' => [
+            'read' => 'قراءة الرسائل نيابةً عنك.',
+            'write' => 'إرسال رسائل نيابة عنك.',
+            'write_manage' => 'الانضمام إلى القنوات ومغادرتها نيابةً عنك.',
+        ],
+
+        'forum' => [
+            'write' => 'إنشاء وتعديل مواضيع المنتدى والمشاركات نيابة عنك.',
+            'write_manage' => 'إدارة مواضيع ومنشورات المنتدى نيابةً عنك.',
+        ],
+
+        'friends' => [
+            'read' => 'معرفة من تتابع.',
+        ],
+
+        'multiplayer' => [
+            'write_manage' => 'إنشاء وإدارة غرف اللعب الجماعي نيابةً عنك.',
+        ],
+
+        'public' => 'قراءة البيانات العامة نيابة عنك.',
+    ],
+];

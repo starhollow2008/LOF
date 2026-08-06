@@ -1,0 +1,314 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'all_read' => 'Totes les notificacions llegides!',
+    'delete' => 'Eliminar :type',
+    'loading' => 'Carregant notificacions sense llegir...',
+    'mark_read' => 'Esborra :type ',
+    'none' => 'No hi ha notificacions',
+    'see_all' => 'veure totes les notificacions',
+    'see_channel' => 'ves al xat',
+    'verifying' => 'Verifica la sessió per a veure les notificacions',
+
+    'action_type' => [
+        '_' => 'totes',
+        'beatmapset' => 'mapes',
+        'build' => 'versions',
+        'channel' => 'xat',
+        'forum_topic' => 'fòrum',
+        'news_post' => 'novetats',
+        'team' => 'equip',
+        'user' => 'perfil',
+    ],
+
+    'filters' => [
+        '_' => 'totes',
+        'beatmapset' => 'mapes',
+        'build' => 'versions',
+        'channel' => 'xat',
+        'forum_topic' => 'fòrum',
+        'news_post' => 'novetats',
+        'team' => 'equip',
+        'user' => 'perfil',
+    ],
+
+    'item' => [
+        'beatmapset' => [
+            '_' => 'Mapa',
+
+            'beatmap_owner_change' => [
+                '_' => 'Dificultat de convidat',
+                'beatmap_owner_change' => 'Ara ets propietari de la dificultat «:beatmap» del mapa «:title»',
+                'beatmap_owner_change_compact' => 'Ara ets el propietari de la dificultat «:beatmap»',
+            ],
+
+            'beatmapset_discussion' => [
+                '_' => 'Discussió de mapes',
+                'beatmapset_discussion_lock' => 'La discussió a ":title" s\'ha tancat',
+                'beatmapset_discussion_lock_compact' => 'La discussió s\'ha tancat',
+                'beatmapset_discussion_post_new' => 'Nova publicació a ":title" per :username: ":content"',
+                'beatmapset_discussion_post_new_empty' => 'Nova publicació a ":title" per :username',
+                'beatmapset_discussion_post_new_compact' => 'Nova publicació de :username: ":content"',
+                'beatmapset_discussion_post_new_compact_empty' => 'Nova publicació per :username',
+                'beatmapset_discussion_review_new' => 'Nova revisió de ":title" per :username que conté :review_counts',
+                'beatmapset_discussion_review_new_compact' => 'Nova revisió per :username que conté :review_counts',
+                'beatmapset_discussion_unlock' => 'La discussió de ":title" s\'ha desbloquejat',
+                'beatmapset_discussion_unlock_compact' => 'La discussió s\'ha desbloquejat',
+
+                'review_count' => [
+                    'praises' => ':count_delimited elogi|:count_delimited elogis',
+                    'problems' => ':count_delimited problema|:count_delimited problemes',
+                    'suggestions' => ':count_delimited suggeriment|:count_delimited suggeriments',
+                ],
+            ],
+
+            'beatmapset_problem' => [
+                '_' => 'Problema amb un beatmap qualificat',
+                'beatmapset_discussion_qualified_problem' => 'Informe de :username sobre ":title": ":content"',
+                'beatmapset_discussion_qualified_problem_empty' => 'Informe de :username sobre ":title"',
+                'beatmapset_discussion_qualified_problem_compact' => 'Informe de :username: ":content"',
+                'beatmapset_discussion_qualified_problem_compact_empty' => 'Informe de :username',
+            ],
+
+            'beatmapset_state' => [
+                '_' => 'L\'estat del mapa ha canviat',
+                'beatmapset_disqualify' => '":title" ha estat desqualificat',
+                'beatmapset_disqualify_compact' => 'El mapa ha estat desqualificat',
+                'beatmapset_love' => 's\'ha promogut «:title» a «estimats»',
+                'beatmapset_love_compact' => 'El mapa s\'ha promogut a «estimats»',
+                'beatmapset_nominate' => '":title" ha estat nominat',
+                'beatmapset_nominate_compact' => 'El mapa ha estat nominat',
+                'beatmapset_qualify' => '":title" ha obtingut suficients nominacions i ha entrat a la cua per a classificatoris',
+                'beatmapset_qualify_compact' => 'El mapa ha entrat a la cua per a classificatoris',
+                'beatmapset_rank' => '":title" s\'ha classificat',
+                'beatmapset_rank_compact' => 'El mapa s\'ha classificat',
+                'beatmapset_remove_from_loved' => 's\'ha esborrat «:title» d\'«estimats»',
+                'beatmapset_remove_from_loved_compact' => 'El mapa s\'ha esborrat d\'«estimats»',
+                'beatmapset_reset_nominations' => 'La nominació de ":title" s\'ha reiniciat',
+                'beatmapset_reset_nominations_compact' => 'La nominació s\'ha reiniciat',
+            ],
+
+            'comment' => [
+                '_' => 'Nou comentari',
+
+                'comment_new' => ':username ha comentat ":content" a ":title"',
+                'comment_new_compact' => ':username ha comentat ":content"',
+                'comment_reply' => ':username ha respost ":content" a ":title"',
+                'comment_reply_compact' => ':username ha respost ":content"',
+            ],
+        ],
+
+        'channel' => [
+            '_' => 'Xat',
+
+            'announcement' => [
+                '_' => 'Nou anunci',
+
+                'announce' => [
+                    'channel_announcement' => ':username diu ":title"',
+                    'channel_announcement_compact' => ':title',
+                    'channel_announcement_group' => 'Anunci de :username',
+                ],
+            ],
+
+            'channel' => [
+                '_' => 'Nou missatge',
+
+                'pm' => [
+                    'channel_message' => ':username diu ":title"',
+                    'channel_message_compact' => ':title',
+                    'channel_message_group' => 'de :username',
+                ],
+            ],
+
+            'channel_mention' => [
+                '_' => 'Menció al xat',
+
+                'public' => [
+                    'channel_mention' => ':username us ha mencionat a :name «:title»',
+                    'channel_mention_compact' => ':username «:title»',
+                    'channel_mention_group' => 'mencionat al :name',
+                ],
+            ],
+
+            'channel_team' => [
+                '_' => 'Missatge d\'equip nou',
+
+                'team' => [
+                    'channel_team' => ':username diu «:title»',
+                    'channel_team_compact' => ':username diu «:title»',
+                    'channel_team_group' => ':username diu «:title»',
+                ],
+            ],
+        ],
+
+        'build' => [
+            '_' => 'Registre de canvis',
+
+            'comment' => [
+                '_' => 'Nou comentari',
+
+                'comment_new' => ':username ha comentat ":content" a ":title"',
+                'comment_new_compact' => ':username ha comentat ":content"',
+                'comment_reply' => ':username ha respost ":content" a ":title"',
+                'comment_reply_compact' => ':username ha respost ":content"',
+            ],
+        ],
+
+        'news_post' => [
+            '_' => 'Notícies',
+
+            'comment' => [
+                '_' => 'Nou comentari',
+
+                'comment_new' => ':username ha comentat ":content" a ":title"',
+                'comment_new_compact' => ':username ha comentat ":content"',
+                'comment_reply' => ':username ha respost ":content" a ":title"',
+                'comment_reply_compact' => ':username ha respost ":content"',
+            ],
+
+            'news_post' => [
+                '_' => 'Notícies (:series):',
+
+                'news_post_new' => ':title',
+                'news_post_new_compact' => ':title',
+            ],
+        ],
+
+        'forum_topic' => [
+            '_' => 'Tema del fòrum',
+
+            'forum_topic_reply' => [
+                '_' => 'Nova resposta al fòrum',
+                'forum_topic_reply' => ':username ha respost a ":title"',
+                'forum_topic_reply_compact' => ':username ha respost',
+            ],
+        ],
+
+        'team' => [
+            'team_application' => [
+                '_' => 'Sol·licitud d\'unió a l\'equip',
+
+                'team_application_accept' => "T'has unit a l'equip :title",
+                'team_application_accept_compact' => "T'has unit a l'equip :title",
+
+                'team_application_group' => 'Actualitzacions de sol·licituds d\'unió a l\'equip',
+
+                'team_application_reject' => 'La vostra sol·licitud per a unir-vos a l\'equip :title s\'ha desestimat.',
+                'team_application_reject_compact' => 'La vostra sol·licitud per a unir-vos a l\'equip :title s\'ha desestimat.',
+                'team_application_store' => ':title sol·licita unir-se al vostre equip.',
+                'team_application_store_compact' => ':title sol·licita unir-se al vostre equip.',
+            ],
+        ],
+
+        'user' => [
+            'user_beatmapset_new' => [
+                '_' => 'Mapa nou',
+
+                'user_beatmapset_new' => 'Mapa «:title» de :username nou',
+                'user_beatmapset_new_compact' => 'Mapa «:title» nou',
+                'user_beatmapset_new_group' => 'Mapes nous de :username',
+
+                'user_beatmapset_revive' => ':username ha restaurat el mapa ":title"',
+                'user_beatmapset_revive_compact' => 'S\'ha restaurat el mapa ":title"',
+            ],
+        ],
+
+        'user_achievement' => [
+            '_' => 'Medalles',
+
+            'user_achievement_unlock' => [
+                '_' => 'Nova medalla',
+                'user_achievement_unlock' => 'S\'ha desbloquejat ":title"!',
+                'user_achievement_unlock_compact' => 'S\'ha desbloquejat ":title"!',
+                'user_achievement_unlock_group' => 'S\'han desbloquejat Medalles!',
+            ],
+        ],
+    ],
+
+    'mail' => [
+        'news' => 'Notícies',
+
+        'beatmapset' => [
+            'beatmap_owner_change' => [
+                'beatmap_owner_change' => 'Ara ets un convidat del mapa «:title»',
+            ],
+
+            'beatmapset_discussion' => [
+                'beatmapset_discussion_lock' => 'La discussió a ":title" s\'ha tancat',
+                'beatmapset_discussion_post_new' => 'La discussió a ":title" té actualitzacions noves',
+                'beatmapset_discussion_unlock' => 'La discussió de ":title" s\'ha obert',
+            ],
+
+            'beatmapset_problem' => [
+                'beatmapset_discussion_qualified_problem' => 'S\'ha informat d\'un nou problema a ":title"',
+            ],
+
+            'beatmapset_state' => [
+                'beatmapset_disqualify' => '":title" ha estat desqualificat',
+                'beatmapset_love' => 's\'ha promogut «:title» a «estimats»',
+                'beatmapset_nominate' => '":title" ha estat nominat',
+                'beatmapset_qualify' => '":title" ha obtingut suficients nominacions i ha entrat a la cua per a classificatoris',
+                'beatmapset_rank' => '":title" s\'ha classificat',
+                'beatmapset_remove_from_loved' => 's\'ha esborrat «:title» d\'«estimats»',
+                'beatmapset_reset_nominations' => 'La nominació de ":title" s\'ha reiniciat',
+            ],
+
+            'comment' => [
+                'comment_new' => 'El mapa «:title» té comentaris nous',
+            ],
+        ],
+
+        'channel' => [
+            'announcement' => [
+                'channel_announcement' => 'Hi ha un anunci nou a «:name».',
+            ],
+            'channel' => [
+                'channel_message' => 'Has rebut un nou missatge de :username',
+            ],
+            'channel_mention' => [
+                'channel_mention' => ':username us ha mencionat a :name «:title»',
+            ],
+
+            'channel_team' => [
+                'channel_team' => 'Hi ha un missatge a l\'equip «:name».',
+            ],
+        ],
+
+        'build' => [
+            'comment' => [
+                'comment_new' => 'El registre de canvis ":title" té nous comentaris',
+            ],
+        ],
+
+        'news_post' => [
+            'comment' => [
+                'comment_new' => 'Les novetats ":title" tenen nous comentaris',
+            ],
+        ],
+
+        'forum_topic' => [
+            'forum_topic_reply' => [
+                'forum_topic_reply' => 'Hi ha noves respostes a ":title"',
+            ],
+        ],
+
+        'team' => [
+            'team_application' => [
+                'team_application_accept' => "T'has unit a l'equip :title",
+                'team_application_reject' => 'La vostra sol·licitud per a unir-vos a l\'equip :title s\'ha desestimat.',
+                'team_application_store' => ':title sol·licita unir-se al vostre equip.',
+            ],
+        ],
+
+        'user' => [
+            'user_beatmapset_new' => [
+                'user_beatmapset_new' => ':username ha creat mapes nous',
+                'user_beatmapset_revive' => ':username ha restaurat mapes',
+            ],
+        ],
+    ],
+];

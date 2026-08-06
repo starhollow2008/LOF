@@ -1,0 +1,87 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.user-search-card {
+  --avatar-aspect: 1;
+  --height: 40px;
+  .fade-element(120ms);
+  position: relative;
+  border-radius: @border-radius-large;
+  background-color: @osu-colour-b4;
+  font-size: @font-size--normal;
+  min-height: var(--height);
+  line-height: normal;
+
+  &--active {
+    background-color: @osu-colour-b2;
+  }
+
+  &--team {
+    --avatar-aspect: 2;
+  }
+
+  &__avatar-container {
+    aspect-ratio: var(--avatar-aspect);
+    height: var(--height);
+    flex: none;
+    border-radius: @border-radius-large;
+    overflow: hidden;
+    background-size: cover;
+  }
+
+  &__background-container {
+    .full-size();
+  }
+
+  &__container {
+    display: flex;
+    position: relative;
+    pointer-events: none;
+  }
+
+  &__details {
+    display: flex;
+    align-items: center;
+    padding: 2px 5px;
+    color: @osu-colour-c1;
+    line-height: normal;
+    min-width: 0;
+  }
+
+  &__col {
+    margin: 0 5px;
+    flex: none;
+    display: flex;
+    pointer-events: auto;
+
+    &:empty {
+      display: none;
+    }
+
+    &--flag {
+      font-size: 14px; // icon size
+    }
+
+    &--icon {
+      height: 18px;
+    }
+
+    &--support {
+      font-size: 8px; // icon size
+    }
+
+    &--username {
+      .link-plain();
+
+      display: block;
+      flex: 1;
+      font-size: @font-size--title-small-3;
+      margin-right: var(--quick-search-items-badge-margin);
+      color: inherit;
+
+      .link-hover({
+        color: inherit;
+      });
+    }
+  }
+}

@@ -1,0 +1,562 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+namespace App\Transformers;
+
+use App\Libraries\MorphMap;
+use App\Libraries\SessionVerification;
+use App\Libraries\User\SeasonStats;
+use App\Models\Beatmap;
+use App\Models\Season;
+use App\Models\User;
+use App\Models\UserProfileCustomization;
+use Illuminate\Support\Arr;
+use League\Fractal\Resource\Primitive;
+use League\Fractal\Resource\ResourceInterface;
+
+class UserCompactTransformer extends TransformerAbstract
+{
+    const CARD_INCLUDES = [
+        'country',
+        'cover',
+        'groups',
+        'team',
+    ];
+
+    const CARD_INCLUDES_PRELOAD = [
+        'team',
+        'userGroups',
+    ];
+
+    // Paired with static::listIncludesPreload
+    const LIST_INCLUDES = [
+        ...self::CARD_INCLUDES,
+        'statistics',
+        'support_level',
+    ];
+
+    const PROFILE_HEADER_INCLUDES = [
+        'active_tournament_banner',
+        'active_tournament_banners',
+        'badges',
+        'comments_count',
+        'follower_count',
+        'groups',
+        'mapping_follower_count',
+        'previous_usernames',
+        'support_level',
+    ];
+
+    protected string $mode;
+
+    protected array $availableIncludes = [
+        'account_history',
+        'active_tournament_banner', // deprecated
+        'active_tournament_banners',
+        'badges',
+        'beatmap_playcounts_count',
+        'blocks',
+        'comments_count',
+        'country',
+        'cover',
+        'current_season_stats',
+        'current_user_attributes',
+        'daily_challenge_user_stats',
+        'favourite_beatmapset_count',
+        'follow_user_mapping',
+        'follower_count',
+        'friends',
+        'global_rank',
+        'graveyard_beatmapset_count',
+        'groups',
+        'guest_beatmapset_count',
+        'is_admin',
+        'is_bng',
+        'is_full_bn',
+        'is_gmt',
+        'is_limited_bn',
+        'is_moderator',
+        'is_nat',
+        'is_restricted',
+        'is_silenced',
+        'kudosu',
+        'loved_beatmapset_count',
+        'mapping_follower_count',
+        'matchmaking_stats',
+        'monthly_playcounts',
+        'nominated_beatmapset_count',
+        'page',
+        'pending_beatmapset_count',
+        'previous_usernames',
+        'rank_highest',
+        'ranked_beatmapset_count',
+        'replays_watched_counts',
+        'score_processing_notice_url',
+        'scores_best_count',
+        'scores_first_count',
+        'scores_pinned_count',
+        'scores_recent_count',
+        'session_verification_method',
+        'session_verified',
+        'statistics',
+        'statistics_rulesets',
+        'support_level',
+        'team',
+        'unread_pm_count',
+        'user_achievements',
+        'user_preferences',
+
+        // TODO: should be alphabetically ordered but lazer relies on being after statistics.
+        'rank_history',
+    ];
+
+    protected $permissions = [
+        'friends' => 'IsNotOAuth',
+        'is_admin' => 'IsNotOAuth',
+        'is_bng' => 'IsNotOAuth',
+        'is_full_bn' => 'IsNotOAuth',
+        'is_gmt' => 'IsNotOAuth',
+        'is_limited_bn' => 'IsNotOAuth',
+        'is_moderator' => 'IsNotOAuth',
+        'is_nat' => 'IsNotOAuth',
+        'is_restricted' => 'UserShowRestrictedStatus',
+        'is_silenced' => 'IsNotOAuth',
+    ];
+
+    public static function listIncludesPreload(string $rulesetName): array
+    {
+        return [
+            ...static::CARD_INCLUDES_PRELOAD,
+            User::statisticsRelationName($rulesetName),
+        ];
+    }
+
+    public function transform(User $user)
+    {
+        return [
+            'avatar_url' => $user->user_avatar,
+            'country_code' => $user->country_acronym,
+            'default_group' => $user->defaultGroup()->identifier,
+            'id' => $user->user_id,
+            'is_active' => $user->isActive(),
+            'is_bot' => $user->isBot(),
+            'is_deleted' => $user->trashed(),
+            'is_online' => $user->isOnline(),
+            'is_supporter' => $user->isSupporter(),
+            'last_visit' => json_time($user->displayed_last_visit),
+            'pm_friends_only' => $user->pm_friends_only,
+            'profile_colour' => $user->user_colour,
+            'username' => $user->username,
+        ];
+    }
+
+    public function includeAccountHistory(User $user)
+    {
+        $histories = $user->accountHistories()->recent();
+
+        if (!priv_check('UserSilenceShowExtendedInfo')->can()) {
+            $histories->default();
+        } else {
+            $histories->with('actor');
+        }
+
+        return $this->collection(
+            $histories->get(),
+            new UserAccountHistoryTransformer()
+        );
+    }
+
+    public function includeActiveTournamentBanner(User $user)
+    {
+        $banner = $user->profileBannersActive->last();
+
+        return $banner === null
+            ? $this->primitive(null)
+            : $this->item($banner, new ProfileBannerTransformer());
+    }
+
+    public function includeActiveTournamentBanners(User $user)
+    {
+        return $this->collection(
+            $user->profileBannersActive,
+            new ProfileBannerTransformer(),
+        );
+    }
+
+    public function includeBadges(User $user)
+    {
+        return $this->collection(
+            $user->badges()->orderBy('awarded', 'DESC')->get(),
+            new UserBadgeTransformer()
+        );
+    }
+
+    public function includeBeatmapPlaycountsCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('beatmapPlaycounts'));
+    }
+
+    public function includeBlocks(User $user)
+    {
+        return $this->collection(
+            $user->relations()->blocks()->get(),
+            new UserRelationTransformer()
+        );
+    }
+
+    public function includeCommentsCount(User $user)
+    {
+        return $this->primitive($user->comments()->withoutTrashed()->count());
+    }
+
+    public function includeCountry(User $user)
+    {
+        $countryAcronym = $user->country_acronym;
+        $country = $countryAcronym === null
+            ? null
+            : app('countries')->byCode($countryAcronym);
+
+        return $country === null
+            ? $this->primitive(null)
+            : $this->item($country, new CountryTransformer());
+    }
+
+    public function includeCover(User $user)
+    {
+        $cover = $user->cover();
+
+        return $this->primitive([
+            'custom_url' => $cover->customUrl(),
+            'url' => $cover->url(),
+            // cast to string for backward compatibility
+            'id' => get_string($user->cover_preset_id),
+        ]);
+    }
+
+    public function includeCurrentSeasonStats(User $user): Primitive
+    {
+        $season = Season::active()
+            ->where('ruleset_id', Beatmap::modeInt($this->mode))
+            ->first();
+
+        return $season === null
+            ? $this->primitive(null)
+            : $this->primitive((new SeasonStats($user, $season))->get());
+    }
+
+    public function includeCurrentUserAttributes(User $user): Primitive
+    {
+        $currentUser = \Auth::user();
+        return $this->primitive($currentUser === null ? null : [
+            'has_blocked' => $user->hasBlocked($currentUser),
+        ]);
+    }
+
+    public function includeDailyChallengeUserStats(User $user)
+    {
+        return $this->item(
+            $user->dailyChallengeUserStats ?? $user->dailyChallengeUserStats()->make(),
+            new DailyChallengeUserStatsTransformer(),
+        );
+    }
+
+    public function includeFavouriteBeatmapsetCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('favouriteBeatmapsets'));
+    }
+
+    public function includeFollowUserMapping(User $user)
+    {
+        return $this->primitive(
+            $user->follows()->where([
+                'notifiable_type' => MorphMap::getType($user),
+                'subtype' => 'mapping',
+            ])->pluck('notifiable_id')
+        );
+    }
+
+    public function includeFollowerCount(User $user)
+    {
+        return $this->primitive($user->followerCount());
+    }
+
+    public function includeFriends(User $user)
+    {
+        return $this->collection(
+            $user->relationFriends,
+            new UserRelationTransformer()
+        );
+    }
+
+    public function includeGlobalRank(User $user)
+    {
+        return $this->primitive([
+            'rank' => $user->statistics($this->mode)?->globalRank(),
+            'ruleset_id' => Beatmap::MODES[$this->mode],
+        ]);
+    }
+
+    public function includeGraveyardBeatmapsetCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('graveyardBeatmapsets'));
+    }
+
+    public function includeGroups(User $user)
+    {
+        return $this->collection($user->userGroupsForBadges(), new UserGroupTransformer());
+    }
+
+    public function includeGuestBeatmapsetCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('guestBeatmapsets'));
+    }
+
+    public function includeIsAdmin(User $user)
+    {
+        return $this->primitive($user->isAdmin());
+    }
+
+    public function includeIsBng(User $user)
+    {
+        return $this->primitive($user->isBNG());
+    }
+
+    public function includeIsFullBn(User $user)
+    {
+        return $this->primitive($user->isFullBN());
+    }
+
+    public function includeIsGmt(User $user)
+    {
+        return $this->primitive($user->isGMT());
+    }
+
+    public function includeIsLimitedBn(User $user)
+    {
+        return $this->primitive($user->isLimitedBN());
+    }
+
+    public function includeIsModerator(User $user)
+    {
+        return $this->primitive($user->isModerator());
+    }
+
+    public function includeIsNat(User $user)
+    {
+        return $this->primitive($user->isNAT());
+    }
+
+    public function includeIsRestricted(User $user)
+    {
+        return $this->primitive($user->isRestricted());
+    }
+
+    public function includeIsSilenced(User $user)
+    {
+        return $this->primitive($user->isSilenced());
+    }
+
+    public function includeKudosu(User $user): ResourceInterface
+    {
+        return $this->primitive([
+            'available' => $user->osu_kudosavailable,
+            'total' => $user->osu_kudostotal,
+        ]);
+    }
+
+    public function includeLovedBeatmapsetCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('lovedBeatmapsets'));
+    }
+
+    public function includeMappingFollowerCount(User $user)
+    {
+        return $this->primitive($user->mappingFollowerCount());
+    }
+
+    public function includeMatchmakingStats(User $user): ResourceInterface
+    {
+        $allStats = $user
+            ->matchmakingStats()
+            ->hasPlayed()
+            ->whereHas('pool', fn ($q) => $q->where([
+                'ruleset_id' => Beatmap::MODES[$this->mode],
+                'type' => 'ranked_play',
+            ]))->withRank()
+            ->with('pool')
+            ->get();
+
+        return $this->collection($allStats, new MatchmakingUserStatsTransformer());
+    }
+
+    public function includeMonthlyPlaycounts(User $user)
+    {
+        return $this->collection(
+            $user->monthlyPlaycounts,
+            new UserMonthlyPlaycountTransformer()
+        );
+    }
+
+    public function includeNominatedBeatmapsetCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('nominatedBeatmapsets'));
+    }
+
+    public function includePage(User $user)
+    {
+        return $this->primitive(
+            $user->userPage === null
+                ? ['html' => '', 'raw' => '']
+                : [
+                    'html' => $user->userPage->bodyHTML(['modifiers' => ['profile-page']]),
+                    'raw' => $user->userPage->bodyRaw,
+                ]
+        );
+    }
+
+    public function includePendingBeatmapsetCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('pendingBeatmapsets'));
+    }
+
+    public function includePreviousUsernames(User $user)
+    {
+        return $this->primitive($user->previousUsernames()->unique()->values()->toArray());
+    }
+
+    public function includeRankHighest(User $user): ResourceInterface
+    {
+        $rankHighest = $user->rankHighests()
+            ->where('mode', Beatmap::modeInt($this->mode))
+            ->first();
+
+        return $rankHighest === null
+            ? $this->null()
+            : $this->item($rankHighest, new RankHighestTransformer());
+    }
+
+    public function includeRankHistory(User $user)
+    {
+        $rankHistoryData = $user->rankHistories()
+            ->where('mode', Beatmap::modeInt($this->mode))
+            ->first()
+            ?->setRelation('user', $user);
+
+        return $rankHistoryData === null
+            ? $this->primitive(null)
+            : $this->item($rankHistoryData, new RankHistoryTransformer());
+    }
+
+    public function includeRankedBeatmapsetCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('rankedBeatmapsets'));
+    }
+
+    public function includeReplaysWatchedCounts(User $user)
+    {
+        return $this->collection(
+            $user->replaysWatchedCounts,
+            new UserReplaysWatchedCountTransformer()
+        );
+    }
+
+    public function includeScoreProcessingNoticeUrl()
+    {
+        return $this->primitive($GLOBALS['cfg']['osu']['score']['processing_notice_url']);
+    }
+
+    public function includeScoresBestCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('scoresBest', $this->mode));
+    }
+
+    public function includeScoresFirstCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('scoresFirsts', $this->mode));
+    }
+
+    public function includeScoresPinnedCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('scoresPinned', $this->mode));
+    }
+
+    public function includeScoresRecentCount(User $user)
+    {
+        return $this->primitive($user->profileCount()->get('scoresRecent', $this->mode));
+    }
+
+    public function includeSessionVerified(User $user)
+    {
+        return $this->primitive($user->token()?->isVerified() ?? false);
+    }
+
+    public function includeSessionVerificationMethod(User $user)
+    {
+        $session = $user->token();
+
+        return $this->primitive($session === null || $session->isVerified()
+            ? null
+            : (new SessionVerification\State($session, $user))->getMethod());
+    }
+
+    public function includeStatistics(User $user)
+    {
+        $stats = $user->statistics($this->mode);
+
+        return $this->item($stats, new UserStatisticsTransformer());
+    }
+
+    public function includeStatisticsRulesets(User $user)
+    {
+        return $this->item($user, new UserStatisticsRulesetsTransformer());
+    }
+
+    public function includeSupportLevel(User $user)
+    {
+        return $this->primitive($user->supportLevel());
+    }
+
+    public function includeTeam(User $user)
+    {
+        return ($team = $user->team) === null
+            ? $this->null()
+            : $this->item($team, new TeamTransformer());
+    }
+
+    public function includeUnreadPmCount(User $user)
+    {
+        // legacy pm has been turned off
+        return $this->primitive(0);
+    }
+
+    public function includeUserAchievements(User $user)
+    {
+        return $this->collection(
+            $user->userAchievements()->orderBy('date', 'desc')->get(),
+            new UserAchievementTransformer()
+        );
+    }
+
+    public function includeUserPreferences(User $user)
+    {
+        static $fields = array_values(array_diff(array_keys(UserProfileCustomization::DEFAULTS), [
+            'comments_sort',
+            'extras_order',
+        ]));
+
+        $customization = $user->userProfileCustomization;
+
+        return $this->primitive($customization === null
+            ? Arr::only(UserProfileCustomization::DEFAULTS, $fields)
+            : $customization->only($fields));
+    }
+
+    public function setMode(string $mode)
+    {
+        $this->mode = $mode;
+
+        return $this;
+    }
+}

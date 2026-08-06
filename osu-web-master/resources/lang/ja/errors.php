@@ -1,0 +1,39 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'load_failed' => 'データの読み込みに失敗しました。',
+    'missing_route' => '不正なURLまたは不正なリクエストです。',
+    'no_restricted_access' => 'アカウントが制限されている状態では実行できません。',
+    'param_too_large' => ':nameパラメータは最大:count_delimited個の項目を持つことができます|:nameパラメータは最大:count_delimited個の項目を持つことができます',
+    'supporter_only' => 'osu!サポーター限定の機能です。',
+    'unknown' => '不明のエラーが発生しました。',
+
+    'codes' => [
+        'http-401' => '続行するにはログインが必要です。',
+        'http-403' => 'アクセスが拒否されました。',
+        'http-404' => '見つかりませんでした。',
+        'http-429' => '試行回数が上限に達しました。しばらく時間をおいて再度お試しください。',
+    ],
+    'account' => [
+        'profile-order' => [
+            'generic' => 'エラーが発生しました。ページの更新をすると直る可能性があります。',
+        ],
+    ],
+    'checkout' => [
+        'generic' => '支払い準備中にエラーが発生しました。',
+    ],
+    'scores' => [
+        'invalid_id' => '無効なスコアID。',
+    ],
+    'search' => [
+        'default' => '結果の取得に失敗しました。もう一度お試しください。',
+        'invalid_cursor_exception' => '無効なカーソルパラメータが指定されました。',
+        'operation_timeout_exception' => '検索機能が平時より混み合っています。もう一度お試しください。',
+    ],
+    'user_report' => [
+        'recently_reported' => "あなたはすでに報告済みです。",
+    ],
+];

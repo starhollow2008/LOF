@@ -1,0 +1,387 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'invalid_ruleset' => 'O conjunto de modos de jogo indicado é inválido.',
+
+    'change_owner' => [
+        'too_many' => 'Há criadores de mapas convidados a mais.',
+    ],
+
+    'discussion-votes' => [
+        'update' => [
+            'error' => 'Não foi possível atualizar o voto',
+        ],
+    ],
+
+    'discussions' => [
+        'allow_kudosu' => 'permitir kudosu',
+        'beatmap_information' => 'Página do mapa',
+        'delete' => 'eliminar',
+        'deleted' => 'Eliminado por :editor :delete_time.',
+        'deny_kudosu' => 'recusar kudosu',
+        'edit' => 'editar',
+        'edited' => 'Editado pela última vez por :editor :update_time.',
+        'guest' => 'Dificuldade de convidado feita por :user',
+        'kudosu_denied' => 'A obtenção de kudosu foi‑lhe recusada.',
+        'include_replies' => '',
+        'message_placeholder_deleted_beatmap' => 'Esta dificuldade foi eliminada, pelo que já não pode ser discutida.',
+        'message_placeholder_locked' => 'A discussão para este mapa foi desativada.',
+        'message_placeholder_silenced' => "Não pode publicar discussões enquanto estiver silenciado.",
+        'message_type_select' => 'Selecionar tipo de comentário',
+        'reply_notice' => 'Prima Enter para responder.',
+        'reply_resolve_notice' => 'Prima Enter para responder. Prima Ctrl+Enter para responder e resolver.',
+        'reply_placeholder' => 'Escreva a sua resposta aqui',
+        'require-login' => 'Por favor, inicie sessão para publicar ou responder',
+        'resolved' => 'Resolvida',
+        'restore' => 'restaurar',
+        'show_deleted' => 'Exibir discussões eliminadas',
+        'show_other_replies' => '',
+        'title' => 'Discussões',
+        'unresolved_count' => ':count_delimited problema por resolver|:count_delimited problemas por resolver',
+
+        'collapse' => [
+            'all-collapse' => 'Recolher tudo',
+            'all-expand' => 'Expandir tudo',
+        ],
+
+        'empty' => [
+            'empty' => 'Ainda não existe qualquer discussão!',
+            'hidden' => 'Nenhuma discussão corresponde ao filtro selecionado.',
+        ],
+
+        'lock' => [
+            'button' => [
+                'lock' => 'Bloquear discussão',
+                'unlock' => 'Desbloquear discussão',
+            ],
+
+            'prompt' => [
+                'lock' => 'Motivo do bloqueio',
+                'unlock' => 'Tem a certeza de que deseja desbloquear?',
+            ],
+        ],
+
+        'message_hint' => [
+            'in_general' => 'Esta publicação irá para a discussão geral do mapa. Para modificar esta dificuldade, comece a mensagem com uma determinada marca de tempo (e.g. 00:12:345).',
+            'in_timeline' => 'Para modificar múltiplas marcas de tempo, publique várias vezes (uma publicação por marca de tempo).',
+        ],
+
+        'message_placeholder' => [
+            'general' => 'Escreva aqui para publicar no Geral (:version)',
+            'generalAll' => 'Escreva aqui para publicar no Geral (Todas as dificuldades)',
+            'review' => 'Escreva aqui para publicar uma análise',
+            'timeline' => 'Escreva aqui para publicar na Cronologia (:version)',
+        ],
+
+        'message_type' => [
+            'disqualify' => 'Desqualificar',
+            'hype' => 'Hype!',
+            'mapper_note' => 'Nota',
+            'nomination_reset' => 'Reiniciar nomeação',
+            'praise' => 'Elogiar',
+            'problem' => 'Problema',
+            'problem_warning' => 'Reportar problema',
+            'review' => 'Rever',
+            'suggestion' => 'Sugestão',
+        ],
+
+        'message_type_title' => [
+            'disqualify' => 'Publicar desqualificação',
+            'hype' => 'Publicar Hype!',
+            'mapper_note' => 'Publicar observação',
+            'nomination_reset' => 'Remover todas as nomeações',
+            'praise' => 'Publicar elogio',
+            'problem' => 'Publicar problema',
+            'problem_warning' => 'Publicar problema',
+            'review' => 'Publicar análise',
+            'suggestion' => 'Publicar sugestão',
+        ],
+
+        'mode' => [
+            'events' => 'Historial',
+            'general' => 'Geral :scope',
+            'reviews' => 'Análises',
+            'timeline' => 'Cronologia',
+            'scopes' => [
+                'general' => 'Esta dificuldade',
+                'generalAll' => 'Todas as dificuldades',
+            ],
+        ],
+
+        'new' => [
+            'pin' => 'Afixar',
+            'timestamp' => 'Marca de tempo',
+            'timestamp_missing' => 'faça ctrl-c no modo de edição e cole na sua mensagem para adicionar uma marca de tempo!',
+            'title' => 'Nova discussão',
+            'unpin' => 'Desafixar',
+        ],
+
+        'review' => [
+            'new' => 'Nova Análise',
+            'embed' => [
+                'delete' => 'Apagar',
+                'missing' => '[DISCUSSÃO ELIMINADA]
+',
+                'unlink' => 'Desvincular',
+                'unsaved' => 'Não guardado',
+                'timestamp' => [
+                    'all-diff' => 'As publicações em "Todas as dificuldades" não podem ter marca de hora.',
+                    'diff' => 'Se esta publicação começar com uma determinada marca de tempo, será exibida na Cronologia.',
+                ],
+            ],
+            'insert-block' => [
+                'paragraph' => 'inserir parágrafo',
+                'praise' => 'inserir elogio',
+                'problem' => 'inserir problema',
+                'suggestion' => 'inserir sugestão',
+            ],
+        ],
+
+        'show' => [
+            'title' => ':title criado por :mapper',
+        ],
+
+        'sort' => [
+            'created_at' => 'Data de criação',
+            'timeline' => 'Cronologia',
+            'updated_at' => 'Última atualização',
+        ],
+
+        'stats' => [
+            'deleted' => 'Eliminadas',
+            'mapper_notes' => 'Notas',
+            'mine' => 'Minhas',
+            'pending' => 'Pendentes',
+            'praises' => 'Elogios',
+            'resolved' => 'Resolvidas',
+            'total' => 'Todas',
+        ],
+
+        'status-messages' => [
+            'approved' => 'Este mapa foi aprovado a :date!',
+            'graveyard' => "Este mapa não tem sido atualizado desde :date e muito provavelmente foi abandonado pelo criador...",
+            'loved' => 'Este mapa foi adicionado como adorado em :date!',
+            'ranked' => 'Este mapa foi classificado em :date!',
+            'wip' => 'Nota: este mapa está marcado como um trabalho em andamento pelo criador.',
+        ],
+
+        'votes' => [
+            'none' => [
+                'down' => 'Ainda sem votos negativos',
+                'up' => 'Ainda sem votos positivos',
+            ],
+            'latest' => [
+                'down' => 'Últimos votos negativos',
+                'up' => 'Últimos votos positivos',
+            ],
+        ],
+    ],
+
+    'hype' => [
+        'button' => 'Hypear o beatmap!',
+        'button_done' => 'Já foi hypeado!',
+        'confirm' => "Tem a certeza? Isto usará um dos seus :n hypes restantes e não pode ser desfeito.",
+        'explanation' => 'Dê hype neste mapa para torná-lo mais visível para a nomeação e classificação!',
+        'explanation_guest' => 'Registe-se e dê hype neste mapa para torná-lo mais visível para a nomeação e classificação!',
+        'new_time' => "O próximo mapa estará disponível em :new_time.",
+        'remaining' => 'Tem :remaining publicações restantes.',
+        'required_text' => 'Prioridade: :current/:required',
+        'section_title' => 'Comboio do hype',
+        'title' => 'Hype',
+    ],
+
+    'feedback' => [
+        'button' => 'Deixar feedback',
+    ],
+
+    'nominations' => [
+        'already_nominated' => 'Já nomeou este mapa.',
+        'cannot_nominate' => 'Não pode nomear este modo de jogo de mapa.',
+        'delete' => 'Apagar',
+        'delete_own_confirm' => 'Tem a certeza? O mapa será apagado e será redirecionado de volta para o seu perfil.',
+        'delete_other_confirm' => 'Tem a certeza? O mapa será apagado e será redirecionado de volta para o perfil de utilizador.',
+        'disqualification_prompt' => 'Qual a razão pela desqualificação?',
+        'disqualified_at' => 'Desqualificado :time_ago (:reason).',
+        'disqualified_no_reason' => 'nenhuma razão especificada',
+        'disqualify' => 'Desqualificar',
+        'incorrect_state' => 'Erro ao desempenhar essa ação, tente recarregar a página.',
+        'love' => 'Adorar',
+        'love_choose' => 'Escolher dificuldade para adorado',
+        'love_confirm' => 'Deseja adorar este mapa?',
+        'nominate' => 'Nomear',
+        'nominate_confirm' => 'Pretende nomear este mapa?',
+        'nominated_by' => 'nomeado por :users',
+        'not_enough_hype' => "Não há hype suficiente.",
+        'remove_from_loved' => 'Removido de Adorado',
+        'remove_from_loved_prompt' => 'Motivo pela remoção de Adorado:',
+        'required_text' => 'Nomeações: :current/:required',
+        'reset_message_deleted' => 'apagado',
+        'title' => 'Estado da nomeação',
+        'unresolved_issues' => 'Existem problemas ainda não resolvidos que devem ser abordados primeiro.',
+
+        'rank_estimate' => [
+            '_' => 'Este mapa está estimado a ser classificado em :date se não forem descobertos quaisquer problemas. Está em #:position na :queue.',
+            'unresolved_problems' => 'Este mapa está de momento impedido de sair da secção Qualificado até que os :problems sejam resolvidos.',
+            'problems' => 'estes problemas',
+            'on' => 'em :date',
+            'queue' => 'fila de classificação',
+            'soon' => 'em breve',
+        ],
+
+        'reset_at' => [
+            'nomination_reset' => 'Processo de nomeação redefinido :time_ago por :user com um novo problema :discussion (:message).',
+            'disqualify' => 'Desclassificado :time_ago por :user com um novo problema :discussion (:message).',
+        ],
+
+        'reset_confirm' => [
+            'disqualify' => 'Tem a certeza? Isto irá remover o mapa de qualificar-se e reiniciará o processo de nomeação.',
+            'nomination_reset' => 'Tem a certeza? Publicar um novo problema irá reiniciar o processo de nomeação.',
+            'problem_warning' => 'Tem a certeza de que quer comunicar o problema neste mapa? Isto irá alertar os Nomeadores do mapa.',
+        ],
+    ],
+
+    'listing' => [
+        'search' => [
+            'prompt' => 'escreva em palavras-chave...',
+            'login_required' => 'Inicie sessão para procurar.',
+            'options' => 'Mais opções de pesquisa',
+            'rank_filter_note' => 'As contagens de melhores classificações do perfil e os resultados apresentados nesta página baseiam‑se nas suas pontuações "normalizadas" (também conhecidas como "lazer") mais altas nos mapas.',
+            'supporter_filter' => 'Filtrar por :filters requer uma etiqueta de apoiante do osu! ativa',
+            'not-found' => 'sem resultados',
+            'not-found-quote' => '... não, nada encontrado.',
+            'filters' => [
+                'extra' => 'Extra',
+                'general' => 'Geral',
+                'genre' => 'Género',
+                'language' => 'Língua',
+                'mode' => 'Modo',
+                'nsfw' => 'Mapas explícitos',
+                'played' => 'Jogado',
+                'rank' => 'Classificação alcançada',
+                'status' => 'Categorias',
+            ],
+            'sorting' => [
+                'title' => 'Título',
+                'artist' => 'Artista',
+                'difficulty' => 'Dificuldade',
+                'favourites' => 'Favoritos',
+                'updated' => 'Atualizado',
+                'ranked' => 'Classificados',
+                'rating' => 'Avaliação',
+                'plays' => 'Partidas',
+                'relevance' => 'Relevância',
+                'nominations' => 'Nomeações',
+            ],
+            'supporter_filter_quote' => [
+                '_' => 'Filtrar por :filters requer um :link ativo',
+                'link_text' => 'etiqueta de apoiante do osu!',
+            ],
+            'tag_picker' => [
+                'tooltip' => 'explorar etiquetas de utilizador',
+                'prompt' => 'escrever para pesquisar',
+            ],
+        ],
+    ],
+    'general' => [
+        'converts' => 'Incluir mapas convertidos',
+        'featured_artists' => 'Artistas destacados',
+        'follows' => 'Criadores de mapas subscritos',
+        'recommended' => 'Dificuldade recomendada',
+        'spotlights' => 'Mapas em destaque',
+    ],
+    'mode' => [
+        'all' => 'Todos',
+        'any' => 'Qualquer',
+        'osu' => '',
+        'taiko' => '',
+        'fruits' => '',
+        'mania' => '',
+        'undefined' => 'não definido',
+    ],
+    'status' => [
+        'any' => 'Qualquer',
+        'approved' => 'Aprovados',
+        'favourites' => 'Favoritos',
+        'graveyard' => 'Cemitério',
+        'leaderboard' => 'Tem classificações',
+        'loved' => 'Adorados',
+        'mine' => 'Os meus mapas',
+        'pending' => 'Pendente',
+        'wip' => 'Trabalho em curso',
+        'qualified' => 'Qualificados',
+        'ranked' => 'Classificados',
+    ],
+    'genre' => [
+        'any' => 'Qualquer',
+        'unspecified' => 'Não especificado',
+        'video-game' => 'Vídeojogo',
+        'anime' => 'Anime',
+        'rock' => 'Rock',
+        'pop' => 'Pop',
+        'other' => 'Outro',
+        'novelty' => 'Inovação',
+        'hip-hop' => 'Hip Hop',
+        'electronic' => 'Eletrónica',
+        'metal' => 'Metal',
+        'classical' => 'Clássica',
+        'folk' => 'Folclore',
+        'jazz' => 'Jazz',
+    ],
+    'language' => [
+        'any' => 'Qualquer',
+        'english' => 'Inglês',
+        'chinese' => 'Chinês',
+        'french' => 'Francês',
+        'german' => 'Alemão',
+        'italian' => 'Italiano',
+        'japanese' => 'Japonês',
+        'korean' => 'Coreano',
+        'spanish' => 'Espanhol',
+        'swedish' => 'Sueco',
+        'russian' => 'Russa',
+        'polish' => 'Polaca',
+        'instrumental' => 'Instrumental',
+        'other' => 'Outro',
+        'unspecified' => 'Não especificada',
+    ],
+
+    'nsfw' => [
+        'exclude' => 'Ocultar',
+        'include' => 'Mostrar',
+    ],
+
+    'played' => [
+        'any' => 'Qualquer',
+        'played' => 'Jogado',
+        'unplayed' => 'Não jogado',
+    ],
+    'extra' => [
+        'video' => 'Possui vídeo',
+        'storyboard' => 'Possui visuais gráficos',
+    ],
+    'rank' => [
+        'any' => 'Qualquer',
+        'XH' => 'SS Prata',
+        'X' => '',
+        'SH' => 'S Prata',
+        'S' => '',
+        'A' => '',
+        'B' => '',
+        'C' => '',
+        'D' => '',
+    ],
+    'panel' => [
+        'playcount' => 'Partidas jogadas: :count',
+        'favourites' => 'Favoritos: :count',
+    ],
+    'variant' => [
+        'mania' => [
+            '4k' => '4K',
+            '7k' => '7K',
+            'all' => 'Todos',
+        ],
+    ],
+];

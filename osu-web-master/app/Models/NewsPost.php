@@ -1,0 +1,424 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+namespace App\Models;
+
+use App\Exceptions\GitHubNotFoundException;
+use App\Interfaces\CommentableInterface;
+use App\Libraries\Markdown\OsuMarkdown;
+use App\Libraries\OsuWiki;
+use App\Traits\Memoizes;
+use Carbon\Carbon;
+use Ds\Set;
+use Exception;
+use Illuminate\Database\Eloquent\Builder;
+
+/**
+ * @property string $commentable_identifier
+ * @property Comment $comments
+ * @property \Carbon\Carbon|null $created_at
+ * @property string|null $hash
+ * @property int $id
+ * @property array|null $page
+ * @property \Carbon\Carbon|null $published_at
+ * @property string $slug
+ * @property string|null $tumblr_id
+ * @property \Carbon\Carbon|null $updated_at
+ * @property string|null $version
+ */
+class NewsPost extends Model implements CommentableInterface, Wiki\WikiObject
+{
+    use Memoizes, Traits\CommentableDefaults, Traits\WithDbCursorHelper;
+
+    // in minutes
+    const CACHE_DURATION = 86400;
+    const VERSION = 3;
+    // should be higher than landing limit
+    const DASHBOARD_LIMIT = 8;
+    // also for number of large posts in user dashboard
+    const LANDING_LIMIT = 4;
+
+    // Ordered according to how they'll display in notification settings.
+    const SERIES = [
+        'game_updates',
+        'ranking_system_updates',
+        'featured_artists',
+        'world_cups',
+        'community_tournaments',
+        'official_contests',
+        'community_contests',
+        'monthly_beatmapping_contest',
+        'fanart_contests',
+        'offline_events',
+        'online_events',
+        'project_loved',
+        'beatmap_spotlights',
+        'mappers_guild',
+        'merch_runs',
+        self::SERIES_NONE,
+    ];
+
+    // const for unset or mismatched series.
+    const SERIES_NONE = 'miscellaneous';
+
+    const SORTS = [
+        'published_asc' => [
+            ['column' => 'published_at', 'order' => 'ASC', 'type' => 'time'],
+            ['column' => 'id', 'order' => 'ASC'],
+        ],
+        'published_desc' => [
+            ['column' => 'published_at', 'order' => 'DESC', 'type' => 'time'],
+            ['column' => 'id', 'order' => 'DESC'],
+        ],
+    ];
+
+    const DEFAULT_SORT = 'published_desc';
+
+    protected $casts = [
+        'page' => 'array',
+        'published_at' => 'datetime',
+    ];
+
+    public static function lookup($slug)
+    {
+        return static::firstOrNew(compact('slug'));
+    }
+
+    public static function pageVersion()
+    {
+        return static::VERSION.'.'.OsuMarkdown::VERSION;
+    }
+
+    public static function search($params)
+    {
+        $query = static::published();
+
+        $limit = \Number::clamp(get_int($params['limit'] ?? null) ?? 20, 1, 21);
+
+        $cursorHelper = static::makeDbCursorHelper();
+        $cursor = cursor_from_params($params);
+        $query->cursorSort($cursorHelper, $cursor);
+
+        $year = get_int($params['year'] ?? null);
+        $query->year($year);
+
+        $query->limit($limit);
+
+        return [
+            'cursorHelper' => $cursorHelper,
+            'query' => $query,
+            'params' => [
+                'limit' => $limit,
+                'sort' => $cursorHelper->getSortName(),
+                'year' => $year,
+            ],
+        ];
+    }
+
+    public static function syncAll()
+    {
+        $baseEntries = OsuWiki::getTree(null, false)['tree'];
+        foreach ($baseEntries as $entry) {
+            if ($entry['path'] === 'news') {
+                $rootHash = $entry['sha'];
+                break;
+            }
+        }
+        // Something is terribly wrong if $rootHash is unset.
+        $entries = OsuWiki::getTree($rootHash)['tree'];
+
+        $latestSlugs = [];
+
+        foreach ($entries as $entry) {
+            if (($entry['type'] ?? null) === 'blob' && substr($entry['path'], -3) === '.md') {
+                $trimStartPos = strpos($entry['path'], '/');
+                $slug = substr($entry['path'], $trimStartPos === false ? 0 : $trimStartPos + 1, -3);
+                $hash = $entry['sha'];
+
+                $latestSlugs[$slug] = $hash;
+            }
+        }
+
+        foreach (static::all() as $post) {
+            if (array_key_exists($post->slug, $latestSlugs)) {
+                if ($post->published_at === null || $latestSlugs[$post->slug] !== $post->hash) {
+                    $post->sync(true);
+                }
+
+                unset($latestSlugs[$post->slug]);
+            } else {
+                $post->update(['published_at' => null]);
+            }
+        }
+
+        // prevent time-based expiration
+        // FIXME: should use its own column instead so we can tell whether or not it's actually updated
+        static::select()->update(['updated_at' => Carbon::now()]);
+
+        foreach (array_keys($latestSlugs) as $newSlug) {
+            try {
+                static::create(['slug' => $newSlug])->sync();
+            } catch (Exception $e) {
+                if (is_sql_unique_exception($e)) {
+                    continue;
+                }
+
+                throw $e;
+            }
+        }
+    }
+
+    public function scopeDefault(Builder $query): void
+    {
+        $query->published()->orderBy('published_at', 'DESC');
+    }
+
+    public function scopePublished(Builder $query): void
+    {
+        $query->whereNotNull('published_at')
+            ->where('published_at', '<=', Carbon::now());
+    }
+
+    public function scopeYear(Builder $query, ?int $year): void
+    {
+        if ($year === null) {
+            return;
+        }
+
+        $baseStart = Carbon::create($year);
+        $currentDate = now();
+
+        // show extra months in first three months of current year
+        if ($currentDate->year === $baseStart->year && $currentDate->month < 4) {
+            $start = $currentDate->startOfYear()->subMonths(2);
+        }
+
+        $end = Carbon::create($year + 1);
+
+        $query
+            ->where('published_at', '>=', $start ?? $baseStart)
+            ->where('published_at', '<', $end);
+    }
+
+    public function author()
+    {
+        if (!isset($this->page['header']['author']) && !isset($this->page['author'])) {
+            $authorLine = html_entity_decode_better(
+                array_last(
+                    explode("\n", trim(
+                        strip_tags($this->bodyHtml())
+                    ))
+                )
+            );
+
+            if (preg_match('/^[—–][^—–]/', $authorLine) === false) {
+                $author = 'osu!news Team';
+            } else {
+                $author = mb_substr($authorLine, 1);
+            }
+
+            $this->update(['page' => array_merge($this->page, compact('author'))]);
+        }
+
+        return $this->page['author'];
+    }
+
+    public function commentLocked(): bool
+    {
+        return false;
+    }
+
+    public function commentableTitle()
+    {
+        return $this->title();
+    }
+
+    public function filename($perYearDirectory = true)
+    {
+        $slug = $this->slug;
+        $prefix = $perYearDirectory
+            ? substr($slug, 0, 4).'/'
+            : '';
+
+        return "{$prefix}{$slug}.md";
+    }
+
+    public function isVisible()
+    {
+        return $this->page !== null && $this->published_at !== null && $this->published_at->isPast();
+    }
+
+    public function needsSync()
+    {
+        return $this->page === null ||
+            $this->version !== static::pageVersion() ||
+            $this->updated_at < Carbon::now()->subMinutes(static::CACHE_DURATION);
+    }
+
+    public function notificationCover()
+    {
+        return $this->firstImage();
+    }
+
+    public function bodyHtml()
+    {
+        return $this->page['output'];
+    }
+
+    public function editUrl()
+    {
+        return 'https://github.com/'.OsuWiki::user().'/'.OsuWiki::repository().'/tree/'.OsuWiki::branch().'/news/'.$this->filename();
+    }
+
+    public function firstImage($absolute = false)
+    {
+        $url = $this->page['firstImage'];
+
+        if ($url === null) {
+            return;
+        }
+
+        if ($absolute && !is_http($url)) {
+            if ($url[0] === '/') {
+                $url = $GLOBALS['cfg']['app']['url'].$url;
+            } else {
+                $url = "{$this->url()}/{$url}";
+            }
+        }
+
+        return $url;
+    }
+
+    public function firstImageWith2x(): array
+    {
+        $url = presence($this->firstImage());
+
+        if ($url !== null) {
+            $origUrl = proxy_media_original_url($url);
+            $url2x = proxy_media(retinaify($origUrl));
+        }
+
+        return [
+            '1x' => $url,
+            '2x' => $url2x ?? null,
+        ];
+    }
+
+    public function newer()
+    {
+        return $this->memoize(__FUNCTION__, function () {
+            return static::default()->cursorSort('published_asc', $this)->first();
+        });
+    }
+
+    public function older()
+    {
+        return $this->memoize(__FUNCTION__, function () {
+            return static::default()->cursorSort('published_desc', $this)->first();
+        });
+    }
+
+    public function series(): string
+    {
+        static $allSeries = new Set(static::SERIES);
+
+        $series = snake_case($this->page['header']['series'] ?? static::SERIES_NONE);
+        return $allSeries->contains($series) ? $series : static::SERIES_NONE;
+    }
+
+    public function sync($force = false)
+    {
+        if (!$force && !$this->needsSync()) {
+            return $this;
+        }
+
+        $postMissingKey = "osu_wiki:not_found:{$this->slug}";
+
+        if (!$force && cache()->get($postMissingKey) !== null) {
+            return $this;
+        }
+
+        try {
+            try {
+                $file = new OsuWiki("news/{$this->filename()}");
+            } catch (GitHubNotFoundException $e) {
+                $file = new OsuWiki("news/{$this->filename(false)}");
+            }
+        } catch (GitHubNotFoundException $e) {
+            if ($this->exists) {
+                $this->update(['published_at' => null]);
+            } else {
+                cache()->put($postMissingKey, 1, 300);
+            }
+
+            return $this;
+        } catch (Exception $e) {
+            log_error($e);
+
+            return $this;
+        }
+
+        $rawPage = $file->content();
+
+        $this->page = (new OsuMarkdown(
+            'news',
+            osuExtensionConfig: ['relative_url_root' => route('news.show', $this->slug)]
+        ))->load($rawPage)->toArray();
+
+        $this->version = static::pageVersion();
+        $this->published_at = $this->pagePublishedAt();
+        $this->tumblr_id = $this->pageTumblrId();
+        $this->hash = $file->data['sha'];
+
+        $this->save();
+
+        return $this;
+    }
+
+    public function pagePublishedAt()
+    {
+        $date = $this->page['header']['date'] ?? null;
+
+        if ($date === null) {
+            $date = substr($this->slug, 0, 10);
+
+            if (preg_match('/^\d{4}-\d{2}-\d{2}/', $date) !== 1) {
+                $date = null;
+            }
+        }
+
+        if ($date !== null) {
+            return Carbon::parse($date);
+        }
+    }
+
+    public function pageTumblrId()
+    {
+        $tumblrUrl = $this->page['header']['tumblr_url'] ?? null;
+
+        if (present($tumblrUrl)) {
+            preg_match('#^.*/post/(?<id>[^/]+)/.*$#', $tumblrUrl, $matches);
+
+            return $matches['id'];
+        } else {
+            return;
+        }
+    }
+
+    public function previewText()
+    {
+        return first_paragraph($this->bodyHtml());
+    }
+
+    public function title()
+    {
+        return $this->page['header']['title'] ?? 'Title-less news post';
+    }
+
+    public function url()
+    {
+        return route('news.show', $this->slug);
+    }
+}

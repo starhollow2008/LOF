@@ -1,0 +1,70 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'loading_users' => 'ładowanie użytkowników...',
+    'searching_users' => '',
+    'talking_in' => 'rozmowa na kanale :channel',
+    'talking_with' => 'rozmowa z użytkownikiem :name',
+    'title_compact' => 'czat',
+    'unread_messages' => 'nieodczytane wiadomości',
+
+    'cannot_send' => [
+        'channel' => 'W tej chwili nie możesz wysyłać wiadomości na ten kanał.',
+        'user' => 'W tej chwili nie możesz wysyłać wiadomości do tego użytkownika.',
+    ],
+
+    'channels' => [
+        'confirm_part' => 'Czy na pewno chcesz ukryć ten kanał? Wciąż będziesz otrzymywać z niego wiadomości.',
+        'create' => 'utwórz ogłoszenie',
+        'join' => 'dołącz do kanału',
+        'none' => 'brak kanału',
+
+        'list' => [
+            'title' => [
+                'ANNOUNCE' => 'Ogłoszenia',
+                'GROUP' => 'Grupy',
+                'PM' => 'Wiadomości prywatne',
+                'PUBLIC' => 'Kanały',
+                'TEAM' => 'Zespół',
+            ],
+        ],
+    ],
+
+    'form' => [
+        'title' => [
+            'announcement' => 'Utwórz nowe ogłoszenie',
+        ],
+
+        'labels' => [
+            'description' => 'opis',
+            'message' => 'wiadomość',
+            'name' => 'nazwa pokoju',
+            'users' => 'odbiorcy',
+        ],
+    ],
+
+    'not_found' => [
+        'message' => 'Nic tu nie ma, być może taki kanał nie istnieje lub na nim nie jesteś...',
+        'title' => 'nie znaleziono kanału',
+    ],
+
+    'not_joined' => [
+        'message' => 'Dołącz do kanału, aby wyświetlić przesłane wiadomości.',
+        'join' => 'Dołącz do kanału',
+    ],
+
+    'input' => [
+        'create' => 'Utwórz',
+        'disabled' => 'nie udało się wysłać wiadomości...',
+        'disconnected' => 'Rozłączono',
+        'placeholder' => 'napisz wiadomość...',
+        'send' => 'Wyślij',
+    ],
+
+    'join_channels' => [
+        'loading' => 'Ładowanie listy kanałów...',
+    ],
+];

@@ -1,0 +1,38 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.chat-conversation-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  position: relative;
+
+  @media @mobile {
+    // Needed to limit the height of the panel so chat-conversation is scrollable and
+    // chat-conversation-list doesn't become 0 height on mobile.
+    // height: 100% alone doesn't work.
+    // The panel itself should not be scrollable.
+    overflow-y: hidden;
+  }
+
+  &__instructions {
+    margin-top: 10px;
+  }
+
+  &__no-channel {
+    .center-content();
+    padding: 20px;
+    height: 100%;
+    width: 100%;
+    flex-direction: column;
+    min-height: 250px;
+    color: hsl(var(--hsl-l1));
+  }
+
+  &__title {
+    color: white;
+    .default-text-shadow();
+    font-size: 26px;
+    font-weight: 300;
+  }
+}

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <extensions>
+        <bootstrap class="Tests\SeederExtension" />
+    </extensions>
+    <testsuites>
+        <testsuite name="Application Test Suite">
+            <directory suffix="Test.php">./tests/</directory>
+            <exclude>./tests/Browser</exclude>
+        </testsuite>
+    </testsuites>
+    <php>
+        <env name="ALLOW_REGISTRATION" value="true"/>
+        <env name="APP_ENV" value="testing"/>
+        <env name="BEATMAPSET_REQUIRED_HYPE" value="0"/>
+        <env name="BROADCAST_DRIVER" value="log"/>
+        <env name="CHAT_PRIVATE_LIMIT" value="2"/>
+
+        <env name="ADMIN_FORUM_ID" value="0"/>
+        <env name="CLIENT_CHECK_VERSION" value="0"/>
+        <env name="DOUBLE_POST_ALLOWED_FORUM_IDS" value="0"/>
+        <env name="FEATURE_FORUM_ID" value="0"/>
+        <env name="HELP_FORUM_ID" value="0"/>
+        <env name="INITIAL_HELP_FORUM_IDS" value="0"/>
+        <env name="ISSUE_FORUM_IDS" value="0"/>
+        <env name="SLACK_WATCH_FORUM_IDS" value="0"/>
+        <env name="SLACK_WATCH_TOPIC_IDS" value="0"/>
+    </php>
+</phpunit>

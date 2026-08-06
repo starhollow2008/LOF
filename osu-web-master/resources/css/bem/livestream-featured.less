@@ -1,0 +1,23 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.livestream-featured {
+  --actions-opacity: 0;
+  position: relative;
+  aspect-ratio: 16 / 9;
+
+  &:hover {
+    --actions-opacity: 1;
+  }
+
+  &__actions {
+    position: absolute;
+    right: 0;
+    bottom: 30px;
+    width: 0;
+    display: flex;
+    justify-content: center;
+    opacity: var(--actions-opacity);
+    will-change: opacity;
+  }
+}

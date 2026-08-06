@@ -1,0 +1,96 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.wiki-search {
+  @_gutter: 20px;
+  @_border-size: 1px;
+
+  padding-top: 10px;
+  // so the suggestions draw over the wiki panels.
+  // z-index is set here so the entire component renders at the same level instead of just part of it.
+  z-index: @z-index--wiki-search;
+  position: relative;
+
+  &__bar {
+    display: flex;
+    flex-direction: row;
+
+    font-size: @font-size--wiki-search;
+    background-color: hsl(var(--hsl-b6));
+    border: @_border-size solid hsl(var(--hsl-b6));
+
+    &:focus-within {
+      box-shadow: 0 0 10px hsl(var(--hsl-h2));
+      border: @_border-size solid hsl(var(--hsl-h2));
+    }
+  }
+
+  &__input {
+    .reset-input();
+    color: hsl(var(--hsl-c1));
+    flex: 1;
+    padding: 13px 0 13px @_gutter;
+
+    &::placeholder {
+      color: hsl(var(--hsl-c2));
+    }
+  }
+
+  &__button {
+    .center-content();
+    .reset-input();
+
+    color: hsl(var(--hsl-c1));
+    margin: 0 @_gutter 0 10px;
+  }
+
+  &__suggestion {
+    .link-plain();
+    .link-hover({
+      color: hsl(var(--hsl-c1));
+      background-color: hsl(var(--hsl-b3));
+    });
+
+    position: relative;
+    color: hsl(var(--hsl-c1));
+    padding: 5px @_gutter;
+
+    em {
+      color: hsl(var(--hsl-l2));
+      font-style: normal;
+      font-weight: bold;
+    }
+
+    &--active {
+      background-color: hsl(var(--hsl-b3));
+
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        border-radius: 0 $width $width 0;
+        background-color: hsl(var(--hsl-l2));
+      }
+    }
+  }
+
+  &__suggestions {
+    position: absolute;
+    background-color: hsl(var(--hsl-b6));
+    color: hsl(var(--hsl-c1));
+
+    max-height: 500px;
+    width: calc(100% - @_border-size * 2);
+    left: @_border-size;
+    overflow-y: auto;
+
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+
+    border-radius: 0 0 @border-radius-large @border-radius-large;
+  }
+}

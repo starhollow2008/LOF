@@ -1,0 +1,164 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'landing' => [
+        'download' => 'Download nu',
+        'online' => '<strong>:players</strong> momenteel online in <strong>:games</strong> games',
+        'peak' => 'Piek, :count online gebruikers',
+        'players' => '<strong>:count</strong> geregistreerde spelers',
+        'title' => 'welkom',
+        'see_more_news' => 'bekijk meer nieuws',
+
+        'slogan' => [
+            'main' => 'de beste free-to-win rhythm game',
+            'sub' => 'Ritme is slechts een *klik* verwijderd!',
+        ],
+    ],
+
+    'search' => [
+        'advanced_link' => 'Geavanceerd zoeken',
+        'button' => 'Zoeken',
+        'empty_result' => 'Niets gevonden!',
+        'keyword_required' => 'Een zoekwoord is vereist',
+        'placeholder' => 'typ hier om te zoeken',
+        'title' => 'Zoek',
+
+        'artist_track' => [
+            'more_simple' => 'Bekijk meer zoekresultaten voor nummers van featured artists',
+        ],
+        'beatmapset' => [
+            'login_required' => 'Log in om beatmaps te zoeken',
+            'more' => ':count andere beatmap zoekresultaten',
+            'more_simple' => 'Zie meer beatmap zoekresultaten',
+            'title' => 'Beatmaps',
+        ],
+
+        'forum_post' => [
+            'all' => 'Alle forums',
+            'link' => 'Doorzoek het forum',
+            'login_required' => 'Log in om het forum te doorzoeken',
+            'more_simple' => 'Zie meer forum zoekresultaten',
+            'title' => 'Forum',
+
+            'label' => [
+                'forum' => 'doorzoek het forum',
+                'forum_children' => 'tel subforums mee',
+                'include_deleted' => 'zoek ook naar verwijderde posts',
+                'topic_id' => 'onderwerp #',
+                'username' => 'auteur',
+            ],
+        ],
+
+        'mode' => [
+            'all' => 'alle',
+            'artist_track' => 'featured artist nummer',
+            'beatmapset' => 'beatmap',
+            'forum_post' => 'forum',
+            'team' => 'team',
+            'user' => 'speler',
+            'wiki_page' => 'wiki',
+        ],
+
+        'team' => [
+            'login_required' => 'Log in om teams te zoeken',
+            'more_simple' => 'Bekijk meer team zoekresultaten',
+        ],
+
+        'user' => [
+            'login_required' => 'Log in om gebruikers te zoeken',
+            'more' => ':count meer speler zoekresultaten',
+            'more_simple' => 'Zie meer speler zoekresultaten',
+            'more_hidden' => 'Speler zoekopdracht is beperkt tot :max spelers. Probeer je zoekopdracht te verfijnen.',
+            'title' => 'Spelers',
+        ],
+
+        'wiki_page' => [
+            'link' => 'Doorzoek de wiki',
+            'more_simple' => 'Zie meer wiki zoekresultaten',
+            'title' => 'Wiki',
+        ],
+    ],
+
+    'download' => [
+        'action_lazer_info' => 'bekijk deze pagina voor meer informatie',
+        'download' => 'Download',
+        'for_os' => 'voor :os',
+        'macos-fallback' => 'macOS gebruikers',
+        'mirror' => 'mirror',
+        'or' => 'of',
+        'os_version_or_later' => ':os_version of nieuwer',
+        'other_os' => 'andere platformen',
+        'quick_start_guide' => 'snelstartgids',
+        'stable_text' => 'als je op zoek bent naar de oudere',
+        'tagline_1' => 'laten we',
+        'tagline_2' => 'beginnen!',
+        'video-guide' => 'videogids',
+
+        'help' => [
+            '_' => 'als je problemen hebt met het opstarten van het spel of wanneer je een account wilt aanmaken, neem dan een kijkje op het :help_forum_link of neem contact op met :support_button.',
+            'help_forum_link' => 'hulpforum',
+            'support_button' => 'ondersteuning',
+        ],
+
+        'os' => [
+            'windows' => 'voor Windows',
+            'macos' => 'voor macOS',
+            'linux' => 'voor Linux',
+        ],
+        'steps' => [
+            'register' => [
+                'title' => 'maak een account',
+                'description' => 'volg de aanwijzingen bij het starten van het spel om in te loggen of een nieuw account te maken',
+            ],
+            'download' => [
+                'title' => 'download de game',
+                'description' => 'klik op bovenstaande knop om het installatieprogramma te downloaden, waarna je hem kunt uitvoeren!',
+            ],
+            'beatmaps' => [
+                'title' => 'download beatmaps',
+                'description' => [
+                    '_' => ':browse de enorme bibliotheek van beatmaps, gemaakt door onze gebruikers, en begin te spelen!',
+                    'browse' => 'doorblader',
+                ],
+            ],
+        ],
+    ],
+
+    'user' => [
+        'title' => 'dashboard',
+        'news' => [
+            'title' => 'Nieuws',
+            'error' => 'Fout tijdens laden van nieuws, probeer de pagina te verversen?...',
+        ],
+        'header' => [
+            'stats' => [
+                'friends' => 'Online Vrienden',
+                'games' => 'Games',
+                'online' => 'Online Gebruikers',
+            ],
+        ],
+        'beatmaps' => [
+            'daily_challenge' => 'Dagelijkse Beatmap Uitdaging',
+            'new' => 'Nieuwe Ranked Beatmaps',
+            'popular' => 'Populaire Beatmaps',
+            'by_user' => 'door :user',
+            'resets' => 'reset :ends',
+        ],
+        'buttons' => [
+            'download' => 'Download osu!',
+            'support' => 'Ondersteun osu!',
+            'store' => 'osu!store',
+        ],
+        'livestream' => [
+            'title' => 'Aanbevolen Livestream',
+        ],
+        'show' => [
+            'admin' => [
+                'page' => 'Admin console openen',
+            ],
+        ],
+    ],
+];

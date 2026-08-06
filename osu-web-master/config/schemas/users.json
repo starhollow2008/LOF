@@ -1,0 +1,103 @@
+{
+  "mappings": {
+    "dynamic": false,
+    "properties": {
+      "id": {
+        "type": "long"
+      },
+      "is_old": {
+        "type": "boolean"
+      },
+      "previous_usernames": {
+        "type": "text",
+        "analyzer": "username_lower"
+      },
+      "user_lastvisit": {
+        "type": "date",
+        "format": "strict_date_optional_time||epoch_millis||yyyy-MM-dd HH:mm:ss"
+      },
+      "user_type": {
+        "type": "short"
+      },
+      "user_warnings": {
+        "type": "short"
+      },
+      "groups": {
+        "type": "integer"
+      },
+      "username": {
+        "type": "text",
+        "fields": {
+          "_prefix": {
+            "type": "text",
+            "analyzer": "prefix",
+            "search_analyzer": "standard"
+          },
+          "_whitespace": {
+            "type": "text",
+            "analyzer": "whitespace"
+          },
+          "raw": {
+            "type": "keyword",
+            "normalizer": "lowercase"
+          }
+        },
+        "analyzer": "username_lower"
+      }
+    }
+  },
+  "settings": {
+    "index": {
+      "analysis": {
+        "analyzer": {
+          "prefix": {
+            "filter": [
+              "lowercase",
+              "prefix"
+            ],
+            "type": "custom",
+            "tokenizer": "username_whitespace"
+          },
+          "whitespace": {
+            "filter": [
+              "lowercase"
+            ],
+            "type": "custom",
+            "tokenizer": "username_whitespace"
+          },
+          "username_lower": {
+            "filter": [
+              "lowercase"
+            ],
+            "type": "custom",
+            "tokenizer": "standard"
+          }
+        },
+        "filter": {
+          "prefix": {
+            "type": "edge_ngram",
+            "min_gram": "2",
+            "max_gram": "20"
+          }
+        },
+        "normalizer": {
+          "lowercase": {
+            "type": "custom",
+            "filter": ["lowercase"]
+          }
+        },
+        "tokenizer": {
+          "username_whitespace": {
+            "type": "char_group",
+            "tokenize_on_chars": [
+              "whitespace",
+              "_"
+            ]
+          }
+        }
+      },
+      "number_of_shards": "1",
+      "number_of_replicas": "0"
+    }
+  }
+}

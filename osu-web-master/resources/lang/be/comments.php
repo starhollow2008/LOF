@@ -1,0 +1,59 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'deleted' => 'выдалена',
+    'deleted_by' => ':user выдаліў :timeago',
+    'deleted_by_system' => 'сістэма',
+    'deleted_count' => ':count_delimited каментарый выдалены|:count_delimited каментарыяў выдалена',
+    'edited' => ':user адрэагаваў :timeago',
+    'pinned' => 'прычэплена',
+    'empty' => 'Няма каментарыяў.',
+    'empty_other' => 'Больш каментароў няма.',
+    'load_replies' => 'запампаваць адказы',
+    'replies_count' => ':count_delimited адказ|:count_delimited адказы',
+    'title' => 'Каментарыі',
+
+    'commentable_name' => [
+        'beatmapset' => 'Бітмапы',
+        'build' => 'Гісторыя змен',
+        'news_post' => 'Навіны',
+        '_deleted' => 'Выдаленая рэч',
+    ],
+
+    'editor' => [
+        'textarea_hint' => [
+            '_' => 'Націсніце enter, каб :action. Выкарыстоўвайце shift+enter для новага радка.',
+            'edit' => 'захаваць',
+            'new' => 'размясціць',
+            'reply' => 'адказаць',
+        ],
+    ],
+
+    'guest_button' => [
+        'new' => 'Увайсці, каб каментаваць',
+        'reply' => 'Увайсці, каб адказаць',
+    ],
+
+    'index' => [
+        'nav_comments' => 'каментарыі',
+        'nav_title' => 'спіс',
+        'no_comments' => 'няма каментарыяў...',
+    ],
+
+    'ogp' => [
+        'title' => 'каментар ад :user',
+    ],
+
+    'placeholder' => [
+        'edit' => 'Рэдагаваць каментарый',
+        'new' => 'Напісаць новы каментарый',
+        'reply' => 'Напішыце адказ',
+    ],
+
+    'show' => [
+        'nav_title' => 'каментарыі',
+    ],
+];

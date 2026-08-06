@@ -1,0 +1,171 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'confirmation' => 'Tem a certeza?',
+    'confirmation_unsaved' => 'Alterações não guardadas serão perdidas. Tem a certeza?',
+    'saved' => 'Guardado',
+
+    'array_and' => [
+        'words_connector' => ', ',
+        'two_words_connector' => ' e ',
+        'last_word_connector' => ', e ',
+    ],
+
+    'badges' => [
+        'new' => 'NOVOS',
+    ],
+
+    'buttons' => [
+        'authorise' => 'Autorizar',
+        'authorising' => 'A autorizar...',
+        'back' => 'Voltar',
+        'back_to_previous' => 'Voltar à posição anterior',
+        'back_to_top' => 'Voltar ao topo',
+        'cancel' => 'Cancelar',
+        'change' => 'mudar',
+        'clear' => 'Limpar',
+        'click_to_copy' => 'clique para copiar para o bloco de notas',
+        'click_to_copy_copied' => 'copiado para o bloco de notas!',
+        'close' => 'Fechar',
+        'collapse' => 'recolher',
+        'delete' => 'Apagar',
+        'edit' => 'Editar',
+        'expand' => 'expandir',
+        'hide' => 'ocultar',
+        'permalink' => 'link permanente',
+        'pin' => 'afixar',
+        'post' => 'Publicar',
+        'read_more' => 'ler mais',
+        'refresh' => 'Atualizar',
+        'reply' => 'Responder',
+        'reply_reopen' => 'Responder e reabrir',
+        'reply_resolve' => 'Responder e resolver',
+        'reset' => 'Reiniciar',
+        'restore' => 'Restaurar',
+        'retry' => 'Tentar novamente',
+        'save' => 'Guardar',
+        'saving' => 'A guardar...',
+        'search' => 'Procurar',
+        'see_more' => 'ver mais',
+        'show' => 'mostrar',
+        'show_deleted' => 'Exibir eliminados',
+        'show_less' => 'mostrar menos',
+        'show_more' => 'mostrar mais',
+        'show_more_options' => 'mostrar mais opções',
+        'submit' => 'Submeter',
+        'unpin' => 'desafixar',
+        'update' => 'Atualizar',
+        'upload_image' => 'carregar imagem',
+
+        'watch' => [
+            'to_0' => 'Deixar de ver',
+            'to_1' => 'Ver',
+        ],
+    ],
+
+    'count' => [
+        'badges' => ':count_delimited distintivo|:count_delimited distintivos',
+        'days' => ':count_delimited dia|:count_delimited dias',
+        'hour_short_unit' => 'hr|hrs',
+        'hours' => ':count_delimited hora|:count_delimited horas',
+        'item' => ':count_delimited unidade|:count_delimited unidades',
+        'minute_short_unit' => 'min|mins',
+        'minutes' => ':count_delimited minuto|:count_delimited minutos',
+        'months' => ':count_delimited mês|:count_delimited meses',
+        'notifications' => ':count_delimited notificação|:count_delimited notificações',
+        'player' => ':count_delimited jogador|:count_delimited jogadores',
+        'plus_others' => '+ :count_delimited outro!|+ :count_delimited outros!',
+        'post' => ':count_delimited publicação|:count_delimited publicações',
+        'second_short_unit' => 'seg|segs',
+        'star_priority' => ':count_delimited prioridade estrela|:count_delimited prioridades estrela',
+        'update' => ':count_delimited atualização|:count_delimited atualizações',
+        'view' => ':count_delimited visualização|:count_delimited visualizações',
+        'years' => ':count_delimited ano|:count_delimited anos',
+    ],
+
+    'countdown' => [
+        'days' => 'dias',
+        'hours' => 'horas',
+        'minutes' => 'minutos',
+        'seconds' => 'segundos',
+    ],
+
+    'datetime' => [
+        'month' => [
+            'php' => 'm',
+        ],
+        'year' => [
+            'php' => 'a',
+        ],
+        'year_month' => [
+            'moment' => 'MMMM YYYY',
+            'php' => 'MMMM y',
+        ],
+        'year_month_short' => [
+            'moment' => 'MMM YYYY',
+        ],
+    ],
+
+    'device' => [
+        'keyboard' => 'Teclado',
+        'mouse' => 'Rato',
+        'tablet' => 'Tablet',
+        'touch' => 'Ecrã tátil',
+    ],
+
+    'dropzone' => [
+        'target' => 'largue aqui para carregar',
+    ],
+
+    'input' => [
+        'search' => 'pesquisar...',
+    ],
+
+    'pagination' => [
+        'previous' => 'anterior',
+        'next' => 'seguinte',
+    ],
+
+    'score_count' => [
+        'count_100' => '100',
+        'count_300' => '300',
+        'count_50' => '50',
+        'count_geki' => '',
+        'count_katu' => '200',
+        'count_miss' => 'Erros',
+    ],
+
+    'scoreboard_time' => [
+        'd' => '%d d',
+        'dd' => '%d d',
+        'h' => '%d h',
+        'hh' => '%d h',
+        'm' => 'agora',
+        'mm' => 'agora',
+        'month' => '%d m',
+        'months' => '%d m',
+        'past' => '',
+        's' => '%d s',
+        'y' => '%d a',
+        'yy' => '%d a',
+    ],
+
+    'time' => [
+        'days_ago' => ':count_delimited dia atrás|:count_delimited dias atrás',
+        'hours_ago' => ':count_delimited hora atrás|:count_delimited horas atrás',
+        'now' => 'agora',
+        'remaining' => 'Tempo restante',
+    ],
+
+    'title' => [
+        'notice' => 'Aviso',
+    ],
+
+    'wrong_user' => [
+        '_' => 'Está autenticado como :user. :logout_link.',
+        'logout_link' => 'Clique aqui para iniciar sessão com um utilizador diferente',
+    ],
+];

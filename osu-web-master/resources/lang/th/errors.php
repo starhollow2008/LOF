@@ -1,0 +1,39 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'load_failed' => 'โหลดข้อมูลไม่สำเร็จ',
+    'missing_route' => 'ลิงก์ไม่ถูกต้อง หรือวิธีการขอที่ไม่ถูกต้อง',
+    'no_restricted_access' => 'คุณไม่สามารถทำสิ่งนี้ได้ระหว่างที่บัญชีคุณกำลังอยู่ในสถานะจำกัดสิทธิ์',
+    'param_too_large' => 'พารามิเตอร์ :name มีได้มากสุด :count_delimited รายการ|พารามิเตอร์ :name มีได้มากสุด :count_delimited รายการ',
+    'supporter_only' => 'คุณต้องเป็นผู้สนับสนุนถึงจะเข้าใช้งานได้',
+    'unknown' => 'พบเจอปัญหาไม่สามารถระบุได้',
+
+    'codes' => [
+        'http-401' => 'กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อไป',
+        'http-403' => 'ไม่มีสิทธิ์การเข้าถึง',
+        'http-404' => 'ไม่่พบข้อมูลที่ต้องการ',
+        'http-429' => 'คุณพยายามเข้าถี่เกินไป กรุณารออีกสักพักแล้วเข้าใหม่',
+    ],
+    'account' => [
+        'profile-order' => [
+            'generic' => 'ระบบมีข้อผิดพลาด กรุณารีเฟรชหน้านี้ใหม่',
+        ],
+    ],
+    'checkout' => [
+        'generic' => 'เกิดข้อผิดพลาดระหว่างการชำระเงินของคุณ',
+    ],
+    'scores' => [
+        'invalid_id' => 'Id คะแนนไม่ถูกต้อง',
+    ],
+    'search' => [
+        'default' => 'ไม่สามารถแสดงผลลัพธ์ใด ๆได้ ลองอีกครั้งในภายหลัง',
+        'invalid_cursor_exception' => 'ระบุพารามิเตอร์ของเคอร์เซอร์ไม่ถูกต้อง',
+        'operation_timeout_exception' => 'การค้นหายุ่งกว่าปกติ โปรดลองอีกครั้งในภายหลัง',
+    ],
+    'user_report' => [
+        'recently_reported' => "คุณได้รายงานเรื่องนี้ไปแล้วเมื่อเร็วๆ นี้",
+    ],
+];

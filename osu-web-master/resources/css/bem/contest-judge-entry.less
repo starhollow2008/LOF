@@ -1,0 +1,58 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.contest-judge-entry {
+  &__button {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    text-transform: lowercase;
+  }
+
+  &__status {
+    font-weight: bold;
+    color: hsl(var(--hsl-orange-1));
+
+    &--saved {
+      color: @green;
+    }
+  }
+
+  &__categories {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 250px;
+  }
+
+  &__category-label {
+    align-items: baseline;
+    display: flex;
+    gap: 5px;
+  }
+
+  &__input {
+    .reset-input();
+    color: hsl(var(--hsl-c1));
+    text-align: right;
+    flex: 1;
+  }
+
+  &__input-suffix {
+    color: hsl(var(--hsl-c2));
+    pointer-events: none;
+  }
+
+  &__title {
+    margin-bottom: 10px;
+    font-size: @font-size--large;
+    font-weight: bold;
+    color: hsl(var(--hsl-l1));
+  }
+
+  &__voted-icon {
+    margin-right: 5px;
+    color: hsl(var(--hsl-lime-1));
+  }
+}

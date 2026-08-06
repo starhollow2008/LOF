@@ -1,0 +1,35 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'show' => [
+        'non_preserved' => 'Ce score doit être supprimé et disparaîtra bientôt.',
+        'title' => ':username sur :title [:version]',
+
+        'beatmap' => [
+            'by' => 'par :artist',
+        ],
+
+        'player' => [
+            'by' => 'Joué par',
+            'played_on' => 'Réalisé sur',
+            'submitted_on' => 'Réalisé le',
+            'watched' => 'Vu',
+            'watched_count' => ':count_delimited fois|:count_delimited fois',
+
+            'rank' => [
+                'country' => 'Rang national',
+                'global' => 'Rang global',
+            ],
+        ],
+    ],
+
+    'status' => [
+        'non_best' => 'Seul vos meilleurs scores vous rapportent des pp',
+        'no_pp' => 'Ce score n\'attribue pas de pp',
+        'processing' => 'Ce score est toujours en cours de calcul et sera bientôt affiché',
+        'no_rank' => 'Ce score n\'a pas de rang : il est soit non classé, soit destiné à être supprimé',
+    ],
+];

@@ -1,0 +1,34 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.profile-stats {
+  font-size: @font-size--normal;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 20px;
+  align-self: center;
+  background-color: hsl(var(--hsl-b4));
+  border-radius: @border-radius-large;
+  padding: 18px 12px;
+
+  @media @desktop {
+    grid-template-columns: auto auto;
+  }
+
+  &--modding {
+    max-width: max-content;
+  }
+
+  &__entry {
+    display: contents;
+  }
+
+  &__key {
+    font-weight: normal; // undo default from dt
+  }
+
+  &__value {
+    color: hsl(var(--hsl-c2));
+    font-weight: bold;
+  }
+}

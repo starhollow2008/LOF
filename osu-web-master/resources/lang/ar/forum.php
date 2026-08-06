@@ -1,0 +1,338 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'pinned_topics' => 'المواضيع المثبتة',
+    'slogan' => "من الخطر اللعب بمفردك.",
+    'subforums' => 'المنتديات الفرعية',
+    'title' => 'منتديات osu!',
+
+    'covers' => [
+        'edit' => 'تحرير الغلاف',
+
+        'create' => [
+            '_' => 'أضف صورة غلاف',
+            'button' => 'رفع صورة',
+            'info' => 'يجب أن يكون حجم الغلاف :dimensions. يمكنك أيضا إسقاط صورتك هنا لرفعها.',
+        ],
+
+        'destroy' => [
+            '_' => 'إزالة صورة الغلاف',
+            'confirm' => 'هل أنت متأكد أنك تريد إزالة صورة الغلاف؟',
+        ],
+    ],
+
+    'forums' => [
+        'forums' => 'المنتديات',
+        'latest_post' => 'اخر المنشورات',
+
+        'index' => [
+            'title' => 'فهرس المنتدى',
+        ],
+
+        'topics' => [
+            'empty' => 'لا توجد مواضيع!',
+        ],
+    ],
+
+    'mark_as_read' => [
+        'forum' => 'تحديد المنتدى كمقروء',
+        'forums' => 'تحديد المنتديات كمقروءة',
+        'busy' => 'يتم التحديد كمقروءة...',
+    ],
+
+    'post' => [
+        'confirm_destroy' => 'اتريد حقاََ حذف المنشور؟',
+        'confirm_restore' => 'اتريد حقاََ اِسترجاع المنشور؟',
+        'edited' => 'التعديل الأخير تم بواسطة :user :when، عُدِلَ ::count_delimited مرة في المجموع.|التعديل الأخير تم بواسطة :user:when, عُدِلَ ::count_delimited مرات في المجموع.',
+        'posted_at' => 'نُشِر :when',
+        'posted_by_in' => 'تم النشر بواسطة :username في :forum',
+
+        'actions' => [
+            'destroy' => 'منشور محذوف',
+            'edit' => 'تعديل المنشور',
+            'report' => 'الإبلاغ عن المنشور',
+            'restore' => 'اِستعادة المنشور',
+        ],
+
+        'create' => [
+            'title' => [
+                'reply' => 'رد جديد',
+            ],
+        ],
+
+        'info' => [
+            'post_count' => ':count_delimited منشور|:count_delimited منشورات',
+            'topic_starter' => 'كاتب الموضوع',
+        ],
+    ],
+
+    'search' => [
+        'go_to_post' => 'انتقل الى المنشور',
+        'post_number_input' => 'ادخل رقم المنشور',
+        'total_posts' => ':posts_count المنشورات الكلية',
+    ],
+
+    'topic' => [
+        'confirm_destroy' => 'حذف الموضوع حقاً؟',
+        'confirm_restore' => 'استعادة الموضوع حقاً؟',
+        'deleted' => 'موضوع محذوف',
+        'go_to_latest' => 'عرض اخر منشور',
+        'go_to_unread' => '',
+        'has_replied' => 'لقد قمت بالرد على هذا الموضوع',
+        'in_forum' => 'في :forum',
+        'latest_post' => ':when بواسطة :user',
+        'latest_reply_by' => 'آخر رد من :user',
+        'new_topic' => 'موضوع جديد',
+        'new_topic_login' => 'قم بتسجيل الدخول لإضافة موضوع جديد',
+        'post_reply' => 'نشر',
+        'reply_box_placeholder' => 'اكتب هنا للرد',
+        'reply_title_prefix' => 'إعادة',
+        'started_by' => 'بواسطة :user',
+        'started_by_verbose' => 'بدأت بواسطة :user',
+
+        'actions' => [
+            'destroy' => 'حذف الموضوع',
+            'restore' => 'استعادة الموضوع',
+        ],
+
+        'create' => [
+            'close' => 'إغلاق',
+            'preview' => 'معاينة',
+            // TL note: this is used in the topic reply preview, when
+            // the user goes back from previewing to editing the reply
+            'preview_hide' => 'كتابة',
+            'submit' => 'نشر',
+
+            'necropost' => [
+                'default' => 'هذا الموضوع غير نشط لفترة من الوقت. انشر هنا فقط إذا كان لديك سبب محدد للقيام بذلك.',
+
+                'new_topic' => [
+                    '_' => "هذا الموضوع غير نشط منذ فترة. اذا لم تكن تملك سبب محدد للنشر هنا, ارجوك :create بدلاََ من النشر.",
+                    'create' => 'ابدأ موضوعاً جديداً',
+                ],
+            ],
+
+            'placeholder' => [
+                'body' => 'ادخل محتوى المنشور هنا',
+                'title' => 'اضغط هنا لاِدخال عنوان',
+            ],
+        ],
+
+        'jump' => [
+            'enter' => 'اضغط هنا لاِدخال رقم منشور محدد',
+            'first' => 'الذهاب إلى المنشور الأول',
+            'last' => 'الذهاب إلى آخر منشور',
+            'next' => 'تخطى الـ 10 منشورات القادمة',
+            'previous' => 'عُد 10 منشورات للخلف',
+        ],
+
+        'logs' => [
+            '_' => 'سجلات الموضوع',
+            'button' => 'تصفح سجلات الموضوع',
+
+            'columns' => [
+                'action' => 'الإجراء',
+                'date' => 'التاريخ',
+                'user' => 'المستخدم',
+            ],
+
+            'data' => [
+                'add_tag' => 'تم إضافة إشارة ":tag"',
+                'announcement' => 'تم تثبيت الموضوع وتعليمه كـ إعلان',
+                'edit_topic' => 'إلى :title',
+                'fork' => 'من :topic',
+                'pin' => 'موضوع مثبت',
+                'post_operation' => 'نُشِر بواسطة :username',
+                'remove_tag' => 'إزالة إشارة ":tag"',
+                'source_forum_operation' => 'من :forum',
+                'unpin' => 'موضوع غير مثبت',
+            ],
+
+            'no_results' => 'لم يتم العثور على سجلات...',
+
+            'operations' => [
+                'delete_post' => 'منشور محذوف',
+                'delete_topic' => 'موضوع محذوف',
+                'edit_topic' => 'تم تغيير عنوان الموضوع',
+                'edit_poll' => 'تم تعديل الإستبيان في الموضوع',
+                'fork' => 'تم نسخ الموضوع',
+                'issue_tag' => 'الإشارة الصادرة',
+                'lock' => 'موضوع مغلق',
+                'merge' => 'المشاركات المدمجة في هذا الموضوع',
+                'move' => 'موضوع منقول',
+                'pin' => 'موضوع مثبت',
+                'post_edited' => 'تم تعديل المشاركة',
+                'restore_post' => 'تم إستعادة المشاركة',
+                'restore_topic' => 'تم استعادة الموضوع',
+                'split_destination' => 'مشاركات منقسمة منقولة',
+                'split_source' => 'مشاركات مُنقسمة',
+                'topic_type' => 'تعيين نوع الموضوع',
+                'topic_type_changed' => 'تم تغيير نوع الموضوع',
+                'unlock' => 'موضوع غير مغلق',
+                'unpin' => 'موضوع غير مثبت',
+                'user_lock' => 'موضوع مغلق ينتمي لك',
+                'user_unlock' => 'موضوع غير مغلق ينتمي لك',
+            ],
+        ],
+
+        'post_edit' => [
+            'cancel' => 'إلغاء',
+            'post' => 'حفظ',
+        ],
+    ],
+
+    'topic_watches' => [
+        'index' => [
+            'title_compact' => 'اشتراكات المنتدى',
+
+            'box' => [
+                'total' => 'الموضيع المشترك فيها',
+                'unread' => 'المواضيع مع ردود جديدة',
+            ],
+
+            'info' => [
+                'total' => 'لقد اشتركت في :total موضوع.',
+                'unread' => 'لديك :unread ردود غير مقروءة في المواضيع المشترك فيها.',
+            ],
+        ],
+
+        'topic_buttons' => [
+            'remove' => [
+                'confirmation' => 'إلغاء الاشتراك من الموضوع؟',
+                'title' => 'إلغاء الإشتراك',
+            ],
+        ],
+    ],
+
+    'topics' => [
+        '_' => 'المواضيع',
+
+        'actions' => [
+            'login_reply' => 'سجل الدخول للرد',
+            'reply' => 'رد',
+            'reply_with_quote' => 'اقتبس المنشور للرد',
+            'search' => 'بحث',
+        ],
+
+        'create' => [
+            'create_poll' => 'انشاء اِستطلاع رأي',
+
+            'preview' => 'معاينة المنشور',
+
+            'create_poll_button' => [
+                'add' => 'إنشاء اِستطلاع',
+                'remove' => 'الغاء اِنشاء الاِستطلاع',
+            ],
+
+            'poll' => [
+                'hide_results' => 'إخفاء نتائج التصويت.',
+                'hide_results_info' => 'لن يتم عرضها إلا بعد انتهاء التصويت.',
+                'length' => 'افتح الاِستطلاع لـ',
+                'length_days_suffix' => 'أيام',
+                'length_info' => 'اترك فارغاََ لمدة لا تنتهي',
+                'max_options' => 'الخيارات للـ مستخدم',
+                'max_options_info' => 'هذا رقم الخيارات التي يمكن ان يختارها كل مستخدم عند التصويت.',
+                'options' => 'الخيارات',
+                'options_info' => 'ضع كل خيار في سطر جديد. تستطيع ادخال 10 خيارات.',
+                'title' => 'سؤال',
+                'vote_change' => 'اسمح باِعادة التصويت.',
+                'vote_change_info' => 'اذا قمت بتفعيله, سيكون بمقدور المستخدمين تغيير اصواتهم.',
+            ],
+        ],
+
+        'edit_title' => [
+            'start' => 'تعديل العنوان',
+        ],
+
+        'index' => [
+            'feature_votes' => 'تفضيل النجمة',
+            'replies' => 'الردود',
+            'views' => 'المشاهدات',
+        ],
+
+        'lock' => [
+            'is_locked' => 'هذا الموضوع مغلق ولا يمكن الرد عليه',
+            'to_0' => 'فتح الموضوع',
+            'to_0_confirm' => 'فتح الموضوع؟',
+            'to_0_done' => 'تمّ إلغاء تأمين الموضوع',
+            'to_1' => 'قفل الموضوع',
+            'to_1_confirm' => 'قفل الموضوع؟',
+            'to_1_done' => 'تمّ تأمين الموضوع',
+        ],
+
+        'moderate_move' => [
+            'title' => 'نقل إلى منتدى آخر',
+        ],
+
+        'moderate_pin' => [
+            'to_0' => 'إزالة تثبيت الموضوع',
+            'to_0_confirm' => 'إلغاء تثبيت الموضوع؟',
+            'to_0_done' => 'تمّ إلغاء تثبيت الموضوع',
+            'to_1' => 'تثبيت الموضوع',
+            'to_1_confirm' => 'تثبيت الموضوع؟',
+            'to_1_done' => 'تم تثبيت الموضوع',
+            'to_2' => 'ثبت الموضوع وعَلِم كـ اِعلان',
+            'to_2_confirm' => 'تثبيت الموضوع وتعليمه كـ أِعلان؟',
+            'to_2_done' => 'تم تثبيت الموضوع ووضعه كـ إعلان',
+        ],
+
+        'moderate_toggle_deleted' => [
+            'show' => 'إظهار المنشورات المحذوفة',
+            'hide' => 'إخفاء المنشورات المحذوفة',
+        ],
+
+        'show' => [
+            'deleted-posts' => 'المنشورات المحذوفة',
+            'total_posts' => 'عدد المنشورات الكلي',
+            'total_watches' => '',
+
+            'feature_vote' => [
+                'current' => 'الأفضلية الحالية: +:count',
+                'do' => 'روج لهذا المنشور',
+
+                'info' => [
+                    '_' => 'هذا :feature_request. هذه الطلبات يمكن ان يوافق عليها بواسطة :supporters.',
+                    'feature_request' => 'طلبات الميزات',
+                    'supporters' => 'الداعمون',
+                ],
+
+                'user' => [
+                    'count' => '{0} لا اصوات|{1}:count_delimited صوت|[2,*] :count_delimited اصوات',
+                    'current' => 'لديك :votes متبقية.',
+                    'not_enough' => "ليس لديك أي اصوات متبقية",
+                ],
+            ],
+
+            'poll' => [
+                'edit' => 'تعديل الاستبيان',
+                'edit_warning' => 'تحرير الاِستطلاع سيقوم بإزالة النتائج الحالية!',
+                'vote' => 'تصويت',
+
+                'button' => [
+                    'change_vote' => 'تغيير التصويت',
+                    'edit' => 'تعديل الاستطلاع',
+                    'view_results' => 'تخطي الى النتائج',
+                    'vote' => 'تصويت',
+                ],
+
+                'detail' => [
+                    'end_time' => 'سوف ينتهي الاقتراع في :time',
+                    'ended' => 'انتهى الاقتراع :time',
+                    'results_hidden' => 'سيتم عرض النتائج بعد انتهاء التصويت.',
+                    'total' => 'مجموع الأصوات: :count',
+                ],
+            ],
+        ],
+
+        'watch' => [
+            'to_not_watching' => 'لا إشارات مرجعية',
+            'to_watching' => 'إشارة مرجعية',
+            'to_watching_mail' => 'اِشارة مرجعية مع اخطار',
+            'tooltip_mail_disable' => 'تم تمكين الاِخطار. انقر للتعطيل',
+            'tooltip_mail_enable' => 'تم اِطفاء الاِخطار. انقر للتشغيل',
+        ],
+    ],
+];

@@ -1,0 +1,70 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'loading_users' => 'caricamento utenti...',
+    'searching_users' => '',
+    'talking_in' => 'parlando in :channel',
+    'talking_with' => 'parlando con :name',
+    'title_compact' => 'chat',
+    'unread_messages' => 'messaggi non letti',
+
+    'cannot_send' => [
+        'channel' => 'Al momento non puoi inviare messaggi in questo canale.',
+        'user' => 'Al momento non puoi inviare messaggi a questo utente.',
+    ],
+
+    'channels' => [
+        'confirm_part' => 'Vuoi nascondere questo canale? Riceverai ancora messaggi da questo canale.',
+        'create' => 'crea un annuncio',
+        'join' => 'unisciti al canale',
+        'none' => 'nessun canale',
+
+        'list' => [
+            'title' => [
+                'ANNOUNCE' => 'Annunci',
+                'GROUP' => 'Gruppi',
+                'PM' => 'Conversazioni',
+                'PUBLIC' => 'Canali',
+                'TEAM' => 'Squadra',
+            ],
+        ],
+    ],
+
+    'form' => [
+        'title' => [
+            'announcement' => 'Crea nuovo annuncio',
+        ],
+
+        'labels' => [
+            'description' => 'descrizione',
+            'message' => 'messaggia',
+            'name' => 'nome stanza',
+            'users' => 'giocatori da aggiungere',
+        ],
+    ],
+
+    'not_found' => [
+        'message' => 'Non c\'è niente qui, forse hai lasciato il canale oppure non esiste...',
+        'title' => 'canale non trovato',
+    ],
+
+    'not_joined' => [
+        'message' => 'Unisciti al canale per vedere i suoi messaggi.',
+        'join' => 'Unisciti al canale',
+    ],
+
+    'input' => [
+        'create' => 'Crea',
+        'disabled' => 'impossibile messaggiare...',
+        'disconnected' => 'Disconnesso',
+        'placeholder' => 'scrivi un messaggio...',
+        'send' => 'Invia',
+    ],
+
+    'join_channels' => [
+        'loading' => 'Caricamento elenco canali...',
+    ],
+];

@@ -1,0 +1,165 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'admin' => [
+        '_' => 'beheerder',
+    ],
+    'error' => [
+        'error' => [
+            '400' => 'ongeldige aanvraag',
+            '404' => 'ontbrekend',
+            '403' => 'verboden',
+            '401' => 'ongeautoriseerd',
+            '401-verification' => 'account verificatie',
+            '405' => 'ontbrekend',
+            '422' => 'ongeldige aanvraag',
+            '429' => 'te veel aanvragen',
+            '500' => 'iets gaat er mis',
+            '503' => 'onderhoud',
+        ],
+    ],
+    'forum' => [
+        '_' => 'forum',
+        'topic_logs_controller' => [
+            'index' => 'onderwerp logs',
+        ],
+    ],
+    'main' => [
+        'account_controller' => [
+            'verify_link' => 'account verificatie',
+        ],
+        'artists_controller' => [
+            '_' => 'uitgelichte artiesten',
+        ],
+        'beatmap_discussion_posts_controller' => [
+            '_' => 'beatmap discussie berichten',
+        ],
+        'beatmap_discussions_controller' => [
+            '_' => 'beatmap discussies',
+        ],
+        'beatmap_packs_controller' => [
+            '_' => 'beatmap packs',
+        ],
+        'beatmapset_discussion_votes_controller' => [
+            '_' => 'beatmap discussie stemmen',
+        ],
+        'beatmapset_events_controller' => [
+            '_' => 'beatmap geschiedenis',
+        ],
+        'beatmapsets_controller' => [
+            'discussion' => 'beatmap discussie',
+            'index' => 'beatmap listing',
+            'show' => 'beatmap info',
+            'versions' => '',
+        ],
+        'changelog_controller' => [
+            '_' => 'wijzigingslogboek',
+        ],
+        'chat_controller' => [
+            '_' => 'chat',
+        ],
+        'comments_controller' => [
+            '_' => 'opmerkingen',
+        ],
+        'contest_entries_controller' => [
+            'judge_results' => 'wedstrijd beoordelingsresultaten',
+        ],
+        'contests_controller' => [
+            '_' => 'wedstrijden',
+            'judge' => 'wedstrijd beoordeling',
+        ],
+        'group_history_controller' => [
+            '_' => '',
+        ],
+        'groups_controller' => [
+            'show' => 'groepen',
+        ],
+        'home_controller' => [
+            'get_download' => 'download',
+            'index' => 'dashboard',
+            'search' => 'zoeken',
+            'support_the_game' => 'ondersteun het spel',
+            'testflight' => 'testflight',
+        ],
+        'legacy_matches_controller' => [
+            '_' => '',
+        ],
+        'legal_controller' => [
+            '_' => 'informatie',
+        ],
+        'livestreams_controller' => [
+            '_' => 'live streams',
+        ],
+        'news_controller' => [
+            '_' => 'nieuws',
+        ],
+        'notifications_controller' => [
+            '_' => 'meldingen geschiedenis',
+        ],
+        'password_reset_controller' => [
+            '_' => 'wachtwoord opnieuw instellen',
+        ],
+        'ranking_controller' => [
+            '_' => 'rankings',
+        ],
+        'scores_controller' => [
+            '_' => 'prestatie',
+        ],
+        'seasons_controller' => [
+            '_' => 'ranglijsten',
+        ],
+        'teams_controller' => [
+            '_' => 'teams',
+            'create' => 'team aanmaken',
+            'edit' => 'team instellingen',
+            'leaderboard' => 'team leaderboard',
+            'show' => 'team info',
+        ],
+        'tournaments_controller' => [
+            '_' => 'toernooien',
+        ],
+        'user_cover_presets_controller' => [
+            '_' => '',
+        ],
+        'user_totp_controller' => [
+            '_' => '',
+        ],
+        'users_controller' => [
+            '_' => 'speler info',
+            'create' => 'account aanmaken',
+            'disabled' => 'waarschuwing',
+        ],
+        'wiki_controller' => [
+            '_' => 'wiki',
+        ],
+    ],
+    'multiplayer' => [
+        'rooms_controller' => [
+            'events' => '',
+        ],
+    ],
+    'passport' => [
+        'authorization_controller' => [
+            '_' => 'app machtigen',
+        ],
+    ],
+    'store' => [
+        '_' => 'winkel',
+    ],
+    'teams' => [
+        'members_controller' => [
+            'index' => '',
+        ],
+    ],
+    'users' => [
+        'modding_history_controller' => [
+            '_' => 'modder info',
+        ],
+        'multiplayer_controller' => [
+            '_' => 'multiplayer geschiedenis',
+        ],
+    ],
+];

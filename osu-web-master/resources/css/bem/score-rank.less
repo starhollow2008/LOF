@@ -1,0 +1,50 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.score-rank {
+  width: 2em;
+  height: 1em;
+  background-size: 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+
+  each({
+    XH: "SS-Silver";
+    X: "SS";
+    SH: "S-Silver";
+    S: "S";
+    A: "A";
+    B: "B";
+    C: "C";
+    D: "D";
+    F: "F";
+
+    rank-ssh: "SS-Silver";
+    rank-ss: "SS";
+    rank-sh: "S-Silver";
+    rank-s: "S";
+    rank-a: "A";
+  }, {
+    &--@{key} {
+      background-image: url("~@images/badges/score-ranks-v2019/GradeSmall-@{value}.svg?3");
+    }
+  });
+
+  &--daily-challenge {
+    display: inline-block;
+    font-size: 16px; // icon size
+  }
+
+  &--full {
+    .full-size();
+  }
+
+  &--profile-page {
+    font-size: 22px;
+  }
+
+  &--tiny {
+    font-size: 14px;
+  }
+}

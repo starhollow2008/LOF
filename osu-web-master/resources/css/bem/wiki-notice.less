@@ -1,0 +1,47 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.wiki-notice {
+  width: 100%;
+  padding: 10px 15px;
+  background-color: @osu-colour-b4;
+  color: @osu-colour-orange-1;
+  margin-bottom: 10px;
+
+  &--beatmapset-search {
+    border-radius: @border-radius-large;
+    background-color: hsl(var(--hsl-b3));
+    color: hsl(var(--hsl-c1));
+    font-size: @font-size--normal;
+    margin: 5px;
+    width: calc(100% - 10px);
+  }
+
+  &--important {
+    font-weight: bold;
+  }
+
+  &--score {
+    margin: 0 var(--page-gutter) 20px;
+    width: auto;
+    font-size: @font-size--wiki;
+  }
+
+  &--profile-page-extra {
+    border-radius: @border-radius-large;
+    background-color: hsl(var(--hsl-b4));
+    margin: 10px 0;
+    width: auto;
+    font-size: @font-size--title-small;
+  }
+
+  &__markdown-inline-content {
+    display: inline;
+
+    // flatten markdown paragraphs
+    p {
+      display: inline;
+      margin: 0;
+    }
+  }
+}

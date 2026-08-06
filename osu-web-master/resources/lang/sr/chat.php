@@ -1,0 +1,70 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'loading_users' => 'учитавање корисника...',
+    'searching_users' => '',
+    'talking_in' => 'разговарање у :channel',
+    'talking_with' => 'разговарање са :name',
+    'title_compact' => 'ћаскање',
+    'unread_messages' => 'непрочитане поруке',
+
+    'cannot_send' => [
+        'channel' => 'Тренутно не можете слати поруке у овај чет.',
+        'user' => 'Тренутно не можете слати поруке овом кориснику.',
+    ],
+
+    'channels' => [
+        'confirm_part' => 'Да ли желите да сакријете овај канал? И даље ће те примати поруке са овог канала.',
+        'create' => 'креирај најаву',
+        'join' => 'уђите у канал',
+        'none' => 'нема канала',
+
+        'list' => [
+            'title' => [
+                'ANNOUNCE' => 'Најаве',
+                'GROUP' => 'Групе',
+                'PM' => 'Директне поруке',
+                'PUBLIC' => 'Канали',
+                'TEAM' => 'Тим',
+            ],
+        ],
+    ],
+
+    'form' => [
+        'title' => [
+            'announcement' => 'Креирај Нову Најаву',
+        ],
+
+        'labels' => [
+            'description' => 'опис',
+            'message' => 'порука',
+            'name' => 'име собе',
+            'users' => 'играче за додати',
+        ],
+    ],
+
+    'not_found' => [
+        'message' => 'Овде не постоји ништа, можда сте изашли из канала или канал не постоји...',
+        'title' => 'канал није пронађен',
+    ],
+
+    'not_joined' => [
+        'message' => '',
+        'join' => '',
+    ],
+
+    'input' => [
+        'create' => 'Креирај',
+        'disabled' => 'немогуће је послати поруку...',
+        'disconnected' => 'Прекинута веза',
+        'placeholder' => 'напишите поруку...',
+        'send' => 'Пошаљи',
+    ],
+
+    'join_channels' => [
+        'loading' => 'Учитавање листа канала...',
+    ],
+];

@@ -1,0 +1,47 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'box' => [
+        'sent' => 'Se ha enviado un correo a :mail con un código de verificación. Introduce el código.',
+        'title' => 'Verificación de la cuenta',
+        'verifying' => 'Verificando...',
+        'issuing' => 'Emitiendo nuevo código...',
+
+        'info' => [
+            'check_spam' => "Asegúrate de revisar tu carpeta de spam (correo no deseado) si no puedes encontrar el correo.",
+            'recover' => "Si no puede acceder a su correo o ha olvidado el que usó, siga el :link.",
+            'recover_link' => 'proceso de recuperación de correo electrónico aquí',
+            'reissue' => 'También puedes :reissue_link o :logout_link.',
+            'reissue_link' => 'solicitar otro código',
+            'logout_link' => 'cerrar la sesión',
+        ],
+    ],
+
+    'box_totp' => [
+        'heading' => 'Introduce el código de tu aplicación de autenticación.',
+
+        'info' => [
+            'logout' => [
+                '_' => 'También puedes :link.',
+                'link' => 'cerrar la sesión',
+            ],
+            'mail_fallback' => [
+                '_' => 'Si no puedes acceder a tu aplicación de autenticación, :link.',
+                'link' => 'puedes verificarte usando tu correo electrónico en su lugar',
+            ],
+        ],
+    ],
+
+    'errors' => [
+        'expired' => 'El código de verificación ha expirado, nuevo correo de verificación enviado.',
+        'incorrect_key' => 'Código de verificación incorrecto.',
+        'retries_exceeded' => 'Código de verificación incorrecto. Límite de intentos excedido, nuevo correo de verificación enviado.',
+        'reissued' => 'Código de verificación reemitido, nuevo correo de verificación enviado.',
+        'totp_used_key' => 'El código de verificación ya se ha usado. Por favor, espera y usa uno nuevo.',
+        'totp_gone' => 'Se ha eliminado el token de autenticación y se ha cambiado a la verificación por correo electrónico. Se ha enviado el correo electrónico de verificación.',
+        'unknown' => 'Ha ocurrido un problema desconocido, nuevo correo de verificación enviado.',
+    ],
+];

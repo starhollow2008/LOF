@@ -1,0 +1,40 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'generic' => 'Perbaikan bug dan berbagai penyempurnaan berskala kecil lainnya',
+
+    'build' => [
+        'title' => 'daftar perubahan pada :version',
+    ],
+
+    'builds' => [
+        'users_online' => ':count_delimited pengguna online|:count_delimited pengguna online',
+    ],
+
+    'entry' => [
+        'by' => 'oleh :user',
+    ],
+
+    'index' => [
+        'page_title' => [
+            '_' => 'daftar riwayat perubahan',
+            '_from' => 'perubahan sejak :from',
+            '_from_to' => 'perubahan antara :from dan :to',
+            '_stream' => 'perubahan pada :stream',
+            '_stream_from' => 'perubahan pada :stream sejak :from',
+            '_stream_from_to' => 'perubahan pada :stream antara :from dan :to',
+            '_stream_to' => 'perubahan pada :stream hingga :to',
+            '_to' => 'perubahan hingga :to',
+        ],
+    ],
+
+    'support' => [
+        'heading' => 'Suka dengan pembaruan ini?',
+        'text_1' => 'Dukung osu! untuk terus berkembang dan :link sekarang juga!',
+        'text_1_link' => 'jadilah osu!supporter',
+        'text_2' => 'Di samping memperlaju pengembangan, kamu juga akan memperoleh berbagai fitur dan opsi kustomisasi tambahan!',
+    ],
+];

@@ -1,0 +1,93 @@
+{
+  "mappings": {
+    "dynamic": false,
+    "properties": {
+      "indexed_at": {
+        "type": "date"
+      },
+      "layout": {
+        "type": "keyword"
+      },
+      "locale": {
+        "fields": {
+          "keyword": {
+            "ignore_above": 256,
+            "type": "keyword"
+          }
+        },
+        "type": "text"
+      },
+      "page": {
+        "type": "text"
+      },
+      "page_text": {
+        "type": "text"
+      },
+      "path": {
+        "fields": {
+          "keyword": {
+            "ignore_above": 256,
+            "type": "keyword"
+          }
+        },
+        "type": "text"
+      },
+      "path_clean": {
+        "type": "text"
+      },
+      "tags": {
+        "fields": {
+          "keyword": {
+            "ignore_above": 256,
+            "type": "keyword"
+          }
+        },
+        "type": "text"
+      },
+      "title": {
+        "fields": {
+          "autocomplete": {
+            "analyzer": "autocomplete",
+            "search_analyzer": "standard",
+            "type": "text"
+          },
+          "keyword": {
+            "ignore_above": 256,
+            "type": "keyword"
+          }
+        },
+        "type": "text"
+      },
+      "version": {
+        "type": "long"
+      }
+    }
+  },
+  "settings": {
+    "index": {
+      "analysis": {
+        "analyzer": {
+          "autocomplete": {
+            "filter": [
+              "lowercase"
+            ],
+            "tokenizer": "autocomplete"
+          }
+        },
+        "tokenizer": {
+          "autocomplete": {
+            "type": "edge_ngram",
+            "min_gram": 1,
+            "max_gram": 20,
+            "token_chars": [
+              "letter",
+              "digit"
+            ]
+          }
+        }
+      },
+      "number_of_shards": "1",
+      "number_of_replicas": "0"
+    }
+  }
+}

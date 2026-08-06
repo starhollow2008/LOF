@@ -1,0 +1,90 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+namespace App\Models;
+
+use Carbon\Carbon;
+use DB;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Log;
+
+/**
+ * FIXME: should validate donation is a positive value on save.
+ *
+ * @property int $amount
+ * @property bool $cancel
+ * @property int $length
+ * @property int $target_user_id
+ * @property \Carbon\Carbon $timestamp
+ * @property string $transaction_id
+ * @property int $user_id
+ */
+class UserDonation extends Model
+{
+    public $incrementing = false;
+    public $timestamps = false;
+
+    protected $casts = [
+        'cancel' => 'boolean',
+        'timestamp' => 'datetime',
+    ];
+    protected $primaryKey = ':composite';
+    protected $primaryKeys = ['user_id', 'transaction_id'];
+    protected $table = 'osu_user_donations';
+
+    public static function totalLength($userId)
+    {
+        $lengths = static::where('target_user_id', $userId)
+            ->select('cancel', DB::raw('SUM(length) as length'))
+            ->groupBy('cancel')
+            ->get();
+
+        $totalLength = 0;
+
+        foreach ($lengths as $length) {
+            if ($length->cancel !== true) {
+                $totalLength += $length->length;
+            } else {
+                $totalLength -= $length->length;
+            }
+        }
+
+        return $totalLength;
+    }
+
+    public function donor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
+    }
+
+    public function cancel($cancelledTransactionId)
+    {
+        if ($this->cancel) {
+            Log::warning("UserDonation({$this->getKey()}) Calling cancel on a cancelled donation");
+
+            return;
+        }
+
+        $donation = $this->replicate();
+        $donation->transaction_id = $cancelledTransactionId;
+        $donation->amount = -$donation->amount;
+        $donation->cancel = true;
+        $donation->timestamp = Carbon::now();
+
+        Log::debug($donation);
+
+        $donation->saveOrExplode();
+    }
+
+    public function save(array $options = []): bool
+    {
+        $ret = parent::save($options);
+        if ($ret) {
+            $this->donor?->refreshSupportLength();
+        }
+
+        return $ret;
+    }
+}

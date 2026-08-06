@@ -1,0 +1,40 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'error' => [
+        'chat' => [
+            'empty' => 'Nem küldhetsz üres üzenetet.',
+            'limit_exceeded' => 'Túl gyorsan küldöd az üzeneteket, kérlek várj egy keveset, mielőtt újrapróbálnád.',
+            'too_long' => 'Túl hosszú üzenetet próbálsz küldeni.',
+        ],
+    ],
+
+    'scopes' => [
+        'bot' => 'Csevegőrobotként működjön.',
+        'identify' => 'Azonosíthat téged és olvashat a nyilvános profilodból.',
+
+        'chat' => [
+            'read' => 'Olvasson üzeneteket az Ön nevében.',
+            'write' => 'Küldjön üzeneteket az Ön nevében.',
+            'write_manage' => 'Csatornákhoz csatlakozás, vagy azok elhagyása az Ön nevében.',
+        ],
+
+        'forum' => [
+            'write' => 'Csak a saját nevedben hozz létre és szerkessz fórum hozzászólásokat.',
+            'write_manage' => '',
+        ],
+
+        'friends' => [
+            'read' => 'Lásd, hogy kit követsz.',
+        ],
+
+        'multiplayer' => [
+            'write_manage' => '',
+        ],
+
+        'public' => 'Nyilvános adatok olvasása az ön nevében',
+    ],
+];

@@ -1,0 +1,70 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'loading_users' => 'завантаження користувачів...',
+    'searching_users' => '',
+    'talking_in' => 'чат в :channel',
+    'talking_with' => 'чат з :name',
+    'title_compact' => 'чат',
+    'unread_messages' => 'непрочитані повідомлення',
+
+    'cannot_send' => [
+        'channel' => 'Наразі ви не можете писати повідомлення в цьому каналі.',
+        'user' => 'Наразі ви не можете писати цьому користувачу.',
+    ],
+
+    'channels' => [
+        'confirm_part' => 'Ви хочете сховати цей канал? Ви все ще будете отримувати з нього повідомлення.',
+        'create' => 'створити оголошення',
+        'join' => 'приєднатися до каналу',
+        'none' => 'немає каналу',
+
+        'list' => [
+            'title' => [
+                'ANNOUNCE' => 'Анонси',
+                'GROUP' => 'Групи',
+                'PM' => 'Особисті повідомлення',
+                'PUBLIC' => 'Канали',
+                'TEAM' => 'Команда',
+            ],
+        ],
+    ],
+
+    'form' => [
+        'title' => [
+            'announcement' => 'Створити Нове Оголошення',
+        ],
+
+        'labels' => [
+            'description' => 'опис',
+            'message' => 'повідомлення',
+            'name' => 'назва кімнати',
+            'users' => 'додавання гравців',
+        ],
+    ],
+
+    'not_found' => [
+        'message' => 'Тут нічого нема, можливо ви покинули канал або його не існує...',
+        'title' => 'канал не знайдено',
+    ],
+
+    'not_joined' => [
+        'message' => 'Приєднайтеся до цього каналу, щоб побачити його повідомлення.',
+        'join' => 'Приєднатися до каналу',
+    ],
+
+    'input' => [
+        'create' => 'Створити',
+        'disabled' => 'неможливо надіслати повідомлення...',
+        'disconnected' => 'Розʼєднано',
+        'placeholder' => 'введіть текст повідомлення...',
+        'send' => 'Відправити',
+    ],
+
+    'join_channels' => [
+        'loading' => 'Завантаження списку каналів...',
+    ],
+];

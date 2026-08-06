@@ -1,0 +1,94 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.osu-layout {
+  @_top: osu-layout;
+  display: flex;
+  flex-direction: column;
+
+  // for fading in after &--masked is removed
+  transition:
+    filter 200ms ease-in-out,
+    opacity 200ms ease-in-out;
+
+  &--body {
+    --nav-logo: url("~@images/layout/osu-logo-white.svg");
+    --nav-logo-bg: url("~@images/layout/osu-logo-triangles.svg");
+
+    background-color: @osu-colour-b6;
+  }
+
+  &--body-landing {
+    background-color: @osu-colour-b6;
+    // inspired by
+    // https://fourword.fourkitchens.com/article/fix-scrolling-performance-css-will-change-property
+    // using backface-visibility since IE doesn't have will-change property yet.
+    &::before {
+      .at2x("~@images/backgrounds/page-dark.png");
+      opacity: 0.25;
+      position: fixed;
+      backface-visibility: hidden;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      content: "";
+      z-index: @z-index--body-background;
+    }
+  }
+
+  &--body-lazer {
+    --nav-logo: url("~@images/layout/osu-lazer-logo-white.svg");
+    --nav-logo-bg: url("~@images/layout/osu-lazer-logo-triangles.svg");
+  }
+
+  &--full {
+    flex: 1 0 auto;
+    width: 100%;
+  }
+
+  &--masked {
+    position: absolute;
+    filter: brightness(0);
+    opacity: 0.8;
+    pointer-events: none;
+    backface-visibility: hidden; // prevents flashing in some browers on resize/transition start
+
+    @media screen and (-ms-high-contrast: active),
+      screen and (-ms-high-contrast: none) {
+      /* IE10+ fallback */
+      opacity: 0;
+    }
+  }
+
+  &--wrapped {
+    background-color: hsl(var(--hsl-pink-4));
+  }
+
+  &__no-scroll {
+    overflow: hidden;
+    flex: 1 0 auto;
+    position: relative;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+
+    &--full {
+      flex: 1 0 auto;
+
+      .@{_top}--wrapped & {
+        margin-bottom: 0;
+      }
+    }
+
+    &--landing-footer {
+      margin-top: auto;
+      margin-bottom: 0;
+      flex: none;
+      .at2x("~@images/backgrounds/page-000.png");
+    }
+  }
+}

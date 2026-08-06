@@ -1,0 +1,36 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'empty' => [
+        'active' => 'Hiện không tham gia ván osu!(lazer) :type_group nào!',
+        'ended' => 'Chưa hoàn thành ván osu!(lazer) :type_group nào!',
+        'playlists' => 'danh sách phát',
+        'ranked-play' => 'chơi xếp hạng',
+        'realtime' => 'nhiều người chơi',
+    ],
+
+    'room' => [
+        'hosted_by' => 'chủ phòng :user',
+        'invalid_password' => 'Mật khẩu phòng không đúng',
+        'map_count' => ':count_delimited map|:count_delimited map',
+        'player_count' => ':count_delimited người chơi|:count_delimited người chơi',
+        'time_left' => ':time thời gian còn lại',
+        'view_history' => 'Xem Lịch Sử',
+        'view_summary' => 'Xem Thống Kê',
+
+        'errors' => [
+            'duration_too_long' => 'Thời lượng quá dài. ',
+            'name_too_long' => 'Tên phòng quá dài.',
+            'too_many_playlist_items' => 'Quá nhiều mục trong danh sách phát.',
+        ],
+
+        'status' => [
+            'active' => 'đang hoạt động',
+            'ended' => 'đã kết thúc',
+            'soon' => 'sớm kết thúc',
+        ],
+    ],
+];

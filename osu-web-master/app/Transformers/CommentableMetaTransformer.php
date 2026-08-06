@@ -1,0 +1,39 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+namespace App\Transformers;
+
+use App\Interfaces\CommentableInterface;
+use App\Models\Beatmapset;
+
+class CommentableMetaTransformer extends TransformerAbstract
+{
+    public function transform(?CommentableInterface $commentable)
+    {
+        if (isset($commentable)) {
+            if ($commentable instanceof Beatmapset) {
+                $ownerId = $commentable->user_id;
+                $ownerTitle = 'MAPPER';
+            }
+
+            return [
+                'current_user_attributes' => [
+                    'can_new_comment_reason' => priv_check('CommentStore', $commentable)->message(),
+                ],
+                'id' => $commentable->getKey(),
+                'type' => $commentable->getMorphClass(),
+                'title' => $commentable->commentableTitle(),
+                'url' => $commentable->url(),
+                'owner_id' => $ownerId ?? null,
+                'owner_title' => $ownerTitle ?? null,
+                'locked' => $commentable->commentLocked(),
+            ];
+        } else {
+            return [
+                'title' => osu_trans('comments.commentable_name._deleted'),
+            ];
+        }
+    }
+}

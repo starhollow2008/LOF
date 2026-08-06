@@ -1,0 +1,123 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.no-print,
+.no-print * {
+  @media print {
+    display: none !important;
+  }
+}
+
+.u-blackout-visible {
+  z-index: @z-index--blackout-visible !important;
+}
+
+.u-chat {
+  @media @mobile {
+    position: fixed;
+    width: 100%;
+  }
+}
+
+.u-contents {
+  display: contents !important;
+}
+
+.u-current-user-avatar {
+  background-image: var(--current-user-avatar) !important;
+}
+
+.u-current-user-cover {
+  background-image: var(--current-user-cover) !important;
+}
+
+.u-ellipsis-overflow {
+  .ellipsis-overflow() !important;
+}
+
+.u-ellipsis-overflow-desktop {
+  @media @desktop {
+    .ellipsis-overflow() !important;
+  }
+}
+
+.u-ellipsis-pre-overflow {
+  white-space: pre !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+}
+
+.u-embed-wide {
+  display: block;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+
+  &--bbcode {
+    max-width: 425px;
+    display: inline-block;
+  }
+}
+
+.u-fancy-scrollbar {
+  .fancy-scrollbar();
+}
+
+.u-fancy-text {
+  .fancy-text(var(--colour));
+}
+
+.u-focus-hides-placeholder {
+  &:focus::placeholder {
+    opacity: 0;
+  }
+}
+
+.u-full-size {
+  .full-size();
+}
+
+.u-group-colour {
+  color: var(--group-colour);
+}
+
+.u-hidden {
+  display: none !important;
+}
+
+.u-hidden-desktop {
+  @media @desktop {
+    display: none !important;
+  }
+}
+
+.u-hidden-narrow {
+  @media @narrow {
+    display: none !important;
+  }
+}
+
+.u-hover {
+  pointer-events: auto !important;
+}
+
+.u-hover-none {
+  pointer-events: none !important;
+}
+
+.u-invisible {
+  opacity: 0;
+  position: absolute;
+  pointer-events: none;
+}
+
+.u-nav-float {
+  z-index: @z-index--nav-float !important;
+}
+
+.u-relative {
+  position: relative;
+}
+
+.u-uppercase {
+  text-transform: uppercase;
+}

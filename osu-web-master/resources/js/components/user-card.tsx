@@ -1,0 +1,387 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+import BlockButton from 'components/block-button';
+import FriendButton from 'components/friend-button';
+import Reportable from 'interfaces/reportable';
+import UserJson from 'interfaces/user-json';
+import { route } from 'laroute';
+import { action, makeObservable, observable } from 'mobx';
+import { observer } from 'mobx-react';
+import core from 'osu-core-singleton';
+import * as React from 'react';
+import { classWithModifiers, Modifiers } from 'utils/css';
+import { trans } from 'utils/lang';
+import { present } from 'utils/string';
+import { giftSupporterTagUrl } from 'utils/url';
+import FlagCountry from './flag-country';
+import FlagTeam from './flag-team';
+import FollowUserMappingButton from './follow-user-mapping-button';
+import { PopupMenuPersistent } from './popup-menu-persistent';
+import PopupMenuState from './popup-menu-state';
+import { ReportReportable } from './report-reportable';
+import { Spinner } from './spinner';
+import StringWithComponent from './string-with-component';
+import SupporterIcon from './supporter-icon';
+import TimeWithTooltip from './time-with-tooltip';
+import UserCardBrick from './user-card-brick';
+import UserGroupBadges from './user-group-badges';
+
+export type ViewMode = 'brick' | 'card' | 'list';
+export const viewModes: ViewMode[] = ['card', 'list', 'brick'];
+
+interface Props {
+  activated: boolean;
+  mode: ViewMode;
+  modifiers?: Modifiers;
+  reportable?: Reportable;
+  user?: UserJson | null;
+}
+
+interface State {
+  avatarLoaded: boolean;
+  backgroundLoaded: boolean;
+}
+
+@observer
+export class UserCard extends React.PureComponent<Props, State> {
+  static defaultProps = {
+    activated: false,
+    mode: 'card',
+  };
+
+  static userLoading: UserJson = {
+    avatar_url: '',
+    country_code: '',
+    cover: { custom_url: null, id: null, url: null },
+    default_group: '',
+    id: 0,
+    is_active: false,
+    is_bot: false,
+    is_deleted: false,
+    is_online: false,
+    is_supporter: false,
+    last_visit: '',
+    pm_friends_only: true,
+    profile_colour: '',
+    username: trans('users.card.loading'),
+  };
+
+  @observable private avatarLoaded = false;
+  @observable private backgroundLoaded = false;
+  private readonly popupMenuState = new PopupMenuState();
+  private url?: string;
+
+  private get canMessage() {
+    return !this.isSelf
+      && !core.currentUserModel.blocks.has(this.user.id);
+  }
+
+  private get isOnline() {
+    return this.user.is_online;
+  }
+
+  private get isSelf() {
+    return core.currentUser != null && core.currentUser.id === this.user.id;
+  }
+
+  private get isUserLoaded() {
+    return Number.isFinite(this.user.id) && this.user.id > 0;
+  }
+
+  private get isUserNotFound() {
+    return this.user.id === -1;
+  }
+
+  private get isUserVisible() {
+    return this.isUserLoaded && !this.user.is_deleted;
+  }
+
+  private get user() {
+    return this.props.user || UserCard.userLoading;
+  }
+
+  constructor(props: Props) {
+    super(props);
+    makeObservable(this);
+  }
+
+  render() {
+    if (this.props.mode === 'brick') {
+      if (this.props.user == null) {
+        return null;
+      }
+
+      return <UserCardBrick {...this.props} user={this.props.user} />;
+    }
+
+    const blockClass = classWithModifiers(
+      'user-card',
+      this.props.modifiers,
+      this.props.mode,
+      // Setting the active modifiers from the parent causes unwanted renders unless deep comparison is used.
+      this.popupMenuState.active || this.props.activated ? 'active' : 'highlightable',
+    );
+
+    this.url = this.isUserVisible ? route('users.show', { user: this.user.id }) : undefined;
+
+    return (
+      <div className={blockClass}>
+        {this.renderBackground()}
+
+        <div className='user-card__card'>
+          <div className='user-card__content user-card__content--details'>
+            <div className='user-card__user'>
+              {this.renderAvatar()}
+            </div>
+            <div className='user-card__details'>
+              {this.renderIcons()}
+              <div className='user-card__username-row'>
+                {this.renderUsername()}
+                <div className='user-card__group-badges'><UserGroupBadges groups={this.user.groups} short wrapper='user-card__group-badge' /></div>
+              </div>
+              {this.renderListModeIcons()}
+            </div>
+          </div>
+          {this.renderStatusBar()}
+        </div>
+      </div>
+    );
+  }
+
+  renderAvatar() {
+    const modifiers = this.avatarLoaded ? 'loaded' : null;
+    const hasAvatar = present(this.user.avatar_url) && !this.isUserNotFound;
+
+    return (
+      <div className='user-card__avatar-space'>
+        <div className={classWithModifiers('user-card__avatar-spinner', modifiers)}>
+          {hasAvatar && <Spinner modifiers={modifiers} />}
+        </div>
+        {this.isUserLoaded && hasAvatar && (
+          <img
+            className={classWithModifiers('user-card__avatar', modifiers)}
+            onError={this.onAvatarLoad} // remove spinner if error
+            onLoad={this.onAvatarLoad}
+            src={this.user.avatar_url}
+          />
+        )}
+      </div>
+    );
+  }
+
+  renderBackground() {
+    const overlay = (<div className={classWithModifiers(
+      'user-card__background-overlay',
+      { online: this.isOnline },
+    )} />);
+
+    const background = this.user.cover?.url == null
+      ? overlay
+      : (<>
+        <img
+          className={classWithModifiers('user-card__background', { loading: !this.backgroundLoaded })}
+          onLoad={this.onBackgroundLoad}
+          src={this.user.cover.url}
+        />
+        {overlay}
+      </>);
+
+    return this.isUserVisible
+      ? (
+        <a className='user-card__background-container' href={this.url}>
+          {background}
+        </a>
+      ) : background;
+  }
+
+  renderIcons() {
+    if (!this.isUserVisible) {
+      return null;
+    }
+
+    return (
+      <div className='user-card__icons user-card__icons--card'>
+        <a
+          className='user-card__icon user-card__icon--flag'
+          href={route('rankings', { country: this.user.country_code, mode: 'osu', type: 'performance' })}
+        >
+          <FlagCountry country={this.user.country} />
+        </a>
+
+        {this.user.team != null && (
+          <a
+            className='user-card__icon user-card__icon--flag'
+            href={route('teams.show', { team: this.user.team.id })}
+          >
+            <FlagTeam team={this.user.team} />
+          </a>
+        )}
+
+        {this.props.mode === 'card' && (
+          <>
+            {this.user.is_supporter && (
+              <a className='user-card__icon' href={route('support-the-game')}>
+                <SupporterIcon modifiers='user-card' />
+              </a>
+            )}
+            <div className='user-card__icon'>
+              <FriendButton modifiers='user-card' userId={this.user.id} />
+            </div>
+            {!this.user.is_bot && (
+              <div className='user-card__icon'>
+                <FollowUserMappingButton modifiers='user-card' userId={this.user.id} />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  renderListModeIcons() {
+    if (this.props.mode !== 'list' || !this.isUserVisible) {
+      return null;
+    }
+
+    return (
+      <div className='user-card__icons'>
+        {this.user.is_supporter && (
+          <a className='user-card__icon' href={route('support-the-game')}>
+            <SupporterIcon level={this.user.support_level} modifiers='user-list' />
+          </a>
+        )}
+
+        <div className='user-card__icon'>
+          <FriendButton modifiers='user-list' userId={this.user.id} />
+        </div>
+
+        {!this.user.is_bot && (
+          <div className='user-card__icon'>
+            <FollowUserMappingButton modifiers='user-list' userId={this.user.id} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  renderMenuButton() {
+    return this.isSelf
+      ? null
+      : (
+        <div className='user-card__icon user-card__icon--menu'>
+          <PopupMenuPersistent state={this.popupMenuState}>
+            {this.renderMenuItems}
+          </PopupMenuPersistent>
+        </div>
+      );
+  }
+
+  renderStatusBar() {
+    if (!this.isUserVisible) {
+      return null;
+    }
+
+    const status = this.isOnline ? trans('users.status.online') : trans('users.status.offline');
+
+    return (
+      <div className='user-card__content user-card__content--status'>
+        <div className='user-card__status'>
+          {this.renderStatusIcon()}
+          <div className='user-card__status-messages'>
+            <span className='user-card__status-message user-card__status-message--sub u-ellipsis-overflow'>
+              {!this.isOnline && this.user.last_visit != null && (
+                <StringWithComponent
+                  mappings={{
+                    date: <TimeWithTooltip dateTime={this.user.last_visit} relative />,
+                  }}
+                  pattern={trans('users.show.lastvisit')}
+                />
+              )}
+            </span>
+            <span className='user-card__status-message u-ellipsis-overflow'>
+              {status}
+            </span>
+          </div>
+        </div>
+        <div className='user-card__icons user-card__icons--menu'>
+          {this.renderMenuButton()}
+        </div>
+      </div>
+    );
+  }
+
+  renderStatusIcon() {
+    if (!this.isUserVisible) {
+      return null;
+    }
+
+    return (
+      <div className='user-card__status-icon-container'>
+        <div className={`user-card__status-icon user-card__status-icon--${this.isOnline ? 'online' : 'offline'}`} />
+      </div>
+    );
+  }
+
+  @action
+  private readonly onAvatarLoad = () => {
+    this.avatarLoaded = true;
+  };
+
+  @action
+  private readonly onBackgroundLoad = () => {
+    this.backgroundLoaded = true;
+  };
+
+  private readonly renderMenuItems = () => (
+    <div className='simple-menu'>
+      {this.canMessage && (
+        <a
+          className='simple-menu__item js-login-required--click'
+          href={route('messages.users.show', { user: this.user.id })}
+          onClick={this.popupMenuState.dismiss}
+        >
+          <span className='fas fa-envelope' />
+          {` ${trans('users.card.send_message')}`}
+        </a>
+      )}
+
+      <a
+        className='simple-menu__item'
+        href={giftSupporterTagUrl(this.user)}
+        onClick={this.popupMenuState.dismiss}
+      >
+        <span className='fas fa-gift' />
+        {` ${trans('users.card.gift_supporter')}`}
+      </a>
+
+      <BlockButton
+        modifiers='inline'
+        onClick={this.popupMenuState.dismiss}
+        userId={this.user.id}
+        wrapperClass='simple-menu__item'
+      />
+
+      <ReportReportable
+        className='simple-menu__item'
+        icon
+        onFormOpen={this.popupMenuState.dismiss}
+        reportableId={this.props.reportable?.id ?? this.user.id.toString()}
+        reportableType={this.props.reportable?.type ?? 'user'}
+        user={this.user}
+      />
+    </div>
+  );
+
+  private renderUsername() {
+    const displayName = this.user.is_deleted ? trans('users.deleted') : this.user.username;
+
+    return this.url == null ? (
+      <div className='user-card__username u-ellipsis-pre-overflow'>{displayName}</div>
+    ) : (
+      <a className='user-card__username u-ellipsis-pre-overflow' href={this.url}>
+        {displayName}
+      </a>
+    );
+  }
+}

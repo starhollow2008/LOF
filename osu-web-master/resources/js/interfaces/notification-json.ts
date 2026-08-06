@@ -1,0 +1,69 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+import { Name } from 'models/notification-type';
+import { NotificationCursor } from 'notifications/notification-cursor';
+import { NotificationIdentityJson } from 'notifications/notification-identity';
+
+export default interface NotificationJson {
+  created_at?: string;
+  details: {
+    achievement_id?: number;
+    achievement_mode?: string;
+    beatmap_id?: number;
+    beatmapset_id?: number;
+    comment_id?: number;
+    content?: string;
+    cover_url?: string;
+    description?: string;
+    discussion_id?: number;
+    embeds?: {
+      praises: number;
+      problems: number;
+      suggestions: number;
+    };
+    message_id?: number;
+    name?: string;
+    news_post_id?: number;
+    post_id?: number;
+    reply_to?: {
+      user_id: number;
+    };
+    series?: string;
+    slug?: string;
+    title?: string;
+    title_unicode?: string;
+    type?: string;
+    user_id?: number;
+    username?: string;
+    version?: string;
+  };
+  id: number;
+  is_read: boolean;
+  name: string;
+  object_id: number;
+  object_type: Name;
+  source_user_id?: number;
+}
+
+export interface NotificationBundleJson {
+  notifications?: NotificationJson[];
+  stacks?: NotificationStackJson[];
+  timestamp: string;
+  types?: NotificationTypeJson[];
+  unread_count?: number;
+}
+
+export interface NotificationStackJson extends NotificationIdentityJson {
+  category: string;
+  cursor: NotificationCursor | null;
+  object_id: number;
+  object_type: Name;
+  total: number;
+}
+
+export interface NotificationTypeJson {
+  cursor: NotificationCursor | null;
+  name: string | null;
+  total: number;
+}

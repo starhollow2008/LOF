@@ -1,0 +1,49 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'button' => [
+        'resend' => 'Ipadala muli ang verification email',
+        'set' => 'I-set ang password',
+        'start' => 'Magsimula',
+    ],
+
+    'error' => [
+        'contact_support' => 'Pakikontak ang support upang mabawi ang account.',
+        'expired' => 'Na-expire na ang verification code.',
+        'invalid' => 'Hindi inaasahang error sa verification code.',
+        'is_privileged' => 'Pakikontak ng isang high level na admin upang mabawi ang account.',
+        'missing_key' => 'Kinakailangan.',
+        'too_many_requests' => '',
+        'too_many_tries' => 'Masyadong maraming nabigong tangka.',
+        'user_not_found' => 'Hindi umiiral ang hiniling na user.',
+        'wait_resend' => '',
+        'wrong_key' => 'Maling kodigo.',
+    ],
+
+    'notice' => [
+        'sent' => 'Suriin ang iyong email para sa verification code.',
+        'saved' => 'Na-save ang bagong password!',
+    ],
+
+    'started' => [
+        'password' => 'Bagong password',
+        'password_confirmation' => 'Kumpirmasyon ng password',
+        'title' => 'Pag-reset ng password para sa <strong>:username</strong> na account.',
+        'verification_key' => 'Verification code',
+    ],
+
+    'starting' => [
+        'username' => 'Itala ang email address o username',
+
+        'reason' => [
+            'inactive_different_country' => "Ang iyong account ay hindi nagamit sa loob ng mahabang panahon. Upang matiyak ang seguridad ng iyong account, paki-reset ng iyong password.",
+        ],
+        'support' => [
+            '_' => 'Kailangan pa ng tulong? Makipag-usap sa amin sa :button.',
+            'button' => 'support system',
+        ],
+    ],
+];

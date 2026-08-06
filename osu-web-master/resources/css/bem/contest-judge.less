@@ -1,0 +1,29 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.contest-judge {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  font-size: @font-size--title-small;
+  background-color: hsl(var(--hsl-b5));
+
+  &__header {
+    .default-gutter-v2();
+    background-color: hsl(var(--hsl-d3));
+    padding-top: 15px;
+    padding-bottom: $padding-top;
+  }
+
+  &__items {
+    .default-gutter-v2();
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: $gap;
+  }
+
+  &__switch {
+    font-weight: normal;
+    margin: 0;
+  }
+}

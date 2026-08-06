@@ -1,0 +1,39 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'load_failed' => 'Data gagal dimuat.',
+    'missing_route' => 'URL tidak valid atau metode permintaan tidak tepat.',
+    'no_restricted_access' => 'Kamu tidak bisa melakukan tindakan ini ketika akunmu sedang di-restrict.',
+    'param_too_large' => 'Parameter :name hanya bisa mengandung maksimal :count_delimited item|Parameter :name hanya bisa mengandung maksimal :count_delimited item',
+    'supporter_only' => 'Kamu harus menjadi osu!supporter untuk menggunakan fitur ini.',
+    'unknown' => 'Terjadi kesalahan yang tidak diketahui.',
+
+    'codes' => [
+        'http-401' => 'Silakan masuk untuk melanjutkan.',
+        'http-403' => 'Akses ditolak.',
+        'http-404' => 'Tidak ditemukan.',
+        'http-429' => 'Terlalu banyak percobaan. Silakan coba lagi nanti.',
+    ],
+    'account' => [
+        'profile-order' => [
+            'generic' => 'Terdapat suatu masalah. Cobalah untuk memuat ulang halaman.',
+        ],
+    ],
+    'checkout' => [
+        'generic' => 'Terjadi kesalahan pada saat mempersiapkan proses checkout.',
+    ],
+    'scores' => [
+        'invalid_id' => 'ID skor tidak valid.',
+    ],
+    'search' => [
+        'default' => 'Tidak ada hasil pencarian yang bisa diperoleh. Silakan coba lagi nanti.',
+        'invalid_cursor_exception' => 'Parameter kursor yang ditentukan tidak valid.',
+        'operation_timeout_exception' => 'Aktivitas pencarian saat ini sedang lebih sibuk dari biasanya. Silakan coba lagi nanti.',
+    ],
+    'user_report' => [
+        'recently_reported' => "Kamu sudah melaporkan hal ini baru-baru ini.",
+    ],
+];

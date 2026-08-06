@@ -1,0 +1,104 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+import NotificationJson from 'interfaces/notification-json';
+import { computed, makeObservable, observable } from 'mobx';
+import { Name } from 'models/notification-type';
+import { categoryFromName, categoryGroupKey } from 'notification-maps/category';
+import { displayType } from 'notification-maps/type';
+import NotificationDeletable from 'notifications/notification-deletable';
+import { NotificationIdentity } from 'notifications/notification-identity';
+import NotificationReadable from 'notifications/notification-readable';
+import core from 'osu-core-singleton';
+import { trans } from 'utils/lang';
+import { presence } from 'utils/string';
+
+export default class Notification implements NotificationReadable, NotificationDeletable {
+  createdAtJson?: string;
+  details: NotificationJson['details'] = {};
+  @observable isDeleting = false;
+  @observable isMarkingAsRead = false;
+  @observable isRead = false;
+  name?: string;
+  objectId?: number;
+  sourceUserId?: number;
+
+  @computed get canMarkRead() {
+    return this.id > 0 && !this.isRead;
+  }
+
+  @computed get category() {
+    return categoryFromName(this.name ?? '');
+  }
+
+  @computed get categoryGroupKey() {
+    return categoryGroupKey(this);
+  }
+
+  @computed get displayType() {
+    return displayType(this);
+  }
+
+  get formattedDetails() {
+    const ret = {
+      ...this.details,
+      embeds: undefined,
+      reply_to: undefined,
+    };
+
+    if (this.name !== 'news_post_new') {
+      return ret;
+    }
+
+    return {
+      ...ret,
+      series: trans(`news.series.${this.details.series}`),
+    };
+  }
+
+  get identity(): NotificationIdentity {
+    return {
+      category: this.category,
+      id: this.id,
+      objectId: this.objectId,
+      objectType: this.objectType,
+    };
+  }
+
+  @computed get stackId() {
+    return `${this.objectType}-${this.objectId}-${this.category}`;
+  }
+
+  @computed get title() {
+    if (core.userPreferences.get('beatmapset_title_show_original')) {
+      return presence(this.details.title_unicode) ?? this.details.title ?? '';
+    }
+
+    return this.details.title ?? '';
+  }
+
+  constructor(readonly id: number, readonly objectType: Name) {
+    makeObservable(this);
+  }
+
+  static fromJson(json: NotificationJson): Notification {
+    const obj = new Notification(json.id, json.object_type);
+    return obj.updateFromJson(json);
+  }
+
+  updateFromJson = (json: NotificationJson) => {
+    this.createdAtJson = json.created_at;
+    this.isRead = json.is_read;
+    this.name = json.name;
+    this.objectId = json.object_id;
+    this.sourceUserId = json.source_user_id;
+
+    this.details = { ...this.details, ...json.details };
+
+    if (json.name === 'comment_new' && json.details.reply_to?.user_id === core.currentUser?.id) {
+      this.name = 'comment_reply';
+    }
+
+    return this;
+  };
+}

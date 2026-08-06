@@ -1,0 +1,40 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'error' => [
+        'chat' => [
+            'empty' => 'Não é possível enviar mensagens em branco.',
+            'limit_exceeded' => 'Você está enviando mensagens muito rapidamente, espere um pouco antes de tentar novamente.',
+            'too_long' => 'A mensagem que você está tentando enviar é longa demais.',
+        ],
+    ],
+
+    'scopes' => [
+        'bot' => 'Agir como um bot de chat.',
+        'identify' => 'Identificar você e ler seu perfil público.',
+
+        'chat' => [
+            'read' => 'Ler mensagens em seu nome.',
+            'write' => 'Enviar mensagens em seu nome.',
+            'write_manage' => 'Entrar e deixar canais em seu nome.',
+        ],
+
+        'forum' => [
+            'write' => 'Criar e editar tópicos e postagens do fórum em seu nome.',
+            'write_manage' => 'Gerencie tópicos e postagens do fórum em seu nome.',
+        ],
+
+        'friends' => [
+            'read' => 'Veja quem você está seguindo.',
+        ],
+
+        'multiplayer' => [
+            'write_manage' => 'Criar e gerir salas multijogador em seu nome.',
+        ],
+
+        'public' => 'Ler dados públicos em seu nome.',
+    ],
+];

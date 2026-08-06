@@ -1,0 +1,66 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'match' => [
+        'beatmap-deleted' => 'выдаленая бітмапа',
+        'failed' => 'ПРОЙГРЫШ',
+        'header' => 'Шматкарыстальніцкая гульня',
+        'in-progress' => '(матч ў працэсе)',
+        'in_progress_spinner_label' => 'матч ў працэсе',
+        'loading-events' => 'Загрузка падзей...',
+        'winner' => ':team перамагла,',
+        'winner_by' => ':winner з розніцай у :difference',
+
+        'events' => [
+            'game_aborted' => 'гульня была скасавана',
+            'game_aborted_no_user' => 'гульня была скасавана',
+            'game_completed' => 'гульня скончана',
+            'game_completed_no_user' => 'гульня скончана',
+            'host_changed' => ':user стаў хастом',
+            'host_changed_no_user' => 'хвост быў зменены',
+            'player_joined' => '',
+            'player_joined_no_user' => '',
+            'player_kicked' => '',
+            'player_kicked_no_user' => '',
+            'player_left' => '',
+            'player_left_no_user' => '',
+            'room_created' => '',
+            'room_created_no_user' => 'гульня была створана',
+            'room_disbanded' => 'гульня была распушчана',
+            'room_disbanded_no_user' => 'гульня была распушчана',
+        ],
+
+        'score' => [
+            'stats' => [
+                'accuracy' => 'Дакладнасць',
+                'combo' => 'Комба',
+                'score' => 'Ачкі',
+            ],
+        ],
+
+        'team_types' => [
+            'head_to_head' => '',
+            'tag_coop' => '',
+            'tag_team_versus' => '',
+            'team_versus' => '',
+        ],
+
+        'teams' => [
+            'blue' => 'Сіняя каманда',
+            'red' => 'Чырвоная каманда',
+        ],
+    ],
+    'game' => [
+        'freestyle' => 'Вольны стыль',
+
+        'scoring-type' => [
+            'score' => 'Найлепшыя ачкі',
+            'accuracy' => 'Найлепшая дакладнасць',
+            'combo' => 'Найлепшае комба',
+            'scorev2' => 'Score V2',
+        ],
+    ],
+];

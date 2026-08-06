@@ -1,0 +1,273 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.play-detail {
+  @_top: play-detail;
+
+  @_icon-height: 30px;
+  @_min-height: 60px;
+  @_padding-vertical: 10px;
+  @_padding-vertical-desktop: 5px;
+  @_padding-horizontal: 20px;
+
+  --border-radius: 10px;
+  --bg: hsl(var(--hsl-b3));
+  --bg-main: hsl(var(--hsl-b2));
+  --pin-sortable-handle-width: 20px;
+  border-radius: var(--border-radius);
+  background-color: var(--bg);
+  line-height: normal;
+  color: #fff;
+  font-size: @font-size--normal;
+  min-height: @_min-height;
+  position: relative;
+  margin: 2px 0;
+
+  @media @desktop {
+    display: flex;
+    min-height: auto;
+    background-color: transparent;
+
+    &:hover,
+    &--active {
+      --bg: hsl(var(--hsl-b2));
+      --bg-main: hsl(var(--hsl-b1));
+    }
+  }
+
+  &--highlightable {
+    .play-detail-list--menu-active & {
+      pointer-events: none;
+    }
+  }
+
+  &--pin-sortable {
+    @media @desktop {
+      margin-left: calc(-1 * var(--pin-sortable-handle-width));
+    }
+  }
+
+  &__accuracy {
+    color: @yellow;
+    display: inline-block;
+    min-width: 60px;
+  }
+
+  &__accuracy-and-weighted-pp {
+    font-size: @font-size--title-small;
+    font-weight: 600;
+  }
+
+  &__artist {
+    display: block;
+
+    @media @desktop {
+      display: inline;
+    }
+  }
+
+  &__beatmap {
+    .ellipsis-overflow();
+    color: @yellow-dark;
+  }
+
+  &__beatmap-and-time {
+    margin-top: 2px;
+    white-space: nowrap;
+    display: flex;
+    gap: 15px;
+  }
+
+  &__bg-link {
+    .full-size();
+  }
+
+  &__detail {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__group {
+    padding: @_padding-vertical @_padding-horizontal;
+    position: relative;
+    pointer-events: none;
+
+    &--bottom {
+      @media @desktop {
+        display: flex;
+        padding: 0;
+      }
+    }
+
+    &--top {
+      border-radius: var(--border-radius);
+      background-color: var(--bg-main);
+      display: flex;
+      align-items: center;
+      min-width: 0;
+
+      @media @desktop {
+        flex: 1;
+        border-radius: var(--border-radius) 0 0 var(--border-radius);
+        padding-top: @_padding-vertical-desktop;
+        padding-bottom: @_padding-vertical-desktop;
+        padding-right: 0;
+      }
+    }
+  }
+
+  &__icon {
+    width: 60px;
+    min-height: @_icon-height;
+    flex: none;
+    position: relative;
+
+    &--extra {
+      @media @desktop {
+        display: none;
+      }
+    }
+
+    &--main {
+      margin-right: 10px;
+      display: none;
+      position: relative;
+
+      @media @desktop {
+        display: block;
+        height: 20px;
+        width: 40px;
+      }
+    }
+  }
+
+  &__mods {
+    display: flex;
+    margin-top: 10px;
+    flex-wrap: wrap;
+
+    @media @desktop {
+      max-width: 400px; // avoid squashing too much of the left side
+      align-items: center;
+      padding: @_padding-vertical-desktop 10px;
+      margin-top: 0;
+      order: -1;
+      background-color: var(--bg-main);
+    }
+  }
+
+  &__mods-pp {
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+
+    @media @desktop {
+      display: contents;
+    }
+  }
+
+  &__more {
+    .center-content();
+    position: absolute;
+    top: @_padding-vertical;
+    right: 0;
+    width: 40px;
+    height: @_icon-height;
+    pointer-events: auto;
+
+    @media @desktop {
+      top: 0;
+      left: 100%;
+      width: var(--inner-gutter);
+      height: 100%;
+    }
+  }
+
+  &__pp {
+    --desktop-width: 110px;
+    align-content: flex-end;
+    flex: none;
+    font-size: @font-size--title-small-3;
+    font-weight: 700;
+    color: @osu-colour-h1;
+    pointer-events: auto;
+
+    @media @desktop {
+      .center-content();
+      position: relative;
+      right: auto;
+      bottom: auto;
+      padding: @_padding-vertical-desktop @_padding-horizontal
+        @_padding-vertical-desktop (@_padding-horizontal + 10px);
+      min-width: var(--desktop-width);
+      flex: none;
+      background: var(--bg);
+      border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    }
+
+    &::before {
+      @media @desktop {
+        content: "";
+        width: 10px;
+        height: 100%;
+        position: absolute;
+        left: 0;
+        top: 0;
+        background-color: var(--bg-main);
+        clip-path: polygon(0% 0%, 100% 50%, 0% 100%);
+      }
+    }
+
+    &--watch-count {
+      --desktop-width: 130px; // 5 digits
+    }
+  }
+
+  &__pp-unit {
+    font-size: @font-size--normal;
+    color: @osu-colour-l3;
+  }
+
+  &__score-detail {
+    display: flex;
+    align-items: center;
+    height: @_icon-height;
+
+    @media @desktop {
+      height: initial;
+      padding: @_padding-vertical-desktop 10px;
+      background-color: var(--bg-main);
+    }
+  }
+
+  &__score-detail-top-right {
+    margin-left: 10px;
+  }
+
+  &__time {
+    color: @osu-colour-f1;
+    flex: none;
+    pointer-events: auto;
+  }
+
+  &__title {
+    .link-white();
+    font-size: @font-size--title-small;
+    display: block;
+    align-self: flex-start;
+    max-width: 100%;
+    pointer-events: auto;
+  }
+
+  &__weighted-pp {
+    display: inline-block;
+    min-width: 60px;
+    margin-left: 10px;
+  }
+
+  &__weight {
+    font-size: @font-size--normal;
+  }
+}

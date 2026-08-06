@@ -1,0 +1,129 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+namespace App\Models;
+
+use Cache;
+use Exception;
+use GuzzleHttp\Client;
+
+class LivestreamCollection
+{
+    const FEATURED_CACHE_KEY = 'featuredStream:arr:v2';
+    const FEATURED_DATA_CACHE_KEY = 'featuredStream:data';
+
+    private $streams;
+    private $token;
+
+    public static function promote($id)
+    {
+        if (empty($id)) {
+            Cache::forget(static::FEATURED_CACHE_KEY);
+            Cache::forget(static::FEATURED_DATA_CACHE_KEY);
+            return;
+        }
+
+        Cache::forever(static::FEATURED_CACHE_KEY, (string) $id);
+        Cache::forget(static::FEATURED_DATA_CACHE_KEY);
+    }
+
+    public function all()
+    {
+        if ($this->streams === null) {
+            $this->streams = cache_remember_mutexed('livestreams:arr:v2', 300, [], function () {
+                $streams = $this->downloadStreams()['data'] ?? [];
+
+                return array_map(fn ($stream) => new Twitch\Stream($stream), $streams);
+            });
+        }
+
+        return $this->streams;
+    }
+
+    public function downloadStreams()
+    {
+        return $this->download('streams?first=40&game_id=21465');
+    }
+
+    public function download($api)
+    {
+        $clientId = $GLOBALS['cfg']['osu']['twitch_client_id'];
+        if ($clientId === null) {
+            return;
+        }
+
+        $token = $this->token();
+        if (empty($token)) {
+            log_error(new Exception('failed getting token'));
+
+            return;
+        }
+
+        try {
+            $response = (new Client(['base_uri' => 'https://api.twitch.tv/helix/']))
+                ->request('GET', $api, ['headers' => [
+                    'Client-Id' => $clientId,
+                    'Authorization' => "Bearer {$token['access_token']}",
+                ]])
+                ->getBody()
+                ->getContents();
+        } catch (Exception $e) {
+            log_error($e);
+
+            return;
+        }
+
+        return json_decode($response, true);
+    }
+
+    public function featured()
+    {
+        $cacheValues = Cache::many([static::FEATURED_DATA_CACHE_KEY, static::FEATURED_CACHE_KEY]);
+        $cachedStream = $cacheValues[static::FEATURED_DATA_CACHE_KEY];
+        $featuredStreamId = presence((string) $cacheValues[static::FEATURED_CACHE_KEY]);
+
+        if ($cachedStream !== null) {
+            return $cachedStream;
+        }
+
+        if ($featuredStreamId === null) {
+            return null;
+        }
+
+        foreach ($this->all() as $stream) {
+            if ($stream->data['id'] === $featuredStreamId) {
+                Cache::put(static::FEATURED_DATA_CACHE_KEY, $stream, 300);
+                return $stream;
+            }
+        }
+
+        Cache::forget(static::FEATURED_CACHE_KEY);
+        return null;
+    }
+
+    public function token()
+    {
+        if ($this->token === null) {
+            try {
+                $response = (new Client(['base_uri' => 'https://id.twitch.tv']))
+                    ->request('POST', '/oauth2/token', ['query' => [
+                        'client_id' => $GLOBALS['cfg']['osu']['twitch_client_id'],
+                        'client_secret' => $GLOBALS['cfg']['osu']['twitch_client_secret'],
+                        'grant_type' => 'client_credentials',
+                    ]])
+                    ->getBody()
+                    ->getContents();
+
+                $this->token = json_decode($response, true);
+            } catch (Exception $e) {
+                log_error($e);
+
+                $this->token = [];
+            }
+        }
+
+        return $this->token;
+    }
+}

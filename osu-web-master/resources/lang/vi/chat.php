@@ -1,0 +1,70 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'loading_users' => 'đang chờ người dùng...',
+    'searching_users' => '',
+    'talking_in' => 'đang trò chuyện ở :channel',
+    'talking_with' => 'đang trò chuyện với :name',
+    'title_compact' => 'tin nhắn',
+    'unread_messages' => 'tin nhắn chưa đọc',
+
+    'cannot_send' => [
+        'channel' => 'Hiện bạn không thế gửi tin nhắn vào kênh này.',
+        'user' => 'Hiện bạn không thế gửi tin nhắn cho người dùng này.',
+    ],
+
+    'channels' => [
+        'confirm_part' => 'Bạn có muốn ẩn kênh này không? Bạn vẫn sẽ nhận được tin nhắn từ kênh này.',
+        'create' => 'tạo thông báo ',
+        'join' => 'tham gia kênh',
+        'none' => 'không có kênh',
+
+        'list' => [
+            'title' => [
+                'ANNOUNCE' => 'Thông báo',
+                'GROUP' => 'Nhóm',
+                'PM' => 'Tin nhắn trực tiếp',
+                'PUBLIC' => 'Kênh',
+                'TEAM' => 'Đội',
+            ],
+        ],
+    ],
+
+    'form' => [
+        'title' => [
+            'announcement' => 'Tạo Thông Báo Mới',
+        ],
+
+        'labels' => [
+            'description' => 'mô tả',
+            'message' => 'tin nhắn',
+            'name' => 'tên phòng',
+            'users' => 'người chơi để thêm',
+        ],
+    ],
+
+    'not_found' => [
+        'message' => 'Không có gì ở đây, có lẽ bạn đã thoát kênh hoặc kênh không tồn tại...',
+        'title' => 'không tìm thấy kênh',
+    ],
+
+    'not_joined' => [
+        'message' => 'Tham gia kênh để hiển thị tin nhắn',
+        'join' => 'Tham gia kênh',
+    ],
+
+    'input' => [
+        'create' => 'Tạo',
+        'disabled' => 'không thể gửi tin nhắn...',
+        'disconnected' => 'Đã ngắt kết nối',
+        'placeholder' => 'soạn tin nhắn...',
+        'send' => 'Gửi',
+    ],
+
+    'join_channels' => [
+        'loading' => 'Đang tải danh sách kênh...',
+    ],
+];

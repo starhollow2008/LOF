@@ -1,0 +1,70 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'loading_users' => 'įkeliami vartotojai...',
+    'searching_users' => '',
+    'talking_in' => 'pokalbis :channel',
+    'talking_with' => 'pokalbis su :name',
+    'title_compact' => 'pokalbiai',
+    'unread_messages' => 'neperskaitytos žinutės',
+
+    'cannot_send' => [
+        'channel' => 'Šiuo metu jūs negalite rašyti šiame kanale.',
+        'user' => 'Šiuo metu jūs negalite rašyti šiam žaidėjui.',
+    ],
+
+    'channels' => [
+        'confirm_part' => 'Ar norite paslėpti šį kanalą? Jūs toliau gausite žinutes iš šio kanalo.',
+        'create' => 'kurti skelbimą',
+        'join' => 'pridėti kanalą',
+        'none' => 'joks kanalas',
+
+        'list' => [
+            'title' => [
+                'ANNOUNCE' => 'Skelbimai',
+                'GROUP' => 'Grupės',
+                'PM' => 'Tiesioginės žinutės',
+                'PUBLIC' => 'Kanalai',
+                'TEAM' => 'Komanda',
+            ],
+        ],
+    ],
+
+    'form' => [
+        'title' => [
+            'announcement' => 'Sukurti Naują Skelbimą',
+        ],
+
+        'labels' => [
+            'description' => 'aprašymas',
+            'message' => 'žinutė',
+            'name' => 'kambario pavadinimas',
+            'users' => 'žaidėjai pridėjimui',
+        ],
+    ],
+
+    'not_found' => [
+        'message' => 'Čia nieko nėra. Galbūt jūs palikote šį kanalą arba jis nebeegzistuoja...',
+        'title' => 'kanalas nerastas',
+    ],
+
+    'not_joined' => [
+        'message' => '',
+        'join' => '',
+    ],
+
+    'input' => [
+        'create' => 'Kurti',
+        'disabled' => 'žinutės išsiųsti nepavyko...',
+        'disconnected' => 'Atjungta',
+        'placeholder' => 'rašyk čia...',
+        'send' => 'Siųsti',
+    ],
+
+    'join_channels' => [
+        'loading' => 'Kraunamas kanalų sąrašas...',
+    ],
+];

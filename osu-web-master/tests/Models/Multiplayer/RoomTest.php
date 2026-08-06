@@ -1,0 +1,402 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+namespace Tests\Models\Multiplayer;
+
+use App\Exceptions\InvariantException;
+use App\Models\Beatmap;
+use App\Models\ChatFilter;
+use App\Models\Multiplayer\PlaylistItem;
+use App\Models\Multiplayer\Room;
+use App\Models\User;
+use Exception;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\TestCase;
+
+class RoomTest extends TestCase
+{
+    #[DataProvider('startGameDurationDataProvider')]
+    public function testStartGameDuration(int $duration, bool $isSupporter, bool $expectException)
+    {
+        $beatmap = Beatmap::factory()->create();
+        $user = User::factory();
+        if ($isSupporter) {
+            $user = $user->supporter();
+        }
+
+        $user = $user->create();
+
+        $params = [
+            'duration' => $duration,
+            'name' => 'test',
+            'playlist' => [
+                [
+                    'beatmap_id' => $beatmap->getKey(),
+                    'ruleset_id' => $beatmap->playmode,
+                ],
+            ],
+        ];
+
+        if ($expectException) {
+            $this->expectException(InvariantException::class);
+            $this->expectExceptionMessage(osu_trans('multiplayer.room.errors.duration_too_long'));
+            $this->expectCountChange(fn () => Room::count(), 0);
+        } else {
+            $this->expectCountChange(fn () => Room::count(), 1);
+        }
+
+        $room = (new Room())->startGame($user, $params);
+        $this->assertTrue($room->exists);
+    }
+
+    public function testStartGameWithBeatmap()
+    {
+        $beatmap = Beatmap::factory()->create();
+        $user = User::factory()->create();
+
+        $params = [
+            'duration' => 60,
+            'name' => 'test',
+            'playlist' => [
+                [
+                    'beatmap_id' => $beatmap->getKey(),
+                    'ruleset_id' => $beatmap->playmode,
+                ],
+            ],
+        ];
+
+        $room = (new Room())->startGame($user, $params);
+        $this->assertTrue($room->exists);
+    }
+
+    public function testStartGameWithDeletedBeatmap()
+    {
+        $beatmap = Beatmap::factory()->create(['deleted_at' => now()]);
+        $user = User::factory()->create();
+
+        $params = [
+            'duration' => 60,
+            'name' => 'test',
+            'playlist' => [
+                [
+                    'beatmap_id' => $beatmap->getKey(),
+                    'ruleset_id' => $beatmap->playmode,
+                ],
+            ],
+        ];
+
+        $this->expectException(InvariantException::class);
+        (new Room())->startGame($user, $params);
+    }
+
+    public function testStartGameWithInvalidRuleset()
+    {
+        $beatmap = Beatmap::factory()->create([
+            'playmode' => 2,
+        ]);
+        $user = User::factory()->create();
+
+        $params = [
+            'duration' => 60,
+            'name' => 'test',
+            'playlist' => [
+                [
+                    'beatmap_id' => $beatmap->getKey(),
+                    'ruleset_id' => 0,
+                ],
+            ],
+        ];
+
+        $this->expectException(InvariantException::class);
+        $this->expectExceptionMessageMatches('/^invalid ruleset_id for beatmap \d+$/');
+        (new Room())->startGame($user, $params);
+    }
+
+    public function testStartRealtimeGameWithNoPlaylistItems()
+    {
+        $user = User::factory()->create();
+
+        $params = [
+            'duration' => 60,
+            'name' => 'test',
+            'type' => Room::REALTIME_DEFAULT_TYPE,
+            'playlist' => [],
+        ];
+
+        $this->expectException(InvariantException::class);
+        $this->expectExceptionMessage('realtime room must have exactly one playlist item');
+        (new Room())->startGame($user, $params);
+    }
+
+    public function testStartRealtimeGameWithMultiplePlaylistItems()
+    {
+        $beatmap = Beatmap::factory()->create([
+            'playmode' => 2,
+        ]);
+        $user = User::factory()->create();
+
+        $params = [
+            'duration' => 60,
+            'name' => 'test',
+            'type' => Room::REALTIME_DEFAULT_TYPE,
+            'playlist' => [
+                [
+                    'beatmap_id' => $beatmap->getKey(),
+                    'ruleset_id' => $beatmap->playmode,
+                ],
+                [
+                    'beatmap_id' => $beatmap->getKey(),
+                    'ruleset_id' => $beatmap->playmode,
+                ],
+            ],
+        ];
+
+        $this->expectException(InvariantException::class);
+        $this->expectExceptionMessage('realtime room must have exactly one playlist item');
+        (new Room())->startGame($user, $params);
+    }
+
+    public function testStartPlaylistsGameWithNoPlaylistItems()
+    {
+        $user = User::factory()->create();
+
+        $params = [
+            'duration' => 60,
+            'name' => 'test',
+            'type' => Room::PLAYLIST_TYPE,
+            'playlist' => [],
+        ];
+
+        $this->expectException(InvariantException::class);
+        $this->expectExceptionMessage('room must have at least one playlist item');
+        (new Room())->startGame($user, $params);
+    }
+
+    public function testStartPlaylistsGameWithItemCountUnderCap()
+    {
+        $beatmap = Beatmap::factory()->create();
+        $user = User::factory()->create();
+
+        $limit = $GLOBALS['cfg']['osu']['user']['max_items_in_playlist'];
+        $params = [
+            'duration' => 60,
+            'name' => 'test',
+            'type' => Room::PLAYLIST_TYPE,
+            'playlist' => array_fill(0, $limit, [
+                'beatmap_id' => $beatmap->getKey(),
+                'ruleset_id' => $beatmap->playmode,
+            ]),
+        ];
+
+        $this->expectCountChange(fn () => PlaylistItem::all()->count(), $limit);
+        (new Room())->startGame($user, $params);
+    }
+
+    public function testStartPlaylistsGameWithItemCountOverCap()
+    {
+        $beatmap = Beatmap::factory()->create();
+        $user = User::factory()->create();
+
+        $limit = $GLOBALS['cfg']['osu']['user']['max_items_in_playlist'];
+        $params = [
+            'duration' => 60,
+            'name' => 'test',
+            'type' => Room::PLAYLIST_TYPE,
+            'playlist' => array_fill(0, $limit + 1, [
+                'beatmap_id' => $beatmap->getKey(),
+                'ruleset_id' => $beatmap->playmode,
+            ]),
+        ];
+
+        $this->expectCountChange(fn () => PlaylistItem::all()->count(), 0);
+        $this->expectException(InvariantException::class);
+        $this->expectExceptionMessage(osu_trans('multiplayer.room.errors.too_many_playlist_items'));
+        (new Room())->startGame($user, $params);
+    }
+
+    public function testRoomHasEnded()
+    {
+        $user = User::factory()->create();
+        $room = Room::factory()->ended()->create();
+        $playlistItem = PlaylistItem::factory()->create([
+            'room_id' => $room,
+        ]);
+
+        $this->expectException(InvariantException::class);
+        static::roomStartPlay($user, $playlistItem);
+    }
+
+    public function testStartPlay(): void
+    {
+        $user = User::factory()->create();
+        $room = Room::factory()->create();
+        $playlistItem = PlaylistItem::factory()->create(['room_id' => $room]);
+
+        $this->expectCountChange(fn () => $room->participant_count, 1);
+        $this->expectCountChange(fn () => $room->userHighScores()->count(), 1);
+        $this->expectCountChange(fn () => $playlistItem->scoreTokens()->count(), 1);
+
+        static::roomStartPlay($user, $playlistItem);
+        $room->refresh();
+
+        $this->assertSame($user->getKey(), $playlistItem->scoreTokens()->last()->user_id);
+    }
+
+    public function testMaxAttemptsReached()
+    {
+        $user = User::factory()->create();
+        $room = Room::factory()->create(['max_attempts' => 2]);
+        $playlistItem1 = PlaylistItem::factory()->create(['room_id' => $room]);
+        $playlistItem2 = PlaylistItem::factory()->create(['room_id' => $room]);
+
+        static::roomStartPlay($user, $playlistItem1);
+        $this->assertTrue(true);
+
+        static::roomStartPlay($user, $playlistItem2);
+        $this->assertTrue(true);
+
+        $this->expectException(InvariantException::class);
+        static::roomStartPlay($user, $playlistItem1);
+    }
+
+    public function testMaxAttemptsForItemReached()
+    {
+        $user = User::factory()->create();
+        $room = Room::factory()->create();
+        $playlistItem1 = PlaylistItem::factory()->create([
+            'room_id' => $room,
+            'max_attempts' => 1,
+        ]);
+        $playlistItem2 = PlaylistItem::factory()->create([
+            'room_id' => $room,
+            'max_attempts' => 1,
+        ]);
+
+        $initialCount = $playlistItem1->scoreTokens()->count();
+        static::roomStartPlay($user, $playlistItem1);
+        $this->assertSame($initialCount + 1, $playlistItem1->scoreTokens()->count());
+
+        $initialCount = $playlistItem1->scoreTokens()->count();
+        try {
+            static::roomStartPlay($user, $playlistItem1);
+        } catch (Exception $ex) {
+            $this->assertTrue($ex instanceof InvariantException);
+        }
+        $this->assertSame($initialCount, $playlistItem1->scoreTokens()->count());
+
+        $initialCount = $playlistItem2->scoreTokens()->count();
+        static::roomStartPlay($user, $playlistItem2);
+        $this->assertSame($initialCount + 1, $playlistItem2->scoreTokens()->count());
+    }
+
+    public function testCannotStartPlayedItem()
+    {
+        $beatmap = Beatmap::factory()->create();
+        $user = User::factory()->create();
+
+        $params = [
+            'name' => 'test',
+            'playlist' => [
+                [
+                    'beatmap_id' => $beatmap->getKey(),
+                    'ruleset_id' => $beatmap->playmode,
+                    'played_at' => time(),
+                ],
+            ],
+        ];
+
+        $this->expectException(InvariantException::class);
+        (new Room())->startGame($user, $params);
+    }
+
+    public function testNameFiltering()
+    {
+        ChatFilter::factory()->create([
+            'match' => 'bad',
+            'replacement' => 'good',
+        ]);
+        $beatmap = Beatmap::factory()->create();
+        $user = User::factory()->create();
+
+        $params = [
+            'name' => 'bad word',
+            'playlist' => [
+                [
+                    'beatmap_id' => $beatmap->getKey(),
+                    'ruleset_id' => $beatmap->playmode,
+                    'played_at' => time(),
+                ],
+            ],
+            'type' => 'head_to_head',
+        ];
+
+        $room = new Room();
+        $room->startGame($user, $params);
+        $this->assertSame('good word', $room->name);
+    }
+
+    #[DataProvider('difficultyRangeDataProvider')]
+    public function testRoomDifficultyRange(bool $preloadPlaylist, bool $preloadBeatmaps, bool $allItemsExpired, float $minDifficulty, float $maxDifficulty)
+    {
+        $room = Room::factory()->create();
+
+        $firstBeatmap = Beatmap::factory()->create(['difficultyrating' => 1]);
+        $secondBeatmap = Beatmap::factory()->create(['difficultyrating' => 3]);
+        $thirdBeatmap = Beatmap::factory()->create(['difficultyrating' => 5]);
+        $fourthBeatmap = Beatmap::factory()->create(['difficultyrating' => 7]);
+
+        $firstItem = PlaylistItem::factory()->create(['room_id' => $room, 'beatmap_id' => $firstBeatmap->getKey(), 'expired' => true]);
+        $secondItem = PlaylistItem::factory()->create(['room_id' => $room, 'beatmap_id' => $secondBeatmap->getKey(), 'expired' => $allItemsExpired]);
+        $thirdItem = PlaylistItem::factory()->create(['room_id' => $room, 'beatmap_id' => $thirdBeatmap->getKey(), 'expired' => $allItemsExpired]);
+        $fourthItem = PlaylistItem::factory()->create(['room_id' => $room, 'beatmap_id' => $fourthBeatmap->getKey(), 'expired' => true]);
+
+        if ($preloadPlaylist) {
+            $room->setRelation('playlist', collect([$firstItem, $secondItem, $thirdItem, $fourthItem]));
+        }
+
+        if ($preloadBeatmaps) {
+            $firstItem->setRelation('beatmap', $firstBeatmap);
+            $secondItem->setRelation('beatmap', $secondBeatmap);
+            $thirdItem->setRelation('beatmap', $thirdBeatmap);
+            $fourthItem->setRelation('beatmap', $fourthBeatmap);
+        }
+
+        $difficultyRange = $room->difficultyRange();
+        $this->assertSame($minDifficulty, $difficultyRange['min']);
+        $this->assertSame($maxDifficulty, $difficultyRange['max']);
+    }
+
+    public static function startGameDurationDataProvider()
+    {
+        static $dayMinutes = 1440;
+        static::createApp();
+
+        $maxDuration = $GLOBALS['cfg']['osu']['user']['max_multiplayer_duration'];
+        $maxDurationSupporter = $GLOBALS['cfg']['osu']['user']['max_multiplayer_duration_supporter'];
+
+        return [
+            '2 weeks' => [$dayMinutes * $maxDuration, false, false],
+            '2 weeks (with supporter)' => [$dayMinutes * $maxDuration, true, false],
+            'more than 2 weeks' => [$dayMinutes * $maxDuration + 1, false, true],
+            'more than 2 weeks (with supporter)' => [$dayMinutes * $maxDuration + 1, true, false],
+            '3 months' => [$dayMinutes * $maxDurationSupporter, false, true],
+            '3 months (with supporter)' => [$dayMinutes * $maxDurationSupporter, true, false],
+            'more than 3 months' => [$dayMinutes * $maxDurationSupporter + 1, false, true],
+            'more than 3 months (with supporter)' => [$dayMinutes * $maxDurationSupporter + 1, true, true],
+        ];
+    }
+
+    public static function difficultyRangeDataProvider()
+    {
+        return [
+            'room with some non-expired items uses non-expired items for range (nothing preloaded)' => [false, false, false, 3.0, 5.0],
+            'room with some non-expired items uses non-expired items for range (only playlist preloaded)' => [true, false, false, 3.0, 5.0],
+            'room with some non-expired items uses non-expired items for range (everything preloaded)' => [true, true, false, 3.0, 5.0],
+            'room with all expired items uses all items for range (nothing preloaded)' => [false, false, true, 1.0, 7.0],
+            'room with all expired items uses all items for range (only playlist preloaded)' => [true, false, true, 1.0, 7.0],
+            'room with all expired items uses all items for range (everything preloaded)' => [true, true, true, 1.0, 7.0],
+        ];
+    }
+}

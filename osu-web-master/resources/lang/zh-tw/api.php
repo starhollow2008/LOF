@@ -1,0 +1,40 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'error' => [
+        'chat' => [
+            'empty' => '無法傳送空白訊息。',
+            'limit_exceeded' => '您傳送訊息的速度太快了，請稍後再試。',
+            'too_long' => '您要傳送的訊息太長了。',
+        ],
+    ],
+
+    'scopes' => [
+        'bot' => '作為聊天機器人。',
+        'identify' => '識別您的身分並閱讀您的公開個人資料。',
+
+        'chat' => [
+            'read' => '以您的身分閱讀訊息。',
+            'write' => '以您的身分傳送訊息。',
+            'write_manage' => '以您的身分加入或離開頻道。',
+        ],
+
+        'forum' => [
+            'write' => '以您的身分建立或編輯論壇主題和貼文。',
+            'write_manage' => '以您的身分管理論壇主題和貼文。',
+        ],
+
+        'friends' => [
+            'read' => '檢視您追蹤的玩家。',
+        ],
+
+        'multiplayer' => [
+            'write_manage' => '代表你建立並管理多人遊戲房間。',
+        ],
+
+        'public' => '以您的身分讀取公開資料。',
+    ],
+];

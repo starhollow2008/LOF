@@ -1,0 +1,369 @@
+{{--
+    Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+    See the LICENCE file in the repository root for full licence text.
+--}}
+@php
+    use App\Models\Beatmap;
+    use App\Models\DeletedUser;
+    use App\Transformers\UserCompactTransformer;
+
+    $members = [];
+    foreach ($team->members->sortBy('user.username', SORT_STRING | SORT_FLAG_CASE) as $member) {
+        $user = $member->userOrDeleted();
+        if ($user->getKey() === $team->leader_id) {
+            $leader = $user;
+        } elseif (!($user instanceof DeletedUser)) {
+            $members[] = $user;
+        }
+    }
+    $userTransformer = new UserCompactTransformer();
+    $members = json_collection(
+        $members,
+        $userTransformer,
+        UserCompactTransformer::CARD_INCLUDES,
+    );
+    $leader = json_item(
+        $leader ?? new DeletedUser(['user_id' => $team->leader_id]),
+        $userTransformer,
+        UserCompactTransformer::CARD_INCLUDES,
+    );
+    $headerUrl = $team->header()->url();
+
+    $currentUser = Auth::user();
+    $defaultRuleset = Beatmap::modeStr($team->default_ruleset_id);
+@endphp
+
+@extends('master', [
+    'titlePrepend' => $team->name,
+])
+
+@section('content')
+    @component('layout._page_header_v4', ['params' => [
+        'backgroundImage' => $headerUrl,
+        'links' => App\Http\Controllers\TeamsController::pageLinks('show', $team),
+        'theme' => 'team',
+    ]])
+        @slot('linksAppend')
+            @include('objects._ruleset_selector', [
+                'currentRuleset' => Beatmap::modeStr($rulesetId),
+                'defaultRuleset' => $defaultRuleset,
+                'urlFn' => fn ($r) => route('teams.show', ['team' => $team->getKey(), 'ruleset' => $r]),
+            ])
+        @endslot
+    @endcomponent
+
+    <div class="osu-page osu-page--generic-compact">
+        <div class="profile-info profile-info--cover profile-info--team">
+            <div
+                class="profile-info__bg profile-info__bg--team"
+                {!! background_image($headerUrl) !!}
+            ></div>
+            <div class="profile-info__details">
+                <div class="profile-info__avatar">
+                    @include('objects._flag_team', ['modifiers' => 'full', 'team' => $team])
+                </div>
+                <div class="profile-info__info">
+                    <h1 class="profile-info__name">
+                        <span class="u-ellipsis-overflow">{{ $team->name }}</span>
+                    </h1>
+                    <div class="profile-info__flags">
+                        <p class="profile-info__flag">
+                            [{{ $team->short_name }}]
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="profile-detail-bar profile-detail-bar--team">
+            @if ($currentUser?->team?->getKey() === $team->getKey())
+                <a
+                    class="team-action-button"
+                    href="{{ route('chat.index', ['channel_id' => $team->channel_id]) }}"
+                >
+                    {{ osu_trans('teams.show.bar.chat') }}
+                </a>
+                @php
+                    $partPriv = priv_check('TeamPart', $team);
+                    $canPart = $partPriv->can();
+                @endphp
+                <form
+                    action="{{ route('teams.part', ['team' => $team]) }}"
+                    data-turbo-confirm="{{ osu_trans('common.confirmation') }}"
+                    title="{{ $partPriv->message() }}"
+                    method="POST"
+                >
+                    <button
+                        class="team-action-button team-action-button--join"
+                        @if (!$canPart)
+                            disabled
+                        @endif
+                    >
+                        {{ osu_trans('teams.show.bar.part') }}
+                    </button>
+                </form>
+            @else
+                @if ($currentUser?->teamApplication?->team_id === $team->getKey())
+                    <form
+                        action="{{ route('teams.applications.destroy', ['team' => $team, 'application' => $currentUser->getKey()]) }}"
+                        data-turbo-confirm="{{ osu_trans('common.confirmation') }}"
+                        data-reload-on-success="1"
+                        method="POST"
+                    >
+                        <input type="hidden" name="_method" value="DELETE" />
+                        <button
+                            class="team-action-button team-action-button--join-cancel"
+                        >
+                            {{ osu_trans('teams.show.bar.join_cancel') }}
+                        </button>
+                    </form>
+                @else
+                    @php
+                        $joinPriv = priv_check('TeamApplicationStore', $team);
+                    @endphp
+                    <form
+                        action="{{ route('teams.applications.store', ['team' => $team]) }}"
+                        data-turbo-confirm="{{ osu_trans('common.confirmation') }}"
+                        data-reload-on-success="1"
+                        method="POST"
+                        title="{{ $joinPriv->message() }}"
+                    >
+                        <button
+                            class="team-action-button team-action-button--join js-login-required--click"
+                            @if (!$joinPriv->can() && $currentUser !== null)
+                                disabled
+                            @endif
+                        >
+                            {{ osu_trans('teams.show.bar.join') }}
+                        </button>
+                    </form>
+                @endif
+                <div
+                    class="js-react u-contents"
+                    data-props="{{ json_encode([
+                        'leaderUsername' => $leader['username'],
+                        'teamId' => $team->getKey(),
+                    ]) }}"
+                    data-react="team-extra-menu"
+                >
+                    <div class="btn-circle btn-circle--page-toggle btn-circle--page-toggle-detail">
+                        <button class="popup-menu" type="button">
+                            <span class="fas fa-ellipsis-v"></span>
+                        </button>
+                    </div>
+                </div>
+            @endif
+        </div>
+        <div class="user-profile-pages user-profile-pages--no-tabs">
+            <div class="page-extra">
+                <h2 class="title title--page-extra">
+                    {{ osu_trans('teams.show.sections.info') }}
+                </h2>
+                <div class="team-info">
+                    <div class="team-info-entries">
+                        <div class="team-info-entry">
+                            <div class="team-info-entry__title">{{ osu_trans('teams.show.info.created') }}</div>
+                            <div class="team-info-entry__value">
+                                <time
+                                    class="js-tooltip-time"
+                                    data-tooltip-position="bottom center"
+                                    title="{{ json_time($team->created_at) }}"
+                                >
+                                    {{ i18n_date($team->created_at, transPattern: 'year_month') }}
+                                </time>
+                            </div>
+                        </div>
+                        @if (present($team->url))
+                            <div class="team-info-entry">
+                                <div class="team-info-entry__title">{{ osu_trans('model_validation.team.attributes.url') }}</div>
+                                <div class="team-info-entry__value u-ellipsis-overflow">
+                                    <a href="{{ $team->url }}">{{ $team->url }}</a>
+                                </div>
+                            </div>
+                        @endif
+                        <div class="team-info-entry">
+                            <div class="team-info-entry__title">{{ osu_trans('model_validation.team.attributes.default_ruleset_id') }}</div>
+                            <div class="team-info-entry__value">
+                                <span class="fal fa-extra-mode-{{ $defaultRuleset }}"></span>
+                                {{ osu_trans("beatmaps.mode.{$defaultRuleset}") }}
+                            </div>
+                        </div>
+                        <div class="team-info-entry">
+                            <div class="team-info-entry__title">{{ osu_trans('model_validation.team.attributes.is_open') }}</div>
+                            <div class="team-info-entry__value">
+                                {{ osu_trans('teams.edit.settings.application_state.state_'.(int) $team->is_open) }}
+                                @if ($team->is_open)
+                                    ({{ osu_trans_choice('teams.show.statistics.empty_slots', max(0, $team->emptySlots())) }})
+                                @endif
+                            </div>
+                        </div>
+                        <div class="team-info-entry">
+                            <div class="team-info-entry__title">
+                                {{ osu_trans('teams.show.statistics.leader') }}
+                            </div>
+                            <div class="team-info-entry__value">
+                                {!! link_to_user($leader['id'], $leader['username'], null, []) !!}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="team-info__separator">
+                    </div>
+                    <div class="team-info-entries">
+                        <div class="team-info-entry">
+                            <div class="team-info-entry__title">
+                                {{ osu_trans('teams.show.statistics.rank') }}
+                            </div>
+                            <div class="team-info-entry__value team-info-entry__value--large">
+                                @php
+                                    $rank = $statistics->getRank();
+                                @endphp
+                                {{ $rank === null ? '-' : '#'.i18n_number_format($rank) }}
+                            </div>
+                        </div>
+                        <div class="team-info__entries">
+                            <div class="team-info-entry">
+                                <div class="team-info-entry__title">
+                                    {{ osu_trans('rankings.stat.performance') }}
+                                </div>
+                                <div class="team-info-entry__value">
+                                    {{ i18n_number_format($statistics->performance) }}
+                                </div>
+                            </div>
+                            <div class="team-info-entry">
+                                <div class="team-info-entry__title">
+                                    {{ osu_trans('rankings.stat.ranked_score') }}
+                                </div>
+                                <div class="team-info-entry__value">
+                                    {{ i18n_number_format($statistics->ranked_score) }}
+                                </div>
+                            </div>
+                            <div class="team-info-entry">
+                                <div class="team-info-entry__title">
+                                    {{ osu_trans('teams.show.statistics.first_places') }}
+                                </div>
+                                <div class="team-info-entry__value">
+                                    {{ i18n_number_format($extraStatistics['first_places']) }}
+                                </div>
+                            </div>
+                            <div class="team-info-entry">
+                                <div class="team-info-entry__title">
+                                    {{ osu_trans('rankings.stat.play_count') }}
+                                </div>
+                                <div class="team-info-entry__value">
+                                    {{ i18n_number_format($statistics->play_count) }}
+                                </div>
+                            </div>
+                            <div class="team-info-entry">
+                                <div class="team-info-entry__title">
+                                    {{ osu_trans('users.show.stats.play_time') }}
+                                </div>
+                                <div class="team-info-entry__value">
+                                     {{ Carbon\CarbonInterval
+                                        ::seconds($extraStatistics['total_seconds_played'])
+                                        ->cascade()
+                                        ->forHumans(['parts' => 2, 'short' => true])
+                                    }}
+                                </div>
+                            </div>
+                            <div class="team-info-entry">
+                                <div class="team-info-entry__title">
+                                    {{ osu_trans('rankings.stat.members') }}
+                                </div>
+                                <div class="team-info-entry__value">
+                                    {{ i18n_number_format(count($members) + 1) }}
+                                </div>
+                            </div>
+                        </div>
+                        @if ($extraStatistics['ranked_beatmapsets'] > 0 || $extraStatistics['kudosu_total'] > 0)
+                            <div class="team-info__entries">
+                                @if ($extraStatistics['ranked_beatmapsets'] > 0)
+                                    <div class="team-info-entry">
+                                        <div class="team-info-entry__title">
+                                            {{ osu_trans('teams.show.statistics.ranked_beatmapsets') }}
+                                        </div>
+                                        <div class="team-info-entry__value">
+                                            {{ i18n_number_format($extraStatistics['ranked_beatmapsets']) }}
+                                        </div>
+                                    </div>
+                                @endif
+                                @if ($extraStatistics['kudosu_total'] > 0)
+                                    <div class="team-info-entry">
+                                        <div class="team-info-entry__title">
+                                            {{ osu_trans('users.show.extra.kudosu.total') }}
+                                        </div>
+                                        <div class="team-info-entry__value">
+                                            {{ i18n_number_format($extraStatistics['kudosu_total']) }}
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+                        <div class="team-info-entry">
+                            <div class="profile-rank-count profile-rank-count--team">
+                                @foreach (['xh', 'x', 'sh', 's', 'a'] as $grade)
+                                    <div class="profile-rank-count__item">
+                                        <div class="profile-rank-count__rank">
+                                            <div class="score-rank score-rank--{{ strtoupper($grade) }}"></div>
+                                        </div>
+                                        {{ i18n_number_format($extraStatistics["{$grade}_rank_count"]) }}
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @php
+                $descriptionHtml = $team->descriptionHtml();
+            @endphp
+            @if (present($descriptionHtml))
+                <div class="page-extra page-extra--userpage">
+                    <h2 class="title title--page-extra">
+                        {{ osu_trans('teams.show.sections.about') }}
+                    </h2>
+                    <div class="page-extra__content-overflow-wrapper-outer u-fancy-scrollbar">
+                        <div class="page-extra__content-overflow-wrapper-inner js-audio--group">
+                            {!! $team->descriptionHtml() !!}
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <div class="page-extra">
+                <h2 class="title title--page-extra">
+                    {{ osu_trans('teams.show.sections.members') }}
+                </h2>
+                <div class="team-members">
+                    <div class="team-members__type team-members__type--owner">
+                        <div class="team-members__meta">
+                            {{ osu_trans('teams.show.members.owner') }}
+                        </div>
+                        <div
+                            class="js-react u-contents"
+                            data-react="user-card"
+                            data-user="{{ json_encode($leader) }}"
+                        ></div>
+                    </div>
+
+                    <div class="team-members__type">
+                        <div class="team-members__meta">
+                            <span>
+                                {{ osu_trans('teams.show.members.members') }}
+                            </span>
+                            <span>
+                                {{ i18n_number_format(count($members)) }}
+                            </span>
+                        </div>
+                        @foreach ($members as $memberJson)
+                            <div
+                                class="js-react u-contents"
+                                data-react="user-card"
+                                data-user="{{ json_encode($memberJson) }}"
+                            ></div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection

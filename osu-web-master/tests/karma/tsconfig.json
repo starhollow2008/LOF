@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "baseUrl": "../../resources/js",
+    "experimentalDecorators": true,
+    "sourceMap": true,
+    "jsx": "react",
+    "lib": ["es2020", "dom", "dom.iterable"],
+    "module": "es2020",
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": true,
+    "target": "es2015",
+  },
+  "include": [
+    "../../resources/js",
+    "../../resources/builds/ziggy.d.ts",
+    ".",
+  ]
+}

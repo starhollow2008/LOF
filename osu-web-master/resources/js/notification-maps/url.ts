@@ -1,0 +1,100 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+import { route } from 'laroute';
+import Notification from 'models/notification';
+import { isBeatmapOwnerChangeNotification } from 'models/notification/beatmap-owner-change-notification';
+import { makeUrl } from 'utils/beatmapset-discussion-helper';
+
+export function urlGroup(item: Notification) {
+  if (isBeatmapOwnerChangeNotification(item)) {
+    return route('beatmapsets.discussion', { beatmap: '-', beatmapset: item.objectId, mode: 'events' });
+  }
+
+  if (item.name === 'comment_new' || item.name === 'comment_reply') {
+    switch (item.objectType) {
+      case 'beatmapset':
+        return route('beatmapsets.show', { beatmapset: item.objectId });
+      case 'build':
+        return route('changelog.show', { changelog: item.objectId, key: 'id' });
+    }
+  } else if (item.name === 'user_achievement_unlock') {
+    return userAchievementUrl(item);
+  } else if (item.category === 'user_beatmapset_new') {
+    return `${route('users.show', { user: item.objectId })}#beatmaps`;
+  }
+
+  switch (item.objectType) {
+    case 'beatmapset':
+      return route('beatmapsets.discussion', { beatmapset: item.objectId });
+    case 'channel':
+      return route('chat.index', { channel_id: item.objectId });
+    case 'forum_topic':
+      return route('forum.topics.show', { start: 'unread', topic: item.objectId });
+    case 'news_post':
+      // TODO: change to use slug if available. (And comment if possible?)
+      return route('news.show', { key: 'id', news: item.objectId });
+    case 'team':
+      return route('teams.show', { team: item.objectId });
+  }
+}
+
+export function urlSingular(item: Notification) {
+  if (isBeatmapOwnerChangeNotification(item)) {
+    return route('beatmapsets.discussion', { beatmap: item.details.beatmapId, beatmapset: item.objectId });
+  }
+
+  switch (item.name) {
+    case 'beatmapset_discussion_lock':
+    case 'beatmapset_discussion_unlock':
+    case 'beatmapset_disqualify':
+    case 'beatmapset_love':
+    case 'beatmapset_nominate':
+    case 'beatmapset_qualify':
+    case 'beatmapset_remove_from_loved':
+    case 'beatmapset_reset_nominations':
+      return route('beatmapsets.discussion', { beatmapset: item.objectId });
+    case 'beatmapset_discussion_post_new':
+    case 'beatmapset_discussion_qualified_problem':
+    case 'beatmapset_discussion_review_new':
+      return makeUrl({
+        beatmapId: item.details.beatmap_id,
+        beatmapsetId: item.objectId,
+        discussionId: item.details.discussion_id,
+        postId: item.details.post_id,
+      });
+    case 'beatmapset_rank':
+      return route('beatmapsets.show', { beatmapset: item.objectId });
+    case 'channel_announcement':
+    case 'channel_mention':
+    case 'channel_message':
+    case 'channel_team':
+      return route('chat.index', { channel_id: item.objectId });
+    case 'comment_new':
+    case 'comment_reply':
+      return route('comments.show', { comment: item.details.comment_id });
+    case 'forum_topic_reply':
+      return route('forum.posts.show', { post: item.details.post_id });
+    case 'news_post_new':
+      return route('news.show', { news: item.details.slug });
+    case 'team_application_accept':
+    case 'team_application_reject':
+    case 'team_application_store':
+      return route('teams.show', { team: item.objectId });
+    case 'user_achievement_unlock':
+      return userAchievementUrl(item);
+    case 'user_beatmapset_new':
+      return route('beatmapsets.show', { beatmapset: item.details.beatmapset_id });
+    case 'user_beatmapset_revive':
+      return route('beatmapsets.show', { beatmapset: item.details.beatmapset_id });
+  }
+}
+
+function userAchievementUrl(item: Notification) {
+  const params = {
+    mode: item.details.achievement_mode ?? undefined,
+    user: item.details.user_id,
+  };
+
+  return `${route('users.show', params)}#medals`;
+}

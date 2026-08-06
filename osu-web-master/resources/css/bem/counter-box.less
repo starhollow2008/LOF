@@ -1,0 +1,99 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.counter-box {
+  --counter-box-border-colour: hsla(var(--hsl-b5), 0.25);
+  --counter-box-title-font-weight: 600;
+  --counter-box-title-margin-right: 30px;
+  --line-colour: initial;
+
+  @top: counter-box;
+
+  @types: {
+    deleted: black;
+    pending: @pink-darker;
+    praises: @blue-darker;
+    mapper-notes: var(--beatmapset-discussion-colour--mapper_note);
+    mine: @yellow-darker;
+    resolved: @green;
+    total: #fff;
+  };
+  each(@types, {
+    &--@{key} {
+      --line-colour: @value;
+      &:hover,
+      &:focus,
+      &:active,
+      &.js-active {
+        --counter-box-border-colour: @value;
+      }
+    }
+  });
+
+  .default-border-radius();
+  background-color: @osu-colour-b5;
+  box-shadow: 0 0 0 2px var(--counter-box-border-colour);
+  color: @osu-colour-c1;
+
+  display: inline-flex;
+  justify-content: space-between;
+  padding: 7.5px;
+
+  &:hover,
+  &:focus,
+  &:active {
+    text-decoration: none;
+    color: @osu-colour-c1;
+  }
+
+  &--beatmap-discussions {
+    --counter-box-title-margin-right: 0;
+    min-width: 60px; // allows up to 3 digits without resizing.
+  }
+
+  &--info {
+    --counter-box-title-font-weight: normal;
+    --counter-box-title-margin-right: 0;
+    padding: 10px 0;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    flex-direction: column;
+  }
+
+  &--ranking {
+    padding: 0;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    flex-direction: column;
+  }
+
+  &__content {
+    line-height: 1;
+    min-width: 0; // prevents line from squishing in beatmapset discussions toolbar.
+  }
+
+  &__count {
+    font-size: @font-size--large;
+    font-weight: 300;
+
+    .@{top}--info & {
+      color: @osu-colour-c2;
+    }
+  }
+
+  &__line {
+    .default-border-radius();
+    width: 2px;
+    margin-left: 10px;
+    background-color: var(--line-colour);
+  }
+
+  &__title {
+    margin-right: var(--counter-box-title-margin-right);
+    font-weight: var(--counter-box-title-font-weight);
+    font-size: @font-size--small;
+    white-space: nowrap;
+  }
+}

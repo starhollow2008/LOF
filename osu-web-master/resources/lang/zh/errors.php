@@ -1,0 +1,39 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'load_failed' => '无法加载数据。',
+    'missing_route' => '网址无效或请求方法错误。',
+    'no_restricted_access' => '账户处于限制模式，无法执行该操作。',
+    'param_too_large' => ':name 参数最多为 :count_delimited 项',
+    'supporter_only' => '要使用此功能，请先成为 osu! 支持者。',
+    'unknown' => '发生了未知的错误。',
+
+    'codes' => [
+        'http-401' => '请先登录。',
+        'http-403' => '拒绝访问。',
+        'http-404' => '找不到页面。',
+        'http-429' => '请求过多，请稍后再试。',
+    ],
+    'account' => [
+        'profile-order' => [
+            'generic' => '发生未知错误，请尝试刷新页面。',
+        ],
+    ],
+    'checkout' => [
+        'generic' => '结账时发生了一个错误',
+    ],
+    'scores' => [
+        'invalid_id' => '无效成绩 ID。',
+    ],
+    'search' => [
+        'default' => '无法获得任何结果，请稍后再试。',
+        'invalid_cursor_exception' => '指定的光标参数无效。',
+        'operation_timeout_exception' => '搜索服务较繁忙，请稍后再试。',
+    ],
+    'user_report' => [
+        'recently_reported' => "你最近已经举报过这个问题。",
+    ],
+];

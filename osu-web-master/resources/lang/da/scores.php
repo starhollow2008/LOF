@@ -1,0 +1,35 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'show' => [
+        'non_preserved' => 'Denne score er markeret til sletning og vil snart forsvinde.',
+        'title' => ':username på :title [:version]',
+
+        'beatmap' => [
+            'by' => 'af :artist',
+        ],
+
+        'player' => [
+            'by' => 'Spillet af',
+            'played_on' => 'Spillet på',
+            'submitted_on' => 'Indsendt den',
+            'watched' => 'Set',
+            'watched_count' => ':count_delimited gang|:count_delimited gange',
+
+            'rank' => [
+                'country' => 'Lande Rang',
+                'global' => 'Global Rang',
+            ],
+        ],
+    ],
+
+    'status' => [
+        'non_best' => 'Kun personlige bedste scorer giver pp',
+        'no_pp' => 'pp er ikke tildelt for denne score',
+        'processing' => 'Denne score bliver stadig beregnet og vil snart blive vist',
+        'no_rank' => 'Denne score har ingen rang eftersom det ikke er rangeret eller markeret til sletning',
+    ],
+];

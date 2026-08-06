@@ -1,0 +1,46 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'beatmapset' => [
+        'button' => 'إبلاغ',
+        'title' => 'الإبلاع عن خريطة :username؟',
+    ],
+
+    'beatmapset_discussion_post' => [
+        'button' => 'إبلاغ',
+        'title' => 'الاِبلاغ عن منشور :username؟',
+    ],
+
+    'comment' => [
+        'button' => 'إبلاغ',
+        'title' => 'الاِبلاغ عن تعليق :username؟',
+    ],
+
+    'forum_post' => [
+        'button' => 'إبلاغ',
+        'title' => 'الاِبلاغ عن منشور :username؟',
+    ],
+
+    'message' => [
+        'button' => 'تبليغ',
+        'title' => 'هل تريد التبليغ عن رسالة :username؟',
+    ],
+
+    'scores' => [
+        'button' => 'الاِبلاغ عن النتيجة',
+        'title' => 'الاِبلاغ عن نتيجة :username ؟',
+    ],
+
+    'team' => [
+        'button' => 'الإبلاغ عن فريق',
+        'title' => 'هل تريد الإبلاغ عن فريق :username؟',
+    ],
+
+    'user' => [
+        'button' => 'إبلاغ',
+        'title' => 'الاِبلاغ عن :username؟',
+    ],
+];

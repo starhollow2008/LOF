@@ -1,0 +1,52 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.profile-cover-change-popup {
+  font-size: @font-size--small;
+  text-align: center;
+  display: grid;
+  gap: 10px;
+  position: relative;
+
+  &__defaults {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+
+    gap: 4px;
+  }
+
+  &__selections-info {
+    margin: 10px 0 0;
+    grid-column: 1 ~"/" 3;
+  }
+
+  &__drop-overlay {
+    .default-border-radius();
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-size: 24px;
+    padding: 20px;
+
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+
+    background-color: fade(#000, 50%);
+
+    &--hover {
+      background-color: fade(#000, 70%);
+    }
+
+    // placeholder to prevent triggering dragleave when entering child element
+    &::after {
+      .full-size();
+      content: "";
+    }
+  }
+}

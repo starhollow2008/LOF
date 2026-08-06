@@ -1,0 +1,60 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.user-home-beatmapset {
+  .link-plain();
+  .own-layer();
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  transition: 0.1s;
+  color: @osu-colour-f1;
+
+  padding: 0 var(--padding-x);
+  margin: 0 calc(var(--padding-x) * -1);
+  gap: 10px;
+
+  &:hover {
+    background-color: @osu-colour-b3;
+  }
+
+  &__artist {
+    font-size: 12px;
+    margin-top: -3px;
+  }
+
+  &__chevron {
+    .center-content();
+  }
+
+  &__creator {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: #fff;
+    font-weight: 400;
+    min-width: 0;
+  }
+
+  &__playcount {
+    color: @osu-colour-f1;
+  }
+
+  &__playmode-icon {
+    font-size: @font-size--normal-2;
+    margin-right: 2px;
+  }
+
+  &__title {
+    font-size: @font-size--title-small-3;
+    margin-top: -2px;
+  }
+
+  &__title-container {
+    display: inline-flex;
+  }
+}

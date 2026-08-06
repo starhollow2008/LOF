@@ -1,0 +1,257 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'availability' => [
+        'disabled' => 'このビートマップは現在ダウンロード不可能です。',
+        'parts-removed' => '権利者の申し立てによりこのビートマップは部分的に削除されています。',
+        'more-info' => '詳細はこちらです。',
+        'rule_violation' => 'このビートマップに含まれる一部のアセットは、osu!での使用に適さないと判断され、削除されています。',
+    ],
+
+    'cover' => [
+        'deleted' => '削除されたビートマップ',
+    ],
+
+    'download' => [
+        'limit_exceeded' => 'スピードを落として、もっと遊ぼう。',
+        'no_mirrors' => 'ダウンロードサーバーがありません。',
+    ],
+
+    'featured_artist_badge' => [
+        'label' => '注目アーティスト',
+    ],
+
+    'index' => [
+        'title' => 'ビートマップリスト',
+        'guest_title' => 'ビートマップ',
+    ],
+
+    'panel' => [
+        'empty' => 'ビートマップがありません',
+
+        'download' => [
+            'all' => 'ダウンロード',
+            'video' => '動画ありでダウンロード',
+            'no_video' => '動画なしでダウンロード',
+            'direct' => 'osu!directで開く',
+        ],
+    ],
+
+    'nominate' => [
+        'bng_limited_too_many_rulesets' => '試用期間のノミネーターは複数のゲームモードをノミネートすることはできません。',
+        'full_nomination_required' => 'このゲームモードの最後のノミネートを行うには、フルノミネーターである必要があります。',
+        'hybrid_requires_modes' => 'ハイブリッドビートマップセットでは、少なくとも1つのモードを選択してノミネートする必要があります。',
+        'incorrect_mode' => 'モード:modeでノミネートする権限がありません。',
+        'invalid_limited_nomination' => 'このビートマップには無効なノミネーターが含まれており、この状態では qualified することができません。',
+        'invalid_ruleset' => 'このノミネートには無効なルールセットがあります。',
+        'too_many' => 'ノミネーションの要件を満たしています',
+        'too_many_non_main_ruleset' => 'メインではないルールセットのノミネート条件はすでに満たされています。',
+
+        'dialog' => [
+            'confirmation' => 'このビートマップを本当にノミネートしますか？',
+            'different_nominator_warning' => 'このビートマップを異なるノミネーターで認定すると、認定待ちキューの位置がリセットされます。',
+            'header' => 'ビートマップをノミネート',
+            'hybrid_warning' => '注意: 一度しかノミネートできないので、ノミネートするゲームモードの全てにノミネートするようにしてください。',
+            'current_main_ruleset' => '現在のメインゲームモードは :ruleset です',
+            'which_modes' => 'どのモードをノミネートしますか？',
+        ],
+    ],
+
+    'nsfw_badge' => [
+        'label' => '過激表現を含む',
+    ],
+
+    'show' => [
+        'discussion' => 'ディスカッション',
+
+        'admin' => [
+            'full_size_cover' => 'フルサイズのカバー画像を表示',
+            'page' => '管理ページを表示',
+        ],
+
+        'deleted_banner' => [
+            'title' => 'このビートマップは削除されました。',
+            'message' => '(モデレータのみがこれを見ることができます)',
+        ],
+
+        'details' => [
+            'by_artist' => 'by :artist',
+            'favourite' => 'このビートマップをお気に入りに登録する',
+            'favourite_login' => 'ログインしてこのビートマップをお気に入りに登録する',
+            'logged-out' => 'ビートマップをダウンロードするにはログインが必要です！',
+            'mapped_by' => '作者 :mapper',
+            'mapped_by_guest' => ':mapper によるゲスト難易度',
+            'unfavourite' => 'このビートマップをお気に入りから削除する',
+            'updated_timeago' => '最終更新 :timeago',
+
+            'download' => [
+                '_' => 'ダウンロード',
+                'direct' => '',
+                'no-video' => '動画なし',
+                'video' => '動画あり',
+            ],
+
+            'login_required' => [
+                'bottom' => 'より多くの機能にアクセスする',
+                'top' => 'ログイン',
+            ],
+        ],
+
+        'details_date' => [
+            'approved' => 'approved :timeago',
+            'loved' => 'loved :timeago',
+            'qualified' => 'qualified :timeago',
+            'ranked' => 'ranked :timeago',
+            'submitted' => '投稿 :timeago',
+            'updated' => '最終更新 :timeago',
+        ],
+
+        'favourites' => [
+            'limit_reached' => 'お気に入りのビートマップが多すぎます！お気に入りを外してから再試行してください。',
+        ],
+
+        'hype' => [
+            'action' => 'もしこのビートマップが良かった場合、Hypeすることでビートマップのステータスが<strong>Ranked</strong>状態になります。',
+
+            'current' => [
+                '_' => 'このビートマップは現在:statusです。',
+
+                'status' => [
+                    'pending' => 'Pending',
+                    'qualified' => 'Qualified',
+                    'wip' => '作業中',
+                ],
+            ],
+
+            'disqualify' => [
+                '_' => 'このビートマップで問題が見つかった場合は、Disqualifyにしてください。:link',
+            ],
+
+            'report' => [
+                '_' => 'ビートマップに問題を見つけた場合、:link からチームに報告してください。',
+                'button' => '問題を報告する',
+                'link' => 'ここ',
+            ],
+        ],
+
+        'info' => [
+            'description' => '概要',
+            'genre' => 'ジャンル',
+            'language' => '言語',
+            'mapper_tags' => 'マッパータグ',
+            'no_scores' => 'データはまだ計算中です・・・',
+            'nominators' => 'ノミネーター',
+            'nsfw' => '過激な表現を含むコンテンツ',
+            'offset' => 'オンラインオフセット',
+            'pack_tags' => 'ビートマップパック',
+            'points-of-failure' => '失敗地点',
+            'source' => 'ソース',
+            'storyboard' => 'このビートマップにはストーリーボードが含まれています',
+            'success-rate' => 'クリア率',
+            'success_rate_plays' => ':count_delimited回中 :passes回クリア|:count_delimited回中 :passes回クリア',
+            'user_tags' => 'ユーザータグ',
+            'video' => 'このビートマップには動画が含まれています',
+        ],
+
+        'lazer_only' => [
+            'title' => '',
+            'description' => '',
+
+            'scoreboard_switch_mode' => [
+                '_' => '',
+                'enable_link' => '',
+            ],
+        ],
+
+        'nsfw_warning' => [
+            'details' => 'このビートマップには過激な表現、攻撃的、または不穏なコンテンツが含まれています。それでも表示しますか？',
+            'title' => '過激な表現を含むコンテンツ',
+
+            'buttons' => [
+                'disable' => '警告を無効にする',
+                'listing' => 'ビートマップリスト',
+                'show' => '表示',
+            ],
+        ],
+
+        'scoreboard' => [
+            'achieved' => '達成日 :when',
+            'country' => '国別ランキング',
+            'error' => 'ランキングの読み込みに失敗しました',
+            'friend' => 'フレンドランキング',
+            'global' => '世界ランキング',
+            'supporter-link' => '<a href=":link">ここ</a>をクリックする事でosu!サポーターの詳細が見れます。',
+            'supporter-only' => 'フレンドランキングと国別ランキングを利用するにはosu!サポータータグが必要です！',
+            'team' => 'チームランキング',
+            'title' => 'スコアボード',
+
+            'headers' => [
+                'accuracy' => '精度',
+                'combo' => '最大コンボ',
+                'miss' => 'ミス',
+                'mods' => 'Mods',
+                'pin' => 'ピン留め',
+                'player' => 'プレイヤー',
+                'pp' => '',
+                'rank' => '順位',
+                'score' => 'スコア',
+                'score_total' => '合計スコア',
+                'time' => '時間',
+            ],
+
+            'no_scores' => [
+                'country' => 'あなたの国のプレイヤーで記録を作った人はまだいません！',
+                'friend' => 'あなたのフレンドで記録を作った人はまだいません！',
+                'global' => 'まだ記録はありません。一番乗りを目指そう！',
+                'loading' => 'スコアの読み込み中・・・',
+                'team' => 'あなたのチームのプレイヤーで記録を作った人はまだいません！',
+                'unranked' => 'Unrankedのビートマップです。',
+            ],
+            'score' => [
+                'first' => 'リード',
+                'own' => 'あなたのベスト',
+            ],
+            'supporter_link' => [
+                '_' => 'osu!サポーターの詳細を見るには:hereしてください。',
+                'here' => 'こちらをクリック',
+            ],
+        ],
+
+        'stats' => [
+            'cs' => 'サークルサイズ',
+            'cs-mania' => 'キー数',
+            'drain' => 'HPの厳しさ',
+            'accuracy' => '精度',
+            'ar' => 'アプローチ速度',
+            'stars' => '難易度（★）',
+            'total_length' => '長さ (Drainの長さ: :hit_length)',
+            'bpm' => 'BPM',
+            'count_circles' => 'サークルの数',
+            'count_sliders' => 'スライダーの数',
+            'offset' => 'オフセット :offset',
+            'user-rating' => 'ユーザーの評価',
+            'rating-spread' => '評価分布',
+            'nominations' => 'ノミネーション',
+            'playcount' => 'プレイ数',
+            'favourites' => 'お気に入り',
+            'no_favourites' => 'お気に入りはまだありません',
+        ],
+
+        'status' => [
+            'ranked' => 'Ranked',
+            'approved' => 'Approved',
+            'loved' => 'Loved',
+            'qualified' => 'Qualified',
+            'wip' => 'WIP',
+            'pending' => 'Pending',
+            'graveyard' => 'Graveyard',
+        ],
+    ],
+
+    'spotlight_badge' => [
+        'label' => 'スポットライト',
+    ],
+];

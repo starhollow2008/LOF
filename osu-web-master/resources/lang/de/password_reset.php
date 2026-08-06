@@ -1,0 +1,49 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'button' => [
+        'resend' => 'Bestätigungsmail erneut senden',
+        'set' => 'Passwort festlegen',
+        'start' => 'Starten',
+    ],
+
+    'error' => [
+        'contact_support' => 'Bitte wende dich zur Accountwiederherstellung an den Support.',
+        'expired' => 'Bestätigungscode ist abgelaufen.',
+        'invalid' => 'Unerwarteter Fehler im Bestätigungscode.',
+        'is_privileged' => 'Bitte kontaktiere einen hochrangigen Administrator, um deinen Account wiederherzustellen.',
+        'missing_key' => 'Erforderlich.',
+        'too_many_requests' => 'Das Limit zur Zurücksetzung des Passworts wurde erreicht. Bitte kontaktiere den Support, um das Konto wiederherzustellen.',
+        'too_many_tries' => 'Zu viele fehlgeschlagene Versuche.',
+        'user_not_found' => 'Angeforderter Benutzer existiert nicht.',
+        'wait_resend' => 'Bitte habe etwas Geduld.',
+        'wrong_key' => 'Falscher Code.',
+    ],
+
+    'notice' => [
+        'sent' => 'Der Bestätigungscode wurde dir per E-Mail gesendet.',
+        'saved' => 'Neues Passwort gespeichert!',
+    ],
+
+    'started' => [
+        'password' => 'Neues Passwort',
+        'password_confirmation' => 'Passwortbestätigung',
+        'title' => 'Passwort für den Account <strong>:username</strong> zurücksetzen.',
+        'verification_key' => 'Bestätigungscode',
+    ],
+
+    'starting' => [
+        'username' => 'Benutzername oder E-Mail eingeben',
+
+        'reason' => [
+            'inactive_different_country' => "Dein Konto wurde seit langem nicht mehr verwendet. Setze bitte dein Passwort zurück, um die Sicherheit deines Accounts zu gewährleisten.",
+        ],
+        'support' => [
+            '_' => 'Benötigst du weitere Hilfe? Kontaktiere uns über unser :button.',
+            'button' => 'Supportsystem',
+        ],
+    ],
+];

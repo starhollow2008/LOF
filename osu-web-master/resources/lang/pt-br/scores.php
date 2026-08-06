@@ -1,0 +1,35 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'show' => [
+        'non_preserved' => 'Esta pontuação está marcada para exclusão e desaparecerá em breve.',
+        'title' => ':username em :title [:version]',
+
+        'beatmap' => [
+            'by' => 'por :artist',
+        ],
+
+        'player' => [
+            'by' => 'Jogado por',
+            'played_on' => 'Jogado no',
+            'submitted_on' => 'Enviado em',
+            'watched' => 'Assistido',
+            'watched_count' => ':count_delimited vez|:count_delimited vezes',
+
+            'rank' => [
+                'country' => 'Classificação nacional',
+                'global' => 'Ranking Global',
+            ],
+        ],
+    ],
+
+    'status' => [
+        'non_best' => 'Apenas as melhores pontuações pessoais dão pp',
+        'no_pp' => 'pp não é concedido para esta pontuação',
+        'processing' => 'Esta pontuação ainda está sendo calculada e será exibida em breve',
+        'no_rank' => 'Esta pontuação não tem nenhum ranque, pois não é ranqueada ou é marcada para exclusão',
+    ],
+];

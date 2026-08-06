@@ -1,0 +1,40 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'error' => [
+        'chat' => [
+            'empty' => 'Kan geen leeg bericht verzenden.',
+            'limit_exceeded' => 'Je stuurt te snel berichten, wacht even voordat je het weer probeert.',
+            'too_long' => 'Het bericht dat u probeert te verzenden, is te lang.',
+        ],
+    ],
+
+    'scopes' => [
+        'bot' => 'Handel als een chatbot.',
+        'identify' => 'Identificeer je en lees je openbare profiel.',
+
+        'chat' => [
+            'read' => 'Berichten namens jou lezen.',
+            'write' => 'Berichten namens jou verzenden.',
+            'write_manage' => 'Doe mee en verlaat kanalen namens jou.',
+        ],
+
+        'forum' => [
+            'write' => 'Maak en bewerk forumonderwerpen en berichten namens u.',
+            'write_manage' => 'Beheer forum onderwerpen en berichten namens jou.',
+        ],
+
+        'friends' => [
+            'read' => 'Zie wie u volgt.',
+        ],
+
+        'multiplayer' => [
+            'write_manage' => 'Creëer en beheer multiplayer ruimtes namens jou.',
+        ],
+
+        'public' => 'Openbare gegevens lezen namens jou.',
+    ],
+];

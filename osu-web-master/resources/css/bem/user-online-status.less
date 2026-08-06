@@ -1,0 +1,23 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.user-online-status {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 20px;
+
+  &__chart {
+    height: 50px;
+    grid-column: 1 / -1;
+  }
+
+  &__label {
+    font-size: @font-size--small;
+    font-weight: 400;
+  }
+
+  &__value {
+    color: @osu-colour-l1;
+    font-size: @font-size--title-small-2;
+  }
+}

@@ -1,0 +1,101 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.user-home {
+  .default-box-shadow();
+  display: flex;
+  background: @osu-colour-b5;
+  flex-direction: column;
+
+  @media @desktop {
+    padding: 0 @gutter-v2-desktop;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  &__beatmap-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0;
+    padding: 20px 0 10px;
+    font-size: @font-size--title-small-3;
+    color: @osu-colour-l1;
+    font-weight: bold;
+  }
+
+  &__beatmapsets {
+    display: grid;
+    gap: 10px;
+    font-size: @font-size--normal;
+  }
+
+  &__buttons {
+    display: grid;
+    gap: 10px;
+  }
+
+  &__left-section {
+    padding-bottom: 20px;
+    flex: none;
+    width: 100%;
+
+    @media @desktop {
+      margin-right: 10px;
+      width: calc(60% - 10px);
+    }
+  }
+
+  &__left-title {
+    margin: 0;
+    padding: 20px 0 10px @gutter-v2;
+    font-size: @font-size--large;
+    font-weight: bold;
+    color: @osu-colour-l1;
+
+    display: flex;
+    align-items: flex-end;
+
+    @media @desktop {
+      padding-left: 0;
+    }
+  }
+
+  &__news-posts-group {
+    .default-box-shadow();
+    display: block;
+    padding: 5px 0;
+    background-color: @osu-colour-b4;
+    margin-bottom: 5px;
+
+    &--more {
+      .link-plain();
+      .link-hover({ color: white });
+      color: @osu-colour-l1;
+      padding: 20px;
+      text-align: center;
+    }
+  }
+
+  &__right-sidebar {
+    --padding-x: 20px;
+    background-color: @osu-colour-b4;
+    width: 100%;
+    margin: 0;
+    padding: 20px var(--padding-x);
+
+    @media @desktop {
+      .default-box-shadow();
+      --padding-x: 10px;
+      margin-left: 10px;
+      margin-bottom: 10px;
+      width: calc(40% - 10px);
+      padding-bottom: 10px;
+    }
+  }
+
+  &__status-box {
+    padding-bottom: 20px;
+  }
+}

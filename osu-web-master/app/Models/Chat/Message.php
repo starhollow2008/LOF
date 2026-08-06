@@ -1,0 +1,194 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+namespace App\Models\Chat;
+
+use App\Jobs\Notifications\ChannelAnnouncement;
+use App\Jobs\Notifications\ChannelMention;
+use App\Jobs\Notifications\ChannelMessage;
+use App\Jobs\Notifications\ChannelTeam;
+use App\Libraries\UsernameValidation;
+use App\Models\Traits\Reportable;
+use App\Models\Traits\ReportableInterface;
+use App\Models\User;
+use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+
+/**
+ * @property Channel $channel
+ * @property int $channel_id
+ * @property string $content
+ * @property bool $is_action
+ * @property int $message_id
+ * @property User $sender
+ * @property \Carbon\Carbon $timestamp
+ * @property int $user_id
+ */
+class Message extends Model implements ReportableInterface
+{
+    use Reportable;
+
+    public ?string $uuid = null;
+
+    protected $primaryKey = 'message_id';
+    protected $casts = [
+        'is_action' => 'boolean',
+        'timestamp' => 'datetime',
+    ];
+
+    public static function filter(iterable $messages, Channel $channel, ?int $userId): iterable
+    {
+        return static::filterUserCommands(static::filterBacklogs($messages, $channel), $userId);
+    }
+
+    private static function filterBacklogs(iterable $messages, Channel $channel): iterable
+    {
+        if (!$channel->isPublic()) {
+            return $messages;
+        }
+
+        $minTimestamp = json_time(Carbon::now()->subHours($GLOBALS['cfg']['osu']['chat']['public_backlog_limit']));
+        $ret = [];
+
+        foreach ($messages as $message) {
+            if ($message->timestamp_json > $minTimestamp) {
+                $ret[] = $message;
+            }
+        }
+
+        return $ret;
+    }
+
+    private static function filterUserCommands(iterable $messages, ?int $userId): iterable
+    {
+        $ret = [];
+        foreach ($messages as $message) {
+            if ($message->user_id === $userId || !$message->isUserCommand()) {
+                $ret[] = $message;
+            }
+        }
+
+        return $ret;
+    }
+
+    public function channel()
+    {
+        return $this->belongsTo(Channel::class, 'channel_id');
+    }
+
+    public function sender()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function scopeSince($query, $messageId)
+    {
+        return $query->where('message_id', '>', $messageId);
+    }
+
+    public function getAttribute($key)
+    {
+        return match ($key) {
+            'channel_id',
+            'content',
+            'message_id',
+            'user_id' => $this->getRawAttribute($key),
+
+            'is_action' => (bool) $this->getRawAttribute($key),
+
+            'timestamp' => $this->getTimeFast($key),
+
+            'timestamp_json' => $this->getJsonTimeFast($key),
+
+            'channel',
+            'reportedIn',
+            'sender' => $this->getRelationValue($key),
+        };
+    }
+
+    public function dispatchNotification(): void
+    {
+        if ($this->isUserCommand()) {
+            return;
+        }
+
+        $channelType = $this->channel->type;
+        $class = match ($channelType) {
+            Channel::TYPES['announce'] => ChannelAnnouncement::class,
+            Channel::TYPES['pm'] => ChannelMessage::class,
+            Channel::TYPES['team'] => ChannelTeam::class,
+            default => null,
+        };
+
+        if ($class !== null) {
+            new $class($this, $this->sender)->dispatch();
+        }
+
+        if ($channelType === Channel::TYPES['public'] && $this->mayContainMention()) {
+            new ChannelMention($this, $this->sender)->dispatch();
+        }
+    }
+
+    public function isUserCommand(): bool
+    {
+        return preg_match('/^![^ !]/', $this->content ?? '') === 1;
+    }
+
+    public function mayContainMention(): bool
+    {
+        return strpos($this->content, '@') !== false;
+    }
+
+    public function mention(): ?string
+    {
+        static $chars = UsernameValidation::ALLOWED_CHARACTERS;
+
+        preg_match("/(?<=^|\s|'|\"|,|\.|\/)(?:@([{$chars}]+))/", $this->content, $match);
+
+        if (isset($match[1])) {
+            $length = strlen($match[1]);
+
+            if ($length >= UsernameValidation::LENGTH_MIN && $length <= UsernameValidation::LENGTH_MAX) {
+                return $match[1];
+            }
+        }
+
+        return null;
+    }
+
+    public function reportableAdditionalInfo(): ?string
+    {
+        $history = static
+            ::where('message_id', '<=', $this->getKey())
+            ->whereHas('channel', fn ($ch) => $ch->where('type', '<>', Channel::TYPES['pm']))
+            ->where('user_id', $this->user_id)
+            ->where('timestamp', '>', CarbonImmutable::now()->subDays(1))
+            ->orderBy('timestamp', 'DESC')
+            ->with('channel')
+            ->limit(5)
+            ->get()
+            ->map(fn ($m) => "**<t:{$m->timestamp->timestamp}:R> {$m->channel->name}:**\n{$m->content}\n")
+            ->reverse()
+            ->join("\n");
+
+        $channel = $this->channel;
+        $header = 'Reported in: '.($channel->isPM() ? 'pm' : '**'.$channel->name.'** ('.strtolower($channel->type).')');
+
+        return "{$header}\n\n{$history}";
+    }
+
+    public function trashed(): bool
+    {
+        return false;
+    }
+
+    protected function newReportableExtraParams(): array
+    {
+        return [
+            'reason' => 'Spam',
+            'user_id' => $this->user_id,
+        ];
+    }
+}

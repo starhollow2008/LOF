@@ -1,0 +1,114 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.ranking-page-table {
+  .own-layer();
+  width: 100%;
+  white-space: nowrap;
+  text-align: center;
+  border-spacing: 0px 3px;
+  border-collapse: separate;
+  --grade-min-width: 0px;
+
+  &--kudosu {
+    --grade-min-width: 120px;
+  }
+
+  &__column {
+    background: var(--bg);
+    padding: 6px 5px;
+
+    &--dimmed {
+      color: @osu-colour-f1;
+    }
+
+    each({
+      down: @fa-var-arrow-down, hsl(var(--hsl-red-1));
+      none: '', hsl(var(--hsl-f1));
+      pending: @fa-var-ellipsis-h, hsl(var(--hsl-f1));
+      up: @fa-var-arrow-up, hsl(var(--hsl-lime-1));
+    }, {
+      &--rank-change-@{key} {
+        --icon: extract(@value, 1);
+        color: extract(@value, 2);
+      }
+    });
+
+    &--rank-change {
+      text-align: start;
+
+      &::before {
+        .fas();
+        .fa-fw();
+        content: var(--icon);
+      }
+    }
+
+    &--main {
+      max-width: 500px;
+      min-width: 200px;
+    }
+
+    &:first-child {
+      border-top-left-radius: @border-radius-base;
+      border-bottom-left-radius: @border-radius-base;
+      padding-left: 10px;
+    }
+
+    &:last-child {
+      border-top-right-radius: @border-radius-base;
+      border-bottom-right-radius: @border-radius-base;
+      padding-right: 10px;
+    }
+  }
+
+  &__heading {
+    font-weight: normal;
+    color: hsl(var(--hsl-f1));
+    padding: 6px 5px;
+    text-align: center;
+
+    &:first-child {
+      padding-left: 10px;
+    }
+
+    &:last-child {
+      padding-right: 10px;
+    }
+
+    &--focused {
+      color: hsl(var(--hsl-c1));
+    }
+
+    &--grade {
+      padding-left: 20px;
+      padding-right: $padding-left;
+
+      @media @desktop {
+        min-width: var(--grade-min-width);
+      }
+    }
+
+    &--main {
+      width: 100%;
+    }
+  }
+
+  &__row {
+    --bg: hsl(var(--hsl-b4));
+
+    &--inactive {
+      opacity: 0.5;
+    }
+
+    &:hover {
+      --bg: hsl(var(--hsl-b3));
+    }
+  }
+
+  &__value {
+    &--perfect {
+      color: hsl(@beatmap-score--hsl-perfect);
+    }
+  }
+}

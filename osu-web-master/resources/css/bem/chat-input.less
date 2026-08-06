@@ -1,0 +1,56 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.chat-input {
+  color: white;
+  position: absolute;
+  bottom: 0;
+
+  background: linear-gradient(
+    to bottom,
+    hsla(var(--hsl-b4), 0),
+    hsla(var(--hsl-b4), 0.95) 40%,
+    hsla(var(--hsl-b4), 0.95) 100%
+  );
+  // this prevents the gradient drawing over the browser's scroll-bar
+  width: calc(100% - 20px);
+  padding: 10px 30px 15px 50px;
+
+  align-items: center;
+  display: flex;
+  gap: 10px;
+
+  @media @mobile {
+    position: fixed;
+    font-size: 16px;
+    padding-right: 0;
+    padding-left: 20px;
+  }
+
+  &__box {
+    .reset-input();
+    .default-border-radius();
+    .default-box-shadow();
+    background: @osu-colour-b6;
+    padding: 10px;
+    font-family: @font-content;
+    resize: none;
+
+    &::placeholder {
+      color: @osu-colour-f1;
+    }
+
+    &--disabled {
+      opacity: 0.8;
+    }
+  }
+
+  &__box-container {
+    position: relative;
+    display: grid;
+    max-height: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 1;
+  }
+}

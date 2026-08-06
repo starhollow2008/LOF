@@ -1,0 +1,39 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'load_failed' => 'Misslyckades att ladda data.',
+    'missing_route' => 'Ogiltig url eller felaktig metod av begäran.',
+    'no_restricted_access' => 'Du kan inte utföra denna åtgärd medan ditt konto är begränsat.',
+    'param_too_large' => ':name parameter har ett maximum av:count_delimited artikel|:name parameter har ett maximum av :count_delimited artiklar',
+    'supporter_only' => 'Du måste vara en osu!supporter för att använda denna funktion.',
+    'unknown' => 'Okänt fel uppstod.',
+
+    'codes' => [
+        'http-401' => 'Var vänlig logga in för att fortsätta.',
+        'http-403' => 'Åtkomst nekad.',
+        'http-404' => 'Hittades inte.',
+        'http-429' => 'För många försök. Försök igen senare.',
+    ],
+    'account' => [
+        'profile-order' => [
+            'generic' => 'Ett fel uppstod. Försök att ladda om sidan.',
+        ],
+    ],
+    'checkout' => [
+        'generic' => 'Ett fel inträffade när din transaktion förbereddes.',
+    ],
+    'scores' => [
+        'invalid_id' => 'Ogiltigt poäng id.',
+    ],
+    'search' => [
+        'default' => 'Kunde inte få några resultat, försök igen senare.',
+        'invalid_cursor_exception' => 'Ogiltig markörparameter angiven.',
+        'operation_timeout_exception' => 'Sökfunktionen är för närvarande mer upptagen än vanligt, försök igen senare.',
+    ],
+    'user_report' => [
+        'recently_reported' => "Du har redan rapporterat det här nyligen.",
+    ],
+];

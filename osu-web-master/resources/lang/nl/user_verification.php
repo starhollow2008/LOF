@@ -1,0 +1,47 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'box' => [
+        'sent' => 'Een e-mail is gestuurd naar :mail met een bevestigingscode. Vul de code in.',
+        'title' => 'Accountverificatie',
+        'verifying' => 'Verifiëren...',
+        'issuing' => 'Nieuwe code versturen...',
+
+        'info' => [
+            'check_spam' => "Controleer zeker je spam folder als je de e-mail niet terugvindt.",
+            'recover' => "Als je je e-mail niet kan bereiken of je bent vergeten wat je hebt gebruikt, volg dan de :link.",
+            'recover_link' => 'e-mail herstelproces hier',
+            'reissue' => 'Je kan ook :reissue_link of :logout_link.',
+            'reissue_link' => 'vraag een andere code aan',
+            'logout_link' => 'uitloggen',
+        ],
+    ],
+
+    'box_totp' => [
+        'heading' => 'Voer de code van uw Authenticator App in.',
+
+        'info' => [
+            'logout' => [
+                '_' => 'Je kan ook :link.',
+                'link' => 'uitloggen',
+            ],
+            'mail_fallback' => [
+                '_' => 'Als je je app niet kan openen, :link.',
+                'link' => 'je kunt via e-mail verifiëren in plaats daarvan',
+            ],
+        ],
+    ],
+
+    'errors' => [
+        'expired' => 'Verificatiecode is verlopen, nieuwe verificatie e-mail verstuurd.',
+        'incorrect_key' => 'Onjuiste verificatiecode.',
+        'retries_exceeded' => 'Onjuiste verificatiecode. Limiet opnieuw proberen overschreden, nieuwe verificatie e-mail verstuurd.',
+        'reissued' => 'Verificatiecode is hermaakt, nieuwe verificatie e-mail verstuurd.',
+        'totp_used_key' => 'Verificatiecode is al gebruikt. Wacht even en gebruik een nieuwe.',
+        'totp_gone' => 'Verificatie token is verwijderd, schakel over naar email verificatie. Verificatie email is verzonden.',
+        'unknown' => 'Onbekend probleem trad op, nieuwe verificatie e-mail verstuurd.',
+    ],
+];

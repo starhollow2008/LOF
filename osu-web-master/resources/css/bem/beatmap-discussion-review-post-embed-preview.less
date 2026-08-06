@@ -1,0 +1,160 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.beatmap-discussion-review-post-embed-preview {
+  @_top: beatmap-discussion-review-post-embed-preview;
+
+  --stripe-colour: hsl(var(--hsl-b5));
+  padding: 5px 10px;
+  flex: 1;
+  min-width: 0;
+  margin: 5px 0;
+  display: flex;
+  flex-direction: column;
+  background-color: @osu-colour-b4;
+  overflow: hidden;
+
+  .default-box-shadow();
+  .default-border-radius();
+
+  &--lighter {
+    --stripe-colour: hsl(var(--hsl-b4));
+  }
+
+  &--praise {
+    --stripe-colour: hsl(var(--hsl-blue-3));
+  }
+
+  &--resolved {
+    --stripe-colour: hsl(var(--hsl-lime-3));
+  }
+
+  &__content {
+    display: flex;
+    align-items: flex-start;
+
+    @media @mobile {
+      flex-direction: column;
+    }
+  }
+
+  &__delete {
+    .reset-input();
+    height: 32px;
+    user-select: none; // workaround for slatejs 'Cannot resolve a Slate point from DOM point' nonsense
+    padding: 5px;
+    margin-left: 10px;
+    color: @osu-colour-f1;
+    opacity: 0.5;
+    margin-top: 10px;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &__indicator {
+    align-self: center;
+    color: @osu-colour-blue-3;
+    margin-left: 10px;
+    user-select: none; // workaround for slatejs 'Cannot resolve a Slate point from DOM point' nonsense
+
+    &--warning {
+      color: @osu-colour-orange-3;
+    }
+
+    .@{_top}__selectors > & {
+      @media @desktop {
+        display: none;
+      }
+    }
+
+    .@{_top}__content > & {
+      @media @mobile {
+        display: none;
+      }
+    }
+  }
+
+  &__link {
+    padding: 5px;
+
+    .@{_top}__selectors > & {
+      @media @desktop {
+        display: none;
+      }
+    }
+
+    .@{_top}__content > & {
+      @media @mobile {
+        display: none;
+      }
+    }
+  }
+
+  &__link-text {
+    color: @osu-colour-f1;
+
+    .link-plain();
+    .link-hover({
+      color: @osu-colour-c1;
+    });
+  }
+
+  &__message-container {
+    flex: 1;
+    word-break: break-word;
+    margin: 5px 0;
+  }
+
+  &__missing {
+    flex: 1;
+    margin: 10px;
+    text-align: center;
+    color: @osu-colour-f1;
+  }
+
+  &__selectors {
+    align-items: center;
+    display: flex;
+    user-select: none; // workaround for slatejs 'Cannot resolve a Slate point from DOM point' nonsense
+
+    @media @desktop {
+      width: 130px;
+    }
+
+    @media @mobile {
+      width: 100%;
+    }
+  }
+
+  &__stripe {
+    background-color: var(--stripe-colour);
+    border-radius: 5px;
+    display: flex;
+    margin: 0 15px;
+    padding: 0;
+    user-select: none; // workaround for slatejs 'Cannot resolve a Slate point from DOM point' nonsense
+    width: 2px;
+    align-self: stretch;
+
+    .@{_top}__selectors > & {
+      @media @desktop {
+        display: none;
+      }
+    }
+
+    .@{_top}__content > & {
+      @media @mobile {
+        display: none;
+      }
+    }
+  }
+
+  &__timestamp {
+    color: @osu-colour-f1;
+    font-size: 9px;
+    user-select: none; // workaround for slatejs 'Cannot resolve a Slate point from DOM point' nonsense
+    flex-grow: 1;
+  }
+}

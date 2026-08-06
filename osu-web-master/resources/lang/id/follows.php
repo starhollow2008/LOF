@@ -1,0 +1,42 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'comment' => [
+        'empty' => 'Tidak ada komentar yang diikuti.',
+        'page_title' => 'komentar yang diikuti',
+        'title' => 'komentar',
+
+        'table' => [
+            'latest_comment_empty' => 'belum ada komentar',
+            'latest_comment_value' => ':time oleh :username',
+        ],
+    ],
+
+    'forum_topic' => [
+        'title' => 'topik forum',
+    ],
+
+    'index' => [
+        'title_compact' => 'daftar pengamatan',
+    ],
+
+    'mapping' => [
+        'empty' => 'Kamu tidak sedang mengikuti siapa pun.',
+        'followers' => 'pengikut mapping',
+        'page_title' => 'mapper yang diikuti',
+        'title' => 'mapper',
+        'to_0' => 'jangan beritahukan saya lagi pada saat pengguna ini mengunggah beatmap baru',
+        'to_1' => 'beritahukan saya pada saat pengguna ini mengunggah beatmap baru',
+    ],
+
+    'modding' => [
+        'title' => 'diskusi beatmap',
+    ],
+
+    'store' => [
+        'too_many' => 'Batas pengikutan tercapai.',
+    ],
+];

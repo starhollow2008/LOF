@@ -1,0 +1,116 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.tooltip-achievement {
+  --padding-x: 16px;
+  width: 100%;
+  text-align: center;
+  line-height: 1;
+  font-size: @font-size--normal;
+
+  &__achieved {
+    padding: 16px var(--padding-x);
+    display: grid;
+    gap: 8px;
+  }
+
+  &__badge {
+    .center-content();
+    font-size: 72px; // icon size
+  }
+
+  &__date {
+    color: hsl(var(--hsl-c2));
+    opacity: 0.5;
+  }
+
+  &__description {
+    font-size: @font-size--title-small;
+    color: hsl(var(--hsl-c2));
+  }
+
+  &__detail {
+    transition: opacity 500ms;
+    min-height: 90px;
+    grid-area: content;
+    display: grid;
+    gap: 16px;
+    overflow-wrap: anywhere;
+
+    &--hover {
+      opacity: var(--opacity-detail-hover);
+      pointer-events: var(--pointer-events-detail-hover);
+    }
+
+    &--normal {
+      opacity: var(--opacity-detail-normal);
+      pointer-events: var(--pointer-events-detail-normal);
+    }
+  }
+
+  &__detail-container {
+    display: grid;
+    grid-template-areas: "content";
+    line-height: normal;
+  }
+
+  &__grouping {
+    color: hsl(var(--hsl-c2));
+    padding: 8px var(--padding-x);
+  }
+
+  &__instructions {
+    color: hsl(var(--hsl-l1));
+    font-size: @font-size--title-small;
+    font-weight: 300;
+
+    a {
+      .link-white();
+    }
+
+    // FIXME: update database and remove <i>
+    i {
+      font-style: normal;
+    }
+  }
+
+  &__middle {
+    border-radius: var(--border-radius);
+    background: hsl(var(--hsl-b5));
+    display: grid;
+    gap: 16px;
+    padding: 16px var(--padding-x);
+
+    &--hoverable {
+      --opacity-detail-hover: 0;
+      --opacity-detail-normal: 1;
+      --pointer-events-detail-hover: none;
+      --pointer-events-detail-normal: auto;
+
+      &:hover {
+        --opacity-detail-hover: 1;
+        --opacity-detail-normal: 0;
+        --pointer-events-detail-hover: auto;
+        --pointer-events-detail-normal: none;
+      }
+    }
+  }
+
+  &__name {
+    font-size: @font-size--title;
+    font-weight: 400;
+  }
+
+  &__rarity {
+    width: max-content;
+    margin: 0 auto;
+    // rightmost letter has extra padding from letter-spacing
+    padding: 4px calc(16px - $letter-spacing) 4px 16px;
+    background: linear-gradient(var(--bg));
+    border-radius: 10000px;
+    color: hsl(var(--hsl-b6));
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 0.2em;
+  }
+}

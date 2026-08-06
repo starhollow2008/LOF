@@ -1,0 +1,39 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+return [
+    'load_failed' => 'Tải dữ liệu thất bại.',
+    'missing_route' => 'Url không hợp lệ hoặc phương pháp yêu cầu không chính xác.',
+    'no_restricted_access' => 'Không thể thực hiện hành động do tài khoản của bạn đang bị hạn chế.',
+    'param_too_large' => 'Tham số :name có tối đa :count_delimited mục|Tham số :name có tối đa :count_delimited mục',
+    'supporter_only' => 'Bạn phải là một osu!supporter để sử dụng tính năng này.',
+    'unknown' => 'Đã xảy ra lỗi không xác định.',
+
+    'codes' => [
+        'http-401' => 'Vui lòng đăng nhập để tiếp tục.',
+        'http-403' => 'Truy cập bị từ chối.',
+        'http-404' => 'Không tìm thấy.',
+        'http-429' => 'Quá nhiều lần thử. Thử lại sau.',
+    ],
+    'account' => [
+        'profile-order' => [
+            'generic' => 'Đã xảy ra lỗi. Vui lòng thử tải lại trang.',
+        ],
+    ],
+    'checkout' => [
+        'generic' => 'Đã xảy ra lỗi trong quá trình thanh toán cho đơn hàng của bạn.',
+    ],
+    'scores' => [
+        'invalid_id' => 'Id điểm không hợp lệ.',
+    ],
+    'search' => [
+        'default' => 'Không có kết quả, vui lòng thử lại sau.',
+        'invalid_cursor_exception' => 'Tham số con trỏ được chỉ định là không hợp lệ.',
+        'operation_timeout_exception' => 'Hệ thống tìm kiếm đang quá tải, vui lòng thử lại sau.',
+    ],
+    'user_report' => [
+        'recently_reported' => "Bạn đã báo cáo gần đây rồi.",
+    ],
+];

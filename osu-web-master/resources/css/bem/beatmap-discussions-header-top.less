@@ -1,0 +1,119 @@
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+.beatmap-discussions-header-top {
+  .default-box-shadow();
+  background-color: @osu-colour-b2;
+  --box-height: 50px;
+  --gutter: @gutter-beatmapset;
+
+  @media @desktop {
+    --gutter: @gutter-beatmapset-desktop;
+  }
+
+  &__basic-stats {
+    grid-area: stats;
+    padding: 10px 10px 0;
+  }
+
+  &__beatmap-stats {
+    position: relative;
+    display: grid;
+    grid-template-areas: "owners stats" "chart chart";
+    grid-template-columns: 1fr auto;
+    background-color: hsl(var(--hsl-b4));
+
+    @media @narrow {
+      grid-template-areas: "stats" "owners" "chart";
+    }
+  }
+
+  &__chart {
+    grid-area: chart;
+  }
+
+  &__content {
+    position: relative;
+    padding: 70px var(--gutter) 0;
+  }
+
+  &__cover {
+    --border-radius: 0;
+    .light-header-overlay();
+  }
+
+  &__title-container {
+    .default-text-shadow();
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    position: relative;
+  }
+
+  &__filter-group {
+    min-width: 0;
+    flex: 1 1 auto;
+
+    & + & {
+      margin-top: 10px;
+    }
+
+    @media @desktop {
+      align-self: flex-end;
+
+      & + & {
+        margin-top: 0;
+      }
+
+      &--stats {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+      }
+    }
+  }
+
+  &__filters {
+    display: flex;
+    margin: 10px 0;
+    flex-direction: column;
+    position: relative;
+
+    @media @desktop {
+      justify-content: space-between;
+      flex-direction: row;
+    }
+  }
+
+  &__owners {
+    grid-area: owners;
+    font-size: @font-size--title-small;
+    padding: 10px 10px 0;
+    overflow-wrap: anywhere;
+  }
+
+  &__stats {
+    flex: none;
+    margin: 5px -5px;
+    display: flex;
+    flex-wrap: wrap;
+
+    @media @desktop {
+      margin-bottom: -5px;
+      margin-left: 5px;
+    }
+  }
+
+  &__title {
+    color: inherit;
+    margin: 0;
+    font-size: @font-size--title;
+    font-weight: 600;
+
+    &--artist {
+      font-size: @font-size--title-small-2;
+      font-weight: normal;
+    }
+  }
+}

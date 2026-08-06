@@ -1,0 +1,98 @@
+<?php
+
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the GNU Affero General Public License v3.0.
+// See the LICENCE file in the repository root for full licence text.
+
+namespace App\Mail;
+
+use App\Exceptions\InvalidNotificationException;
+use App\Jobs\Notifications\BroadcastNotificationBase;
+use App\Jobs\Notifications\NewsPostNew;
+use App\Models\NewsPost;
+use App\Models\Notification;
+use App\Models\User;
+use Illuminate\Mail\Mailable;
+
+// Not queueable to avoid trap of too many serialize/unserialize.
+// Paired with App\Jobs\UserNotificationDigest
+class UserNotificationDigest extends Mailable
+{
+    private array $groups = [];
+    private array $news = [];
+
+    /**
+     * Create a new message instance.
+     *
+     * @return void
+     */
+    public function __construct(private array $notifications, private User $user)
+    {
+    }
+
+    private function addToGroups(Notification $notification)
+    {
+        try {
+            $class = BroadcastNotificationBase::getNotificationClassFromNotification($notification);
+            $link = $class::getMailLink($notification);
+
+            if ($class === NewsPostNew::class) {
+                // group news by category
+                $details = $notification->details;
+                $details['link'] = $link;
+                $this->news[$details['series']][] = $details;
+
+                return;
+            }
+
+            $baseKey = 'notifications.mail.'.$class::getMailBaseKey($notification);
+            $key = $class::getMailGroupingKey($notification);
+
+            if (!isset($this->groups[$key])) {
+                // remove anything not a string because trans doesn't like it.
+                $details = array_filter($notification->details ?? [], is_string(...));
+
+                if (
+                    $this->user->getKey() === $notification->source_user_id
+                    && trans_exists("{$baseKey}_self", app()->getLocale())
+                ) {
+                    $baseKey = "{$baseKey}_self";
+                }
+
+                $this->groups[$key] = [
+                    'text' => osu_trans($baseKey, $details),
+                ];
+            }
+
+            $this->groups[$key]['links'][$link] = '';
+        } catch (InvalidNotificationException $e) {
+            log_error($e);
+        }
+    }
+
+    /**
+     * Build the message.
+     *
+     * @return $this
+     */
+    public function build()
+    {
+        foreach ($this->notifications as $notification) {
+            $this->addToGroups($notification);
+        }
+
+        $news = [];
+        foreach (NewsPost::SERIES as $series) {
+            if (isset($this->news[$series])) {
+                $news[$series] = $this->news[$series];
+            }
+        }
+
+        return $this
+            ->text('emails.user_notification_digest', [
+                'groups' => array_values($this->groups),
+                'news' => $news,
+                'user' => $this->user,
+            ])
+            ->subject(osu_trans('mail.user_notification_digest.subject'));
+    }
+}
