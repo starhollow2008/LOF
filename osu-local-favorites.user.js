@@ -386,6 +386,76 @@
   // set of options is always one click away in the dropdown.
   const DL_VIDEO_PREF_KEY = "osu_dl_video_pref"; // "video" | "novideo"
   const DL_SOURCE_PREF_KEY = "osu_dl_source_pref"; // "official" | "mirrors"
+  const DL_DEFAULT_MIRROR_KEY = "osu_dl_default_mirror"; // "" | "official" | "official_novideo" | "<mirror.key>" | "<mirror.key>_novideo"
+
+  // Flat, order-independent registry of every possible download destination
+  // (both Official variants + every mirror's variants), keyed stably so a
+  // stored "default mirror" choice keeps meaning the same thing no matter
+  // how the user's video/source-order preferences later reorder the
+  // dropdown itself. Used to populate the Settings picker and to resolve a
+  // stored default back into a real URL.
+  function getAllDownloadDestinations() {
+    const list = [
+      { key: "official", label: "Official Download" },
+      { key: "official_novideo", label: "Official Download (no video)" },
+    ];
+    MIRRORS.forEach((m) => {
+      m.variants("0").forEach((v, i) => {
+        list.push({
+          key: i === 0 ? m.key : `${m.key}_novideo`,
+          label: v.bottom ? `${v.top} (${v.bottom})` : v.top,
+        });
+      });
+    });
+    return list;
+  }
+
+  // Resolves the stored default-mirror key into an actual {label, url} for
+  // this beatmap, or null if it can't currently be used — either because
+  // the setting is unset, the chosen mirror has since been disabled, or
+  // it's Official but the user isn't signed in. Returning null is the
+  // signal to fall back to showing the normal dropdown, so this never
+  // hands back a link that would just fail.
+  function resolveDefaultMirror(id) {
+    const key = GM_getValue(DL_DEFAULT_MIRROR_KEY, "");
+    if (!key) return null;
+
+    if (key === "official" || key === "official_novideo") {
+      if (!isLoggedIn()) return null;
+      return {
+        label: key === "official_novideo" ? "Official Download (no video)" : "Official Download",
+        url: `https://osu.ppy.sh/beatmapsets/${id}/download${key === "official_novideo" ? "?noVideo=1" : ""}`,
+      };
+    }
+
+    const novideo = key.endsWith("_novideo");
+    const mirrorKey = novideo ? key.slice(0, -"_novideo".length) : key;
+    const mirror = MIRRORS.find((m) => m.key === mirrorKey);
+    if (!mirror || !isMirrorEnabled(mirror)) return null;
+
+    const variants = mirror.variants(id);
+    const variant = novideo ? variants[1] : variants[0];
+    if (!variant) return null;
+    return { label: variant.bottom ? `${variant.top} (${variant.bottom})` : variant.top, url: variant.url };
+  }
+
+  // ═══ Full-length previews (Hinamizawa music mirror) ═══
+  // osu!'s own preview clip is a fixed ~10s cut. mirror.hinamizawa.ai runs a
+  // separate music-streaming API (distinct from its beatmap-download mirror)
+  // that serves the full track from its own disk when it has one cached, and
+  // otherwise transparently falls back to proxying the same ~30s official
+  // clip while it extracts the full song in the background — so pointing
+  // the preview player at it is a strict upgrade, never a worse experience
+  // than what we already show. No auth, open CORS, HTTP Range for seeking.
+  const PREVIEW_FULLSONG_KEY = "osu_preview_fullsong";
+  function fullSongPreviewsEnabled() {
+    return GM_getValue(PREVIEW_FULLSONG_KEY, true);
+  }
+  function previewSourceUrl(id, fallbackUrl) {
+    return fullSongPreviewsEnabled()
+      ? `https://mirror.hinamizawa.ai/v3/osu/music/audio/${id}`
+      : fallbackUrl;
+  }
 
   // Builds the ordered list of download options for a beatmapset. Official
   // download offers both a with-video and no-video (confirmed real
@@ -942,11 +1012,13 @@
       el.getAttribute("aria-label") ||
       ""
     ).toLowerCase();
+    const text = (el.textContent || "").toLowerCase().trim();
 
     // Reject download buttons immediately — never treat them as fav buttons
     if (
       cls.includes("download") ||
       title.includes("download") ||
+      text.includes("download") ||
       el.querySelector(".fa-file-download, .fa-download, .fas.fa-file-download, .fas.fa-download")
     ) return false;
 
@@ -998,11 +1070,9 @@
       }
     }
 
-    // title is already declared at top of function — reuse it
+    // title and text are already declared at top of function — reuse them
     if (title.includes("avourite") || title.includes("avorite")) return true;
 
-
-    const text = (el.textContent || "").toLowerCase().trim();
     if (text.includes("avourite") || text.includes("avorite")) return true;
 
     if (
@@ -1482,6 +1552,18 @@
   document.addEventListener(
     "click",
     function (e) {
+      // Never treat clicks inside our own UI (the favorites panel or the
+      // download-mirror popover) as a native-page favourite-button click.
+      // isFavButton()'s matching is heuristic (title/class/icon-based) and
+      // meant for osu!'s own page elements — it previously misfired on our
+      // own "Download ▾" menu, e.g. the "Official Download (requires
+      // sign-in)" row, which doesn't carry a "download" title/class, only
+      // the word in its visible text. The panel and menu already handle
+      // all of their own actions directly (toggleFavorite, removeBtn,
+      // showDownloadMenu's row links), so excluding them here entirely is
+      // both the fix and the more robust long-term guard.
+      if (e.target.closest("#osu-local-fav-panel, #osu-fav-dl-menu")) return;
+
       // Also intercept clicks on the guest-disabled <span> (not just button/a)
       const button = e.target.closest("button, a, span.beatmapset-panel__menu-item");
       if (!button || !isFavButton(button)) return;
@@ -1999,6 +2081,26 @@
       return wrap;
     }
 
+    // Native <select> for settings with many choices — segmented pills work
+    // well for 2-3 options, but a real dropdown scales better once there
+    // are this many (every mirror × video variant, plus both Official
+    // variants, plus "not set").
+    function makeDropdown(options, initial, onChange) {
+      const select = document.createElement("select");
+      select.style.cssText =
+        "background:#111;border:1px solid #333;border-radius:3px;color:#ddd;" +
+        "font-size:10px;font-family:inherit;padding:4px 6px;cursor:pointer;flex-shrink:0;max-width:150px";
+      options.forEach(({ value, label }) => {
+        const o = document.createElement("option");
+        o.value = value;
+        o.textContent = label;
+        if (value === initial) o.selected = true;
+        select.appendChild(o);
+      });
+      select.addEventListener("change", () => onChange(select.value));
+      return select;
+    }
+
     // 0–100 percentage slider with a live-updating label — used by Appearance
     function makeSlider(initialPct, onChange) {
       const wrap = document.createElement("div");
@@ -2406,6 +2508,19 @@
         wrap.appendChild(settingsRow(mirror.label, toggle));
       });
 
+      const defaultMirrorControl = makeDropdown(
+        [{ value: "", label: "Not set — show options" }, ...getAllDownloadDestinations().map((d) => ({ value: d.key, label: d.label }))],
+        GM_getValue(DL_DEFAULT_MIRROR_KEY, ""),
+        (val) => GM_setValue(DL_DEFAULT_MIRROR_KEY, val),
+      );
+      wrap.appendChild(
+        settingsRow(
+          "Default download mirror",
+          defaultMirrorControl,
+          "Skips the dropdown and downloads straight from this source. Falls back to showing the dropdown if it's disabled or unavailable (e.g. Official while signed out).",
+        ),
+      );
+
       const videoPrefControl = makeSegmented(
         [
           { value: "video", label: "With video" },
@@ -2428,6 +2543,24 @@
       );
       wrap.appendChild(
         settingsRow("Preferred source order", sourcePrefControl, "Guests always see mirrors first — Official won't work without signing in"),
+      );
+
+      wrap.appendChild(divider());
+
+      // ── Music Playback ──
+      wrap.appendChild(sectionLabel("Music Playback"));
+      const fullSongHint = document.createElement("div");
+      fullSongHint.style.cssText = "font-size:10px;color:#666;line-height:1.5;margin-bottom:4px";
+      fullSongHint.textContent =
+        "The ▶ preview button in this panel plays osu!'s own ~30s clip by default. " +
+        "Hinamizawa's music mirror streams the full track instead whenever it has one " +
+        "cached, and falls back to that same clip automatically when it doesn't.";
+      wrap.appendChild(fullSongHint);
+      const fullSongToggle = makeToggleSwitch(fullSongPreviewsEnabled(), (on) => {
+        GM_setValue(PREVIEW_FULLSONG_KEY, on);
+      });
+      wrap.appendChild(
+        settingsRow("Full-length previews", fullSongToggle, "Streams from mirror.hinamizawa.ai — no login required"),
       );
 
       wrap.appendChild(divider());
@@ -2807,12 +2940,37 @@
           openLink.style.color = "#999";
         });
 
-        const downloadLink = document.createElement("button");
-        downloadLink.type = "button";
-        downloadLink.title = "Download map (official + mirrors)";
-        downloadLink.textContent = "Download ▾";
-        downloadLink.style.cssText =
-          "font-size:10px;padding:4px 8px;border:1px solid #333;border-radius:2px;background:none;color:#999;cursor:pointer;text-align:center;white-space:nowrap;width:100%";
+        // If a default mirror is configured (Settings → Download Mirrors)
+        // and it's actually usable right now (mirror still enabled, or
+        // Official while actually signed in), skip the dropdown entirely
+        // and go straight to a real download link. Otherwise fall back to
+        // the normal "Download ▾" trigger — resolveDefaultMirror() already
+        // returns null for anything that wouldn't work, so this never
+        // hands out a dead link.
+        const defaultMirror = resolveDefaultMirror(id);
+        const downloadStyle =
+          "font-size:10px;padding:4px 8px;border:1px solid #333;border-radius:2px;background:none;color:#999;" +
+          "cursor:pointer;text-align:center;white-space:nowrap;width:100%;text-decoration:none;display:block;box-sizing:border-box";
+
+        let downloadLink;
+        if (defaultMirror) {
+          downloadLink = document.createElement("a");
+          downloadLink.href = defaultMirror.url;
+          downloadLink.target = "_blank";
+          downloadLink.rel = "noopener";
+          downloadLink.textContent = "Download";
+          downloadLink.title = `Download via ${defaultMirror.label} — change default in Settings`;
+        } else {
+          downloadLink = document.createElement("button");
+          downloadLink.type = "button";
+          downloadLink.title = "Download map (official + mirrors)";
+          downloadLink.textContent = "Download ▾";
+          downloadLink.addEventListener("click", (e) => {
+            e.stopPropagation();
+            showDownloadMenu(downloadLink, id);
+          });
+        }
+        downloadLink.style.cssText = downloadStyle;
         downloadLink.addEventListener("mouseenter", () => {
           downloadLink.style.borderColor = "var(--osu-fav-accent)";
           downloadLink.style.color = "var(--osu-fav-accent)";
@@ -2820,10 +2978,6 @@
         downloadLink.addEventListener("mouseleave", () => {
           downloadLink.style.borderColor = "#333";
           downloadLink.style.color = "#999";
-        });
-        downloadLink.addEventListener("click", (e) => {
-          e.stopPropagation();
-          showDownloadMenu(downloadLink, id);
         });
 
         const removeBtn = document.createElement("button");
@@ -2880,7 +3034,7 @@
           });
         }
 
-        const previewUrl = f.preview || `https://b.ppy.sh/preview/${id}.mp3`;
+        const previewUrl = previewSourceUrl(id, f.preview || `https://b.ppy.sh/preview/${id}.mp3`);
 
         // Play button — lives inside the cover, centred, shown on hover or while playing
         const previewBtn = document.createElement("button");
