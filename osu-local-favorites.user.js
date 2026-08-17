@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         osu! Local Favorites
-// @namespace    https://github.com/vyroxat/Local-osu-Favorites
-// @updateURL    https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
-// @downloadURL  https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js
+// @namespace    https://github.com/starhollow2008/LOF
+// @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
+// @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @version      4.7.1
-// @icon         https://github.com/vyroxat/Local-osu-Favorites/blob/main/icons/icon48.png?raw=true
+// @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
 // @match        https://osu.ppy.sh/*
@@ -1789,7 +1789,7 @@
       updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "var(--osu-fav-accent)"));
       updateBtn.addEventListener("click", () => {
         window.open(
-          "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
+          "https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js",
           "_blank",
         );
         backdrop.remove();
@@ -1815,7 +1815,7 @@
       "display:flex;align-items:center;gap:8px;margin-bottom:8px";
 
     const logoImg = document.createElement("img");
-    logoImg.src = "https://raw.githubusercontent.com/vyroxat/Local-osu-Favorites/main/icons/icon48.png";
+    logoImg.src = "https://raw.githubusercontent.com/starhollow2008/LOF/main/icons/icon48.png";
     logoImg.style.cssText = "width:28px;height:28px;border-radius:50%;flex-shrink:0";
     logoImg.addEventListener("error", () => logoImg.style.display = "none");
 
@@ -3242,7 +3242,7 @@
             }
             showOsuFavToast(`New version v${latestVersion} is available!`);
             window.open(
-              "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
+              "https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js",
               "_blank",
             );
           } else {
@@ -3622,7 +3622,7 @@
       GM_xmlhttpRequest({
         method: "GET",
         // Always fetch the live main branch so version checks pick up real releases
-        url: "https://raw.githubusercontent.com/vyroxat/Local-osu-Favorites/main/osu-local-favorites.user.js",
+        url: "https://raw.githubusercontent.com/starhollow2008/LOF/main/osu-local-favorites.user.js",
         timeout: 10000,
         onload: function (response) {
           GM_setValue("osu_last_version_check", Date.now());
@@ -3758,7 +3758,7 @@
     updateBtn.addEventListener("mouseleave", () => (updateBtn.style.background = "var(--osu-fav-accent)"));
     updateBtn.addEventListener("click", () => {
       window.open(
-        "https://github.com/vyroxat/Local-osu-Favorites/raw/main/osu-local-favorites.user.js",
+        "https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js",
         "_blank",
       );
       modal.remove();
