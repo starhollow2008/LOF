@@ -33,7 +33,8 @@
  *   9. Background enrichment             — fetch full detail-page JSON
  *  10. Global re-enrichment              — Settings → Library Maintenance
  *  11. Toggle favorite                   — the core add/remove action
- *  12. Copy-all button                   — bulk-import from a profile page
+ *  12. Copy-all button                   — bulk-import from a profile page's
+ *                                            Favourite/Most Played sections
  *  13. Floating heart indicator          — always-on-screen shortcut
  *  14. Favorites panel                   — the side panel UI + Settings view
  *  15. Guest-mode fallback button        — heart button on detail pages
@@ -440,7 +441,7 @@
   }
 
   // ═══ Full-length previews (Hinamizawa music mirror) ═══
-  // osu!'s own preview clip is a fixed ~10s cut. mirror.hinamizawa.ai runs a
+  // osu!'s own preview clip is a fixed ~30s cut. mirror.hinamizawa.ai runs a
   // separate music-streaming API (distinct from its beatmap-download mirror)
   // that serves the full track from its own disk when it has one cached, and
   // otherwise transparently falls back to proxying the same ~30s official
@@ -779,17 +780,22 @@
       const id = m[1];
 
       // ── Title ────────────────────────────────────────────────────
+      // .beatmap-playcount__title (Most Played rows) is handled alongside
+      // the regular panel selectors — its text also carries a trailing
+      // "[Difficulty]" and an inline "by Artist" span, both stripped below,
+      // since we're favouriting the *set*, not one specific diff.
       let title = "";
       const titleEl = card.querySelector(
         '.beatmapset-panel__main-link, a[class*="main-link"], ' +
-        '.beatmapset-panel__title, [class*="beatmapset-panel__title"]',
+        '.beatmapset-panel__title, [class*="beatmapset-panel__title"], ' +
+        ".beatmap-playcount__title",
       );
       if (titleEl) {
         const titleClone = titleEl.cloneNode(true);
         titleClone
-          .querySelectorAll('.beatmapset-badge, [class*="badge"], i, svg')
+          .querySelectorAll('.beatmapset-badge, [class*="badge"], i, svg, [class*="title-artist"]')
           .forEach((n) => n.remove());
-        title = titleClone.textContent.trim();
+        title = titleClone.textContent.trim().replace(/\s*\[[^[\]]+\]\s*$/, "").trim();
       }
       if (!title) {
         const ml = card.querySelector('a[href*="/beatmapsets/"]');
@@ -806,10 +812,11 @@
         '[class*="beatmapset-panel__artist"]',
         ".beatmapset-panel__info-row--artist",
         '[class*="info-row--artist"]',
+        ".beatmap-playcount__artist", // Most Played rows — text is "by Artist", stripped below
       ]) {
         const el = card.querySelector(sel);
         if (el) {
-          artist = el.textContent.trim();
+          artist = el.textContent.replace(/^\s*by\s+/i, "").trim();
           break;
         }
       }
@@ -842,6 +849,7 @@
         '[class*="beatmapset-panel__mapper"]',
         ".beatmapset-panel__info-row--mapper",
         '[class*="info-row--mapper"]',
+        ".beatmap-playcount__mapper-link", // Most Played rows — username only, no "mapped by " text to strip
       ]) {
         const el = card.querySelector(sel);
         if (el) {
@@ -1313,18 +1321,46 @@
     return !wasFav;
   }
 
-  // ═══ Copy-all button ("Favourite Beatmaps" section) ═══
-  function addCopyAllButton() {
-    // Find the "Favourite Beatmaps" heading inside the Beatmaps section
-    // Works on profile pages: /users/* (any user)
-    const favHeading = document.querySelector(
-      '.js-sortable--page[data-page-id="beatmaps"] h3.title--page-extra-small',
-    );
-    if (!favHeading) return;
-    const ht = favHeading.textContent || "";
-    if (!ht.includes("Favourite") && !ht.includes("Favorite")) return;
+  // ═══ Copy-all button ("Favourite Beatmaps" + "Most Played Beatmaps") ═══
+  // Both live on a profile's Beatmaps tab and share the same "click show
+  // more until it's gone" pagination pattern, but render completely
+  // differently under the hood:
+  //   • Favourite (data-page-id="beatmaps") — one .beatmapset-panel card
+  //     per beatmapset, "show more" carries both the "profile-page" and
+  //     "profile-page-beatmapsets" modifier classes.
+  //   • Most Played (data-page-id="historical") — one .beatmap-playcount
+  //     row per DIFFICULTY the user has played, so the same beatmapset can
+  //     show up dozens of times; its "show more" only carries the plain
+  //     "profile-page" modifier. getBeatmapDataFromCard() already knows how
+  //     to read both row types, and the dedup below (favs[id] already set,
+  //     whether from a prior favourite or an earlier row in *this* run)
+  //     means a 20-diff mapset only ever gets added once.
+  function addFavoriteAllButtons() {
+    addFavoriteAllButton({
+      pageId: "beatmaps",
+      headingMatch: (t) => t.includes("Favourite") || t.includes("Favorite"),
+      gridSelector: ".page-extra__beatmapsets.js-audio--group",
+      rowSelector: ".beatmapset-panel, .beatmapsets__item",
+    });
+    addFavoriteAllButton({
+      pageId: "historical",
+      headingMatch: (t) => t.includes("Most Played"),
+      gridSelector: null, // rows sit directly in the page container, no dedicated grid wrapper
+      rowSelector: ".beatmap-playcount",
+    });
+  }
+
+  function addFavoriteAllButton({ pageId, headingMatch, gridSelector, rowSelector }) {
+    const container = document.querySelector(`.js-sortable--page[data-page-id="${pageId}"]`);
+    if (!container) return;
+    const heading = Array.from(
+      container.querySelectorAll("h3.title--page-extra-small"),
+    ).find((h) => headingMatch(h.textContent || ""));
+    if (!heading) return;
     // Guard: don't add the button twice
-    if (favHeading.querySelector(".osu-fav-all-btn")) return;
+    if (heading.querySelector(".osu-fav-all-btn")) return;
+
+    const scope = (gridSelector && container.querySelector(gridSelector)) || container;
 
     const btn = document.createElement("button");
     btn.className = "osu-fav-all-btn";
@@ -1349,17 +1385,10 @@
       btn.textContent = "Loading all...";
       btn.disabled = true;
 
-      // The grid that holds beatmap panels in the Favourite Beatmaps section
-      const grid = document.querySelector(
-        '.js-sortable--page[data-page-id="beatmaps"] .page-extra__beatmapsets.js-audio--group',
-      );
-
-      // Click "show more" once and wait for new cards to appear
+      // Click "show more" once and wait for new rows to appear
       function clickShowMoreOnce() {
         return new Promise((resolve) => {
-          const showMore = document.querySelector(
-            ".show-more-link--profile-page-beatmapsets",
-          );
+          const showMore = scope.querySelector(".show-more-link--profile-page");
           if (
             !showMore ||
             showMore.offsetParent === null ||
@@ -1368,20 +1397,14 @@
             resolve();
             return;
           }
-          const before = grid
-            ? grid.querySelectorAll(".beatmapset-panel").length
-            : 0;
+          const before = scope.querySelectorAll(rowSelector).length;
           showMore.click();
 
           let attempts = 0;
           function check() {
             attempts++;
-            const after = grid
-              ? grid.querySelectorAll(".beatmapset-panel").length
-              : 0;
-            const sm = document.querySelector(
-              ".show-more-link--profile-page-beatmapsets",
-            );
+            const after = scope.querySelectorAll(rowSelector).length;
+            const sm = scope.querySelector(".show-more-link--profile-page");
             if (
               after > before ||
               !sm ||
@@ -1397,38 +1420,35 @@
         });
       }
 
-      // Recursively click "show more" until all beatmaps are loaded
-      function loadAllBeatmaps() {
+      // Recursively click "show more" until everything is loaded
+      function loadAllRows() {
         return clickShowMoreOnce().then(() => {
-          const sm = document.querySelector(
-            ".show-more-link--profile-page-beatmapsets",
-          );
+          const sm = scope.querySelector(".show-more-link--profile-page");
           if (sm && sm.offsetParent !== null && !sm.disabled) {
-            return loadAllBeatmaps();
+            return loadAllRows();
           }
         });
       }
 
-      loadAllBeatmaps()
+      loadAllRows()
         .then(() => {
           const favs = getFavorites();
-          if (!grid) return;
-          const cards = grid.querySelectorAll(
-            ".beatmapset-panel, .beatmapsets__item",
-          );
+          const rows = scope.querySelectorAll(rowSelector);
           // Use a decreasing base timestamp so top-to-bottom DOM order is preserved
           // (panel sorts by favourited_at descending)
           const baseTime = Date.now();
           let count = 0;
           let alreadyHad = 0;
           const newIds = [];
-          cards.forEach((card, i) => {
-            const data = getBeatmapDataFromCard(card);
+          rows.forEach((row, i) => {
+            const data = getBeatmapDataFromCard(row);
             if (!data) return;
             if (favs[data.id]) {
+              // Already favourited before, OR another diff of a set we
+              // already added earlier in *this* run — either way, skip it.
               alreadyHad++;
             } else {
-              // Subtract i seconds so first card (top) gets newest timestamp
+              // Subtract i seconds so first row (top) gets newest timestamp
               data.favourited_at = new Date(baseTime - i * 1000).toISOString();
               favs[data.id] = data;
               newIds.push(data.id);
@@ -1449,7 +1469,8 @@
             ? " *[matching " + alreadyHad + "| " + alreadyHad + " not added]"
             : "";
           btn.textContent = "Added " + count + skippedLabel + ", enriching...";
-          // Enrich each card with full page data sequentially (respects ENRICH_RATE_LIMIT_MS)
+          // Enrich each new beatmapset sequentially — respects ENRICH_RATE_LIMIT_MS
+          // (1 request/sec), the same throttle every other bulk/re-enrich path uses.
           enrichBeatmapsSequential(newIds);
           setTimeout(() => {
             btn.textContent = "Favorite all";
@@ -1466,7 +1487,7 @@
     });
 
     // Append button inside the heading element
-    favHeading.appendChild(btn);
+    heading.appendChild(btn);
   }
 
   // ═══ Floating heart — always visible on all osu! pages ═══
@@ -1854,6 +1875,42 @@
     header.appendChild(headerTop);
     header.appendChild(searchInput);
 
+    // ── GitHub star notice (shown once, ever, on first panel open) ──
+    let githubBanner = null;
+    if (!GM_getValue("osu_fav_github_star_shown", false)) {
+      GM_setValue("osu_fav_github_star_shown", true);
+
+      githubBanner = document.createElement("div");
+      githubBanner.style.cssText =
+        "display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(255,102,170,.1);" +
+        "border-bottom:1px solid var(--osu-fav-accent);flex-shrink:0;animation:osuFavSlideDown 0.3s ease-out";
+
+      const starIcon = document.createElement("span");
+      starIcon.textContent = "\u2b50";
+      starIcon.style.cssText = "font-size:13px;flex-shrink:0";
+
+      const starLink = document.createElement("a");
+      starLink.href = "https://github.com/starhollow2008/LOF";
+      starLink.target = "_blank";
+      starLink.rel = "noopener";
+      starLink.textContent = "Enjoying Local Favorites? Star it on GitHub";
+      starLink.style.cssText =
+        "flex:1;color:#ddd;text-decoration:none;font-size:11px;line-height:1.4";
+      starLink.addEventListener("mouseenter", () => (starLink.style.color = "var(--osu-fav-accent)"));
+      starLink.addEventListener("mouseleave", () => (starLink.style.color = "#ddd"));
+
+      const dismissBtn = document.createElement("button");
+      dismissBtn.textContent = "\u2715";
+      dismissBtn.title = "Dismiss";
+      dismissBtn.style.cssText =
+        "background:none;border:none;color:#888;cursor:pointer;font-size:12px;padding:2px 4px;flex-shrink:0;line-height:1";
+      dismissBtn.addEventListener("mouseenter", () => (dismissBtn.style.color = "var(--osu-fav-accent)"));
+      dismissBtn.addEventListener("mouseleave", () => (dismissBtn.style.color = "#888"));
+      dismissBtn.addEventListener("click", () => githubBanner.remove());
+
+      githubBanner.append(starIcon, starLink, dismissBtn);
+    }
+
     // ── Toolbar ────────────────────────────────────────────
     const toolbar = document.createElement("div");
     toolbar.style.cssText =
@@ -1970,6 +2027,12 @@
       settingsBtn.style.borderColor = showSettings ? "var(--osu-fav-accent)" : "#333";
       settingsBtn.title = showSettings ? "Back to favorites" : "Settings";
       if (showSettings) renderSettingsView();
+      // Returning to the list from Settings: rebuild rows so anything that's
+      // baked into the DOM at render time (currently just the Download
+      // button, which is a plain link or a dropdown trigger depending on
+      // the default-mirror setting) picks up whatever just changed, instead
+      // of staying stale until the whole panel is closed and reopened.
+      else renderList();
     }
 
     // ── Helpers ────────────────────────────────────────────
@@ -3142,7 +3205,7 @@
     }
 
     // ── Assemble & wire events ─────────────────────────────
-    panel.append(header, toolbar, contentArea, footer);
+    panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, footer);
     document.body.appendChild(panel);
     updateSortBtns();
     renderList();
@@ -3751,7 +3814,7 @@
     }
 
     ensureHeartIndicator();
-    addCopyAllButton();
+    addFavoriteAllButtons();
     addGuestFavoriteButton();
     enableGuestDownloads();
     injectMirrorButtons();
@@ -3773,7 +3836,7 @@
         refreshButtons();
         if (!document.getElementById("osu-local-fav-ind"))
           ensureHeartIndicator();
-        addCopyAllButton();
+        addFavoriteAllButtons();
         addGuestFavoriteButton();
         updateFloatingHeart();
         enableGuestDownloads();
@@ -3815,7 +3878,7 @@
       document.querySelectorAll("[data-osu-fav-checked]").forEach((btn) => btn.removeAttribute("data-osu-fav-checked"));
       attachMainObserver();
       ensureHeartIndicator();
-      addCopyAllButton();
+      addFavoriteAllButtons();
       addGuestFavoriteButton();
       updateFloatingHeart();
       enableGuestDownloads();
@@ -3855,7 +3918,7 @@
     // the correct state within ~1.5s no matter what triggered the render.
     setInterval(() => {
       refreshButtons();
-      addCopyAllButton();
+      addFavoriteAllButtons();
       addGuestFavoriteButton();
       enableGuestDownloads();
       injectMirrorButtons();
