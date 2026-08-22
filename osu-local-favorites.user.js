@@ -331,6 +331,17 @@
       : `<svg width="${size}" height="${size}" viewBox="0 0 24 24"><path d="${HEART_PATH}" fill="none" stroke="var(--osu-fav-heart-color)" stroke-width="1.6"/></svg>`;
   }
 
+  // Play/pause icons as inline SVGs — the old U+25B6/U+23F8 text glyphs get
+  // emoji presentation on mobile (▶️ / colored ⏸), which broke sizing and
+  // theming. SVGs render identically everywhere and inherit currentColor.
+  function playSVG(size = 11) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-label="play"><path d="M8 5v14l11-7z"/></svg>`;
+  }
+
+  function pauseSVG(size = 11) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-label="pause"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
+  }
+
   // ═══ Download Mirrors ═══
   // Third-party beatmap mirrors, used as a fallback wherever osu!'s own
   // download doesn't work — guests (osu!'s own download button/route is
@@ -3451,7 +3462,7 @@
               a._activeBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
               a._activeBtn.style.borderColor = "#333";
               a._activeBtn.style.color = "#999";
-              a._activeBtn.textContent = "\u25b6";
+              a._activeBtn.innerHTML = playSVG();
               a._activeBtn._playing = false;
             }
             if (a._activeBar) {
@@ -3476,7 +3487,7 @@
 
         // Play button — lives inside the cover, centred, shown on hover or while playing
         const previewBtn = document.createElement("button");
-        previewBtn.textContent = "\u25b6";
+        previewBtn.innerHTML = playSVG();
         previewBtn.title = "Preview audio";
         previewBtn.style.cssText =
           "position:absolute;inset:0;margin:auto;width:fit-content;height:fit-content;" +
@@ -3506,7 +3517,7 @@
           if (isSame) {
             if (!audio.paused) {
               audio.pause();
-              previewBtn.textContent = "\u25b6";
+              previewBtn.innerHTML = playSVG();
               previewBtn._playing = false;
               previewBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
               previewBtn.style.borderColor = "#333";
@@ -3524,7 +3535,7 @@
               audio._activeDim = dimOverlay;
               progressWrap.style.display = "block";
               audio.play();
-              previewBtn.textContent = "\u23f8";
+              previewBtn.innerHTML = pauseSVG();
               previewBtn._playing = true;
               previewBtn.style.opacity = "var(--osu-fav-active-opacity, 0.8)";
               previewBtn.style.borderColor = "var(--osu-fav-accent)";
@@ -3536,7 +3547,7 @@
           // Stop previous
           const a = audio;
           if (a._activeBtn) {
-            a._activeBtn.textContent = "\u25b6";
+            a._activeBtn.innerHTML = playSVG();
             a._activeBtn._playing = false;
             a._activeBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
             a._activeBtn.style.borderColor = "#333";
@@ -3554,14 +3565,14 @@
           audio._activeBar = progressBar;
           audio._activeDim = dimOverlay;
           progressWrap.style.display = "block";
-          previewBtn.textContent = "\u23f8";
+          previewBtn.innerHTML = pauseSVG();
           previewBtn._playing = true;
           previewBtn.style.opacity = "var(--osu-fav-active-opacity, 0.8)";
           previewBtn.style.borderColor = "var(--osu-fav-accent)";
           previewBtn.style.color = "var(--osu-fav-accent)";
           dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
           audio.play().catch(() => {
-            previewBtn.textContent = "\u25b6";
+            previewBtn.innerHTML = playSVG();
             previewBtn._playing = false;
             previewBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
             previewBtn.style.borderColor = "#333";
