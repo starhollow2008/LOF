@@ -74,17 +74,29 @@ Search, sort, preview, and download every favorite without leaving the panel —
 
 Everything below lives behind the ⚙ **Settings** button in the side panel header:
 
-- **Backup & Restore** — export your whole library to a JSON file, or import one back in (merges, skips duplicates)
-- **GitHub Gist Backup** — connect a GitHub account (personal access token, `gist` scope) and back your favorites up to a Gist:
-  - **Manual or Auto** — flip a switch to have every new/removed favorite pushed automatically, or trigger backups yourself with **Backup now**
-  - **Private or Public** — choose the Gist's visibility (GitHub doesn't allow changing this after creation, so switching creates a fresh Gist)
-  - **Restore from Gist** — pull a backup down on a new device/browser; reconnecting also auto-detects an existing backup Gist so you don't end up with duplicates
-  - **Fetch from Gist** — pull from any gist by pasting its ID or URL, without changing what **Backup now** targets. Useful on a new device before your first backup, or for grabbing someone else's shared favorites list
-  - A small status line in the panel footer always shows whether you're connected and when you last synced
-- **Download Mirrors** — osu!'s own download link requires a real logged-in session (it 404s for guests no matter what), and some maps have downloads disabled outright. Toggle third-party mirrors — Beatconnect, NeriNyan, Sayobot, Mino — and they'll show up in the panel's **Download** button and as extra buttons on the beatmap page itself, styled to match osu!'s own download buttons exactly. Two more controls decide ordering (nothing is ever hidden, just reordered): **Preferred video option** (with video vs. no video first) and **Preferred source order** (official vs. mirrors first — guests always see mirrors first regardless, since Official won't work without signing in). If osu!plus is already injecting its own mirror buttons on a page, ours steps aside to avoid a duplicate row
-- **Appearance** — pick your own accent color (replaces the default pink everywhere: buttons, badges, toggles, the header bar), a separate **Heart fill color** for the favorite icon itself (independent of accent, so it stays visually distinct from osu!'s own heart), and four sliders for the cover-art play button and its dim overlay: idle opacity, idle dim, hover dim, and active opacity
-- **Library Maintenance** — a **Re-enrich all maps** button that re-fetches full metadata (tags, source, genre, language, BPM, status, cover) for every favorite from osu! itself. Useful after a data-format change, or if some fields look stale or were saved in an older/differently-cased format. Runs one map at a time (rate-limited) with a live progress bar, and can be cancelled mid-run
-- **Danger Zone** — remove all favorites, with a two-click confirmation
+<table>
+  <tr>
+    <td width="33%" valign="top"><img src="screenshots/settings_1.png" width="100%"><img src="screenshots/settings_2.png" width="100%"><img src="screenshots/settings_3.png" width="100%"></td>
+    <td valign="top">
+      <ul>
+        <li><strong>Backup &amp; Restore</strong> — export your whole library to a JSON file, or import one back in (merges, skips duplicates)</li>
+        <li><strong>GitHub Gist Backup</strong> — connect a GitHub account (personal access token, <code>gist</code> scope) and back your favorites up to a Gist:
+          <ul>
+            <li><strong>Manual or Auto</strong> — flip a switch to have every new/removed favorite pushed automatically, or trigger backups yourself with <strong>Backup now</strong></li>
+            <li><strong>Private or Public</strong> — choose the Gist's visibility (GitHub doesn't allow changing this after creation, so switching creates a fresh Gist)</li>
+            <li><strong>Restore from Gist</strong> — pull a backup down on a new device/browser; reconnecting also auto-detects an existing backup Gist so you don't end up with duplicates</li>
+            <li><strong>Fetch from Gist</strong> — pull from any gist by pasting its ID or URL, without changing what <strong>Backup now</strong> targets. Useful on a new device before your first backup, or for grabbing someone else's shared favorites list</li>
+            <li>A small status line in the panel footer always shows whether you're connected and when you last synced</li>
+          </ul>
+        </li>
+        <li><strong>Download Mirrors</strong> — osu!'s own download link requires a real logged-in session (it 404s for guests no matter what), and some maps have downloads disabled outright. Toggle third-party mirrors — Beatconnect, NeriNyan, Sayobot, Mino — and they'll show up in the panel's <strong>Download</strong> button and as extra buttons on the beatmap page itself, styled to match osu!'s own download buttons exactly. Two more controls decide ordering (nothing is ever hidden, just reordered): <strong>Preferred video option</strong> (with video vs. no video first) and <strong>Preferred source order</strong> (official vs. mirrors first — guests always see mirrors first regardless, since Official won't work without signing in). If osu!plus is already injecting its own mirror buttons on a page, ours steps aside to avoid a duplicate row</li>
+        <li><strong>Appearance</strong> — pick your own accent color (replaces the default pink everywhere: buttons, badges, toggles, the header bar), a separate <strong>Heart fill color</strong> for the favorite icon itself (independent of accent, so it stays visually distinct from osu!'s own heart), and four sliders for the cover-art play button and its dim overlay: idle opacity, idle dim, hover dim, and active opacity</li>
+        <li><strong>Library Maintenance</strong> — a <strong>Re-enrich all maps</strong> button that re-fetches full metadata (tags, source, genre, language, BPM, status, cover) for every favorite from osu! itself. Useful after a data-format change, or if some fields look stale or were saved in an older/differently-cased format. Runs one map at a time (rate-limited) with a live progress bar, and can be cancelled mid-run</li>
+        <li><strong>Danger Zone</strong> — remove all favorites, with a two-click confirmation</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 
 ## If you go onto a beatmap that is favorited you will see the heart icon has changed its color
