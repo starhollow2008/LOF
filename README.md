@@ -40,13 +40,9 @@ Then load the folder in `chrome://extensions/`.
 
 ## Demo
 
-| Beatmap listing | Side panel open |
+| Side panel | Inline preview & download mirrors |
 | :---: | :---: |
-| ![Beatmap listing](screenshots/beatmapsearch.png) | ![Side panel open](screenshots/beatmapspage.png) |
-
-| Inline preview & download mirrors |
-| :---: | 
-| ![Music previews and download options](screenshots/musicpreviewsanddownloadoptions.png) |
+| ![Side panel](screenshots/sidepanel.png) | ![Music previews and download options](screenshots/music_preview_and_downloads.png) |
 
 ## Side Panel
 
@@ -54,7 +50,16 @@ Search, sort, preview, and download every favorite without leaving the panel —
 
 | Full panel | Settings panel |
 | :---: | :---: |
-| ![Side panel detail](screenshots/sidepanel.png) | ![Settings panel](screenshots/settingspanel.png) |
+| ![Side panel detail](screenshots/sidepanel.png) | ![Settings panel](<screenshots/settings_full(33%25page_size).png>) |
+
+<details>
+<summary>More settings screenshots</summary>
+
+| Settings (1) | Settings (2) | Settings (3) |
+| :---: | :---: | :---: |
+| ![](screenshots/settings_1.png) | ![](screenshots/settings_2.png) | ![](screenshots/settings_3.png) |
+
+</details>
 
 ### Settings
 
@@ -77,7 +82,7 @@ Everything below lives behind the ⚙ **Settings** button in the side panel head
 
 | Normally | On a favorited beatmap |
 | :---: | :---: |
-| ![onnotfavoritepage](screenshots/onnotfavoritepage.png) | ![onfavoritedpage](screenshots/onfavoritedpage.png) |
+| ![Floating heart](screenshots/button.png) | ![Floating heart (favorited)](screenshots/button_active.png) |
 
 ## How it works
 
@@ -89,7 +94,7 @@ Everything below lives behind the ⚙ **Settings** button in the side panel head
 - Periodically checks GitHub for a newer script version and shows an in-panel prompt when one's available
 - Its accent(glow) and colour of the heart itself can be changed by accent and heart border/fill color
 
-![Update prompt](screenshots/updateprompt.png)
+![Update prompt](screenshots/autoupdate_prompt.png)
 
 *Example screenshot — the version number and exact wording will reflect whatever the actual latest release is, not necessarily what's shown here.*
 
