@@ -55,9 +55,18 @@ Search, sort, preview, and download every favorite without leaving the panel —
 <details>
 <summary>More settings screenshots</summary>
 
-| Settings (1) | Settings (2) | Settings (3) |
-| :---: | :---: | :---: |
-| ![](screenshots/settings_1.png) | ![](screenshots/settings_2.png) | ![](screenshots/settings_3.png) |
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="screenshots/settings_1.png" width="100%"><br>
+      <img src="screenshots/settings_2.png" width="100%"><br>
+      <img src="screenshots/settings_3.png" width="100%">
+    </td>
+    <td align="center">
+      <img src="screenshots/settings_full(33%25page_size).png" width="100%">
+    </td>
+  </tr>
+</table>
 
 </details>
 
