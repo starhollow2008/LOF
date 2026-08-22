@@ -83,6 +83,20 @@
     }
   }
 
+  // In-memory write-through cache over the localStorage fallback.
+  // Without this, EVERY GM_getValue call re-serialized the entire store —
+  // with a large favorites library (500+) that meant multi-megabyte
+  // JSON.parse calls hundreds of times per panel render, causing the
+  // exponential slowdown / "Forced reflow" violations. Reads hit the cache;
+  // writes update the cache and persist asynchronously-ish (sync write,
+  // but only one stringify per mutation instead of read+parse+stringify).
+  let _lsCache = null; // null = not loaded yet
+
+  function _lsCacheGet() {
+    if (_lsCache === null) _lsCache = _lsReadAll();
+    return _lsCache;
+  }
+
   const _gmStorageWorks = (() => {
     if (!_nativeGM_getValue || !_nativeGM_setValue) return false;
     try {
@@ -100,7 +114,7 @@
       const v = _nativeGM_getValue(key, defaultValue);
       return v === undefined ? defaultValue : v;
     }
-    const all = _lsReadAll();
+    const all = _lsCacheGet();
     return key in all ? all[key] : defaultValue;
   }
 
@@ -109,8 +123,9 @@
       _nativeGM_setValue(key, value);
       return;
     }
-    const all = _lsReadAll();
+    const all = _lsCacheGet();
     all[key] = value;
+    // Persist the mutated object directly — no re-parse needed.
     _lsWriteAll(all);
   }
 
@@ -3187,6 +3202,9 @@
       });
 
       listEl.innerHTML = "";
+      // Invalidate any chunk-append from a previous render (also covers the
+      // early-return paths below).
+      renderList._token = (renderList._token || 0) + 1;
 
       // Disconnect any previous lazy-load observer so orphaned refs don't linger
       if (renderList._imgObserver) {
@@ -3221,9 +3239,11 @@
         return;
       }
 
-      const frag = document.createDocumentFragment();
 
-      entries.forEach(([id, f]) => {
+      // Card BUILDER — rows are constructed lazily, one chunk per animation
+      // frame (see renderChunk below), so opening the panel with 500+ favorites
+      // doesn't build ~15k DOM nodes inside the click handler.
+      const buildCard = ([id, f]) => {
         const card = document.createElement("div");
         card.style.cssText =
           "display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid #1e1e1e;align-items:center";
@@ -3553,10 +3573,23 @@
         coverEl.appendChild(previewBtn);
         actions.append(openLink, downloadLink, removeBtn);
         card.append(coverEl, info, actions);
-        frag.appendChild(card);
-      });
+        return card;
+      };
 
-      listEl.appendChild(frag);
+      // Chunked build+append — mounting 500+ rows in one synchronous pass
+      // blocked the click handler for seconds and forced full-layout reflows.
+      const CHUNK_SIZE = 60;
+      const renderToken = renderList._token; // set at top of this function
+      let cursor = 0;
+      const renderChunk = () => {
+        if (renderList._token !== renderToken) return; // superseded by newer render
+        const end = Math.min(cursor + CHUNK_SIZE, entries.length);
+        const chunk = document.createDocumentFragment();
+        for (; cursor < end; cursor++) chunk.appendChild(buildCard(entries[cursor]));
+        listEl.appendChild(chunk);
+        if (cursor < entries.length) requestAnimationFrame(renderChunk);
+      };
+      if (entries.length) requestAnimationFrame(renderChunk);
     }
 
     // ── Assemble & wire events ─────────────────────────────
