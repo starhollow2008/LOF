@@ -40,35 +40,15 @@ Then load the folder in `chrome://extensions/`.
 
 ## Demo
 
-| Side panel | Inline preview & download mirrors |
-| :---: | :---: |
-| ![Side panel](screenshots/sidepanel.png) | ![Music previews and download options](screenshots/music_preview_and_downloads.png) |
-
 ## Side Panel
 
 Search, sort, preview, and download every favorite without leaving the panel — including per-map access to any download mirrors you've enabled.
 
-| Full panel | Settings panel |
-| :---: | :---: |
-| ![Side panel detail](screenshots/sidepanel.png) | ![Settings panel](<screenshots/settings_full(33%25page_size).png>) |
-
-<details>
-<summary>More settings screenshots</summary>
-
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src="screenshots/settings_1.png" width="100%"><br>
-      <img src="screenshots/settings_2.png" width="100%"><br>
-      <img src="screenshots/settings_3.png" width="100%">
-    </td>
-    <td align="center">
-      <img src="screenshots/settings_full(33%25page_size).png" width="100%">
-    </td>
-  </tr>
-</table>
-
-</details>
+| Side panel |
+| :---: |
+| ![Side panel](screenshots/sidepanel.png) |
+| Inline preview & download mirrors |
+| ![Music previews and download options](screenshots/music_preview_and_downloads.png) |
 
 ### Settings
 
