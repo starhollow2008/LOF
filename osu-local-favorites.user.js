@@ -1810,6 +1810,19 @@
   }
 
   // ═══ Floating heart — always visible on all osu! pages ═══
+  // Visual language matches the rest of LOF's UI (flat dark surface, 1px
+  // hairline border, small radius, accent used sparingly) instead of the old
+  // generic glowing-circle look.
+  const IND_POS_KEY = "osu_fav_ind_pos"; // {right,bottom} px from bottom-right
+
+  function indApplyVisual(ind, fav, dragging) {
+    ind.innerHTML = heartSVG(fav);
+    ind.style.background = "rgba(17,17,17,0.95)";
+    ind.style.border = fav ? "1px solid var(--osu-fav-accent)" : "1px solid #333";
+    ind.style.boxShadow = fav ? "0 2px 10px rgba(255,102,170,0.25)" : "none";
+    ind.style.opacity = dragging ? "0.85" : "";
+  }
+
   function ensureHeartIndicator() {
     if (document.getElementById("osu-local-fav-ind")) return;
 
@@ -1820,33 +1833,107 @@
       bottom: "40px",
       right: "100px",
       zIndex: "99999",
-      width: "50px",
-      height: "50px",
-      borderRadius: "50%",
-      background: "rgba(22,33,62,0.95)",
+      width: "42px",
+      height: "42px",
+      borderRadius: "12px",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       cursor: "pointer",
-      transition: "all 0.15s ease",
+      transition: "border-color 0.15s ease, opacity 0.15s ease",
       userSelect: "none",
+      touchAction: "none",
     });
+
+    // Restore last saved position (drag is persisted across pages/sessions)
+    try {
+      const saved = GM_getValue(IND_POS_KEY, null);
+      if (saved && typeof saved.right === "number" && typeof saved.bottom === "number") {
+        // Clamp into the viewport in case the window shrank since saving
+        const maxR = Math.max(0, window.innerWidth - 46);
+        const maxB = Math.max(0, window.innerHeight - 46);
+        ind.style.right = Math.min(Math.max(0, saved.right), maxR) + "px";
+        ind.style.bottom = Math.min(Math.max(0, saved.bottom), maxB) + "px";
+      }
+    } catch (e) { }
 
     const update = () => {
       const bmid = getBeatmapId();
       const fav = bmid ? isFavorited(bmid) : false;
-      ind.innerHTML = heartSVG(fav);
-      ind.style.border = fav ? "2px solid var(--osu-fav-accent-dark)" : "2px solid var(--osu-fav-accent)";
-      ind.style.boxShadow = fav
-        ? "0 2px 20px rgba(255,51,119,0.6)"
-        : "0 2px 16px rgba(255,102,170,0.3)";
+      indApplyVisual(ind, fav, false);
       // Clicking heart always opens favorites panel
-      ind.title = "View local favorites";
+      ind.title = "View local favorites (hold + drag to move)";
     };
+
+    // ── Click vs hold-to-drag ──
+    // A short press without movement = click (open panel). Holding for
+    // HOLD_MS or moving > MOVE_THRESHOLD px starts a drag; the new position
+    // is anchored to bottom/right so it survives resizes, and persisted.
+    const HOLD_MS = 250;
+    const MOVE_THRESHOLD = 6;
+    let pressTimer = null;
+    let dragging = false;
+    let dragMoved = false;
+    let startX = 0, startY = 0, startRight = 0, startBottom = 0;
+    let suppressClick = false;
+
+    ind.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      dragging = false;
+      dragMoved = false;
+      suppressClick = false;
+      startX = e.clientX;
+      startY = e.clientY;
+      startRight = parseFloat(ind.style.right) || 100;
+      startBottom = parseFloat(ind.style.bottom) || 40;
+      pressTimer = setTimeout(() => {
+        dragging = true;
+        suppressClick = true;
+        ind.setPointerCapture(e.pointerId);
+        indApplyVisual(ind, isFavorited(getBeatmapId()) , true);
+      }, HOLD_MS);
+      e.preventDefault();
+    });
+
+    ind.addEventListener("pointermove", (e) => {
+      if (!dragging) {
+        // Cancel pending drag if the finger/mouse moved before hold elapsed
+        if (pressTimer && Math.hypot(e.clientX - startX, e.clientY - startY) > MOVE_THRESHOLD) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+        return;
+      }
+      dragMoved = true;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const right = Math.min(Math.max(0, startRight - dx), Math.max(0, window.innerWidth - ind.offsetWidth));
+      const bottom = Math.min(Math.max(0, startBottom - dy), Math.max(0, window.innerHeight - ind.offsetHeight));
+      ind.style.right = right + "px";
+      ind.style.bottom = bottom + "px";
+    });
+
+    const endPress = (e) => {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+      if (dragging) {
+        dragging = false;
+        indApplyVisual(ind, isFavorited(getBeatmapId()), false);
+        if (dragMoved) {
+          GM_setValue(IND_POS_KEY, {
+            right: parseFloat(ind.style.right) || 0,
+            bottom: parseFloat(ind.style.bottom) || 0,
+          });
+          suppressClick = true;
+        }
+      }
+    };
+    ind.addEventListener("pointerup", endPress);
+    ind.addEventListener("pointercancel", endPress);
 
     ind.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (suppressClick) { suppressClick = false; return; }
       showFavoritesPanel();
     });
 
@@ -1880,11 +1967,7 @@
     if (!ind) return;
     const bmid = getBeatmapId();
     const fav = bmid ? isFavorited(bmid) : false;
-    ind.innerHTML = heartSVG(fav);
-    ind.style.border = fav ? "2px solid var(--osu-fav-accent-dark)" : "2px solid var(--osu-fav-accent)";
-    ind.style.boxShadow = fav
-      ? "0 2px 20px rgba(255,51,119,0.6)"
-      : "0 2px 16px rgba(255,102,170,0.3)";
+    indApplyVisual(ind, fav, false);
     updateGuestButtonVisual();
   }
 
@@ -2626,6 +2709,41 @@
           showToast("Import failed: " + err.message);
         }
         e.target.value = "";
+      });
+
+      wrap.appendChild(divider());
+
+      // ── Version / update check ──
+      const verLabel = document.createElement("div");
+      verLabel.style.cssText = "font-size:10px;color:#666;margin-bottom:6px";
+      verLabel.textContent = "Running v" + getCurrentVersion();
+      wrap.appendChild(verLabel);
+
+      const checkUpdateBtn = makeBtn("Check for update", "width:100%;box-sizing:border-box;text-align:center;padding:6px;margin-bottom:4px");
+      wrap.appendChild(checkUpdateBtn);
+      checkUpdateBtn.addEventListener("click", () => {
+        checkUpdateBtn.textContent = "Checking...";
+        checkUpdateBtn.disabled = true;
+        checkVersionUpdate(true)
+          .then((latest) => {
+            if (latest) {
+              showToast("Update available: v" + latest + " — reinstall from the repo to update");
+              // Offer a one-click jump to the install URL
+              setTimeout(() => {
+                window.open(
+                  "https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js",
+                  "_blank",
+                );
+              }, 500);
+            } else {
+              showToast("You're on the latest version (v" + getCurrentVersion() + ")");
+            }
+          })
+          .catch(() => showToast("Update check failed — try again later"))
+          .then(() => {
+            checkUpdateBtn.textContent = "Check for update";
+            checkUpdateBtn.disabled = false;
+          });
       });
 
       wrap.appendChild(divider());
