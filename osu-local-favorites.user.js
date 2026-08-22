@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      4.7.1
+// @version      4.8.0
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       vyroxat
@@ -577,6 +577,15 @@
   // ═══ GitHub Gist Backup ═══
   const GIST_FILENAME = "osu-local-favorites-backup.json";
   const GH_TOKEN_KEY = "osu_github_token";
+  // ── osu! API v2 (OAuth2 authorization-code) storage keys ──
+  const OSU_API_CLIENT_ID_KEY = "osu_api_client_id";
+  const OSU_API_CLIENT_SECRET_KEY = "osu_api_client_secret";
+  const OSU_API_TOKEN_KEY = "osu_api_token"; // {access,refresh,expires_at}
+  const OSU_API_STATE_KEY = "osu_api_oauth_state";
+  const OSU_API_USERNAME_KEY = "osu_api_username";
+  // The redirect URI users must register on their osu! OAuth application.
+  // Must match EXACTLY (scheme/host/path, no trailing slash).
+  const OSU_API_REDIRECT_URI = "https://osu.ppy.sh/osu-local-favorites";
   const GH_USERNAME_KEY = "osu_github_username";
   const GH_GIST_ID_KEY = "osu_github_gist_id";
   const GH_GIST_URL_KEY = "osu_github_gist_url";
@@ -679,6 +688,271 @@
     if (hexMatch) return hexMatch[0];
     const parts = trimmed.split(/[/?#]/).filter(Boolean);
     return parts.length ? parts[parts.length - 1] : trimmed;
+  }
+
+  // ═══ osu! API v2 — OAuth2 authorization-code flow ═══
+  // Same mechanism standard osu! extensions use: the user creates an OAuth
+  // application on their osu! account settings (new OAuth app), enters its
+  // Client ID + Client Secret in LOF's settings, and registers exactly
+  // https://osu.ppy.sh/osu-local-favorites as the callback URL. The script
+  // then drives the full flow itself:
+  //   1. osuApiStartAuth()      → navigates to /oauth/authorize with a random state
+  //   2. osu! redirects back to /osu-local-favorites?code=…&state=…
+  //   3. osuApiHandleOAuthCallback() (runs at document-start) exchanges the
+  //      code at /oauth/token, stores access+refresh tokens and wipes the
+  //      query string so the user never sees osu!'s 404 page.
+  //   4. osuApiGetToken() transparently refreshes via refresh_token grant.
+  //
+  // All token traffic is same-origin (https://osu.ppy.sh → itself), so plain
+  // fetch() works — no GM_xmlhttpRequest / CORS involved.
+
+  function osuApiIsConfigured() {
+    return !!(GM_getValue(OSU_API_CLIENT_ID_KEY, "") && GM_getValue(OSU_API_CLIENT_SECRET_KEY, ""));
+  }
+
+  function osuApiIsConnected() {
+    return !!GM_getValue(OSU_API_TOKEN_KEY, null);
+  }
+
+  function osuApiStartAuth() {
+    if (!osuApiIsConfigured()) {
+      showToast("Enter your Client ID and Secret first");
+      return;
+    }
+    // Random state guards against CSRF on the callback.
+    const state = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    GM_setValue(OSU_API_STATE_KEY, state);
+    const params = new URLSearchParams({
+      client_id: GM_getValue(OSU_API_CLIENT_ID_KEY, ""),
+      redirect_uri: OSU_API_REDIRECT_URI,
+      response_type: "code",
+      scope: "public",
+      state,
+    });
+    location.href = "https://osu.ppy.sh/oauth/authorize?" + params.toString();
+  }
+
+  function osuApiTokenRequest(body) {
+    return fetch("https://osu.ppy.sh/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(
+        Object.assign(
+          {
+            client_id: Number(GM_getValue(OSU_API_CLIENT_ID_KEY, "")) || GM_getValue(OSU_API_CLIENT_ID_KEY, ""),
+            client_secret: GM_getValue(OSU_API_CLIENT_SECRET_KEY, ""),
+          },
+          body,
+        ),
+      ),
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.access_token) {
+        throw new Error(data.error_description || data.error || "token request failed (HTTP " + r.status + ")");
+      }
+      return data;
+    });
+  }
+
+  function osuApiSaveToken(data) {
+    GM_setValue(OSU_API_TOKEN_KEY, {
+      access: data.access_token,
+      refresh: data.refresh_token || "",
+      expires_at: Date.now() + (data.expires_in || 86400) * 1000 - 60000, // refresh 1 min early
+    });
+  }
+
+  // Returns a Promise<string> with a valid access token. Refreshes (and
+  // retries once after a refresh) automatically. Rejects when not configured
+  // or when both access and refresh tokens are dead.
+  let _osuApiRefreshInFlight = null;
+  function osuApiGetToken() {
+    if (!osuApiIsConfigured()) return Promise.reject(new Error("osu! API not configured"));
+    const tok = GM_getValue(OSU_API_TOKEN_KEY, null);
+    if (!tok) return Promise.reject(new Error("osu! API not connected"));
+    if (tok.access && Date.now() < tok.expires_at) return Promise.resolve(tok.access);
+    if (!tok.refresh) return Promise.reject(new Error("osu! API session expired — reconnect in settings"));
+    // Deduplicate concurrent refreshes
+    if (!_osuApiRefreshInFlight) {
+      _osuApiRefreshInFlight = osuApiTokenRequest({
+        grant_type: "refresh_token",
+        refresh_token: tok.refresh,
+      })
+        .then((data) => {
+          osuApiSaveToken(data);
+          return data.access_token;
+        })
+        .catch((err) => {
+          // Refresh dead → force a clean reconnect
+          GM_setValue(OSU_API_TOKEN_KEY, null);
+          throw err;
+        })
+        .finally(() => { _osuApiRefreshInFlight = null; });
+    }
+    return _osuApiRefreshInFlight;
+  }
+
+  // ── Rate limiting / queuing (per https://osu.ppy.sh/docs/index.html) ──
+  // osu! asks clients to stay under ~60 requests/minute (≈1/sec), honor
+  // Retry-After on HTTP 429, use exponential backoff, and cache responses.
+  // All of that is enforced centrally here so every osuApiGet() caller is
+  // compliant regardless of where the call originates.
+  const OSU_API_MIN_GAP_MS = 1050;        // ≥1s between requests
+  let _osuApiQueueTail = Promise.resolve(); // serializes request pacing
+  let _osuApiRetryAfterUntil = 0;         // absolute ts while server says wait
+  let _osuApiBackoffMs = 0;               // grows exponentially on repeat 429s
+  const _osuApiCache = new Map();         // path → response JSON (session cache)
+  const OSU_API_CACHE_MAX = 500;
+
+  function _osuApiDelay(ms) {
+    return new Promise((res) => setTimeout(res, ms));
+  }
+
+  // Serializes every API call through one queue with ≥OSU_API_MIN_GAP_MS
+  // spacing, plus any server-mandated or backoff wait before dispatching.
+  function _osuApiGate(fn) {
+    const run = () => {
+      const now = Date.now();
+      const wait = Math.max(
+        _osuApiRetryAfterUntil - now,
+        _osuApiBackoffMs ? (_osuApiRetryAfterUntil || now) + _osuApiBackoffMs - now : 0,
+      );
+      return (wait > 0 ? _osuApiDelay(wait) : Promise.resolve()).then(fn);
+    };
+    const result = _osuApiQueueTail.then(run, run);
+    _osuApiQueueTail = result.catch(() => { }).then(() => _osuApiDelay(OSU_API_MIN_GAP_MS));
+    return result;
+  }
+
+  function osuApiGet(path) {
+    const cleanPath = path.replace(/^\//, "");
+    // Docs good-practice #4: cache retrieved data and reuse it.
+    if (_osuApiCache.has(cleanPath)) return Promise.resolve(_osuApiCache.get(cleanPath));
+
+    const attempt = (isRetry) =>
+      osuApiGetToken().then((token) =>
+        fetch("https://osu.ppy.sh/api/v2/" + cleanPath, {
+          headers: { Authorization: "Bearer " + token, Accept: "application/json" },
+        }).then(async (r) => {
+          if (r.status === 429) {
+            // Honor the server's Retry-After, then apply exponential backoff
+            // for any further 429s (docs good-practice #3).
+            const raHeader = parseFloat(r.headers.get("Retry-After") || "0");
+            if (!isRetry && _osuApiBackoffMs === 0) _osuApiBackoffMs = 2000;
+            else _osuApiBackoffMs = Math.min(_osuApiBackoffMs * 2 || 2000, 60000);
+            _osuApiRetryAfterUntil = Date.now() + (Number.isFinite(raHeader) && raHeader > 0 ? raHeader * 1000 : _osuApiBackoffMs);
+            throw Object.assign(new Error("rate limited by osu! API"), { rateLimited: true });
+          }
+          _osuApiBackoffMs = 0; // successful window — reset backoff
+          if (r.status === 401 && !isRetry) {
+            // Access token died early (revoked/password change): drop cached
+            // token so the next osuApiGetToken() refreshes, then retry once.
+            GM_setValue(OSU_API_TOKEN_KEY, null);
+            return attempt(true);
+          }
+          if (!r.ok) throw new Error("osu! API HTTP " + r.status + " for " + cleanPath);
+          return r.json();
+        }),
+      );
+
+    return _osuApiGate(() => attempt(false)).catch((err) => {
+      // One transparent retry after a rate-limit wait has elapsed.
+      if (err && err.rateLimited) {
+        return _osuApiGate(() => attempt(true)).then((data) => {
+          _osuApiCacheSet(cleanPath, data);
+          return data;
+        });
+      }
+      throw err;
+    }).then((data) => {
+      _osuApiCacheSet(cleanPath, data);
+      return data;
+    });
+  }
+
+  function _osuApiCacheSet(path, data) {
+    if (!data || typeof data !== "object") return;
+    if (_osuApiCache.size >= OSU_API_CACHE_MAX) {
+      // Evict oldest inserted entry
+      _osuApiCache.delete(_osuApiCache.keys().next().value);
+    }
+    _osuApiCache.set(path, data);
+  }
+
+  function osuApiGetUsername() {
+    const cached = GM_getValue(OSU_API_USERNAME_KEY, "");
+    if (cached) return Promise.resolve(cached);
+    return osuApiGet("/me").then((me) => {
+      const name = (me && me.username) || "";
+      if (name) GM_setValue(OSU_API_USERNAME_KEY, name);
+      return name;
+    });
+  }
+
+  function osuApiDisconnect() {
+    GM_setValue(OSU_API_TOKEN_KEY, null);
+    GM_setValue(OSU_API_USERNAME_KEY, "");
+    GM_setValue(OSU_API_STATE_KEY, "");
+  }
+
+  // Runs once at document-start. If we're back on osu.ppy.sh with ?code= &
+  // ?state= from our own authorize redirect, exchange the code before osu!
+  // renders its 404 page, then rewrite the URL clean.
+  function osuApiHandleOAuthCallback() {
+    try {
+      const q = new URLSearchParams(location.search);
+      const code = q.get("code");
+      const state = q.get("state");
+      const expected = GM_getValue(OSU_API_STATE_KEY, "");
+      if (!code || !state || !expected || state !== expected) return;
+      GM_setValue(OSU_API_STATE_KEY, "");
+      history.replaceState(null, "", location.pathname); // hide ?code=… immediately
+      osuApiTokenRequest({ grant_type: "authorization_code", code, redirect_uri: OSU_API_REDIRECT_URI })
+        .then((data) => {
+          osuApiSaveToken(data);
+          GM_setValue(OSU_API_USERNAME_KEY, "");
+          const notify = () => showOsuFavToast("osu! API connected ✔");
+          if (document.body) notify(); else document.addEventListener("DOMContentLoaded", notify);
+        })
+        .catch((err) => {
+          console.error("[osu-local-favorites] osu! API token exchange failed", err);
+          const notify = () => showOsuFavToast("osu! API connect failed: " + err.message);
+          if (document.body) notify(); else document.addEventListener("DOMContentLoaded", notify);
+        });
+    } catch (e) { /* never break page load over this */ }
+  }
+
+  // Fetches a beatmapset through the API v2 and normalizes it into LOF's
+  // stored-favorite shape (identical fields to getBeatmapDataFromJSON — the
+  // website's embedded JSON is basically the same object as the API payload).
+  function osuApiFetchBeatmapset(beatmapId) {
+    return osuApiGet("/beatmapsets/" + beatmapId).then((bm) => {
+      if (!bm || !bm.id) throw new Error("beatmapset not found");
+      const sid = String(bm.id);
+      return {
+        id: sid,
+        artist: bm.artist || "",
+        artist_unicode: bm.artist_unicode || bm.artist || "",
+        title: bm.title || "",
+        title_unicode: bm.title_unicode || bm.title || "",
+        creator: bm.creator || "",
+        user_id: String(bm.user_id || ""),
+        covers: bm.covers || {},
+        status: bm.status || "",
+        favourite_count: bm.favourite_count || 0,
+        play_count: bm.play_count || 0,
+        bpm: bm.bpm || 0,
+        source: bm.source || "",
+        tags: bm.tags || "",
+        genre: (bm.genre && bm.genre.name) || "",
+        language: (bm.language && bm.language.name) || "",
+        url: "https://osu.ppy.sh/beatmapsets/" + sid,
+        favourited_at: new Date().toISOString(),
+        is_artist_featured: !!bm.track_id,
+        nsfw: !!bm.nsfw,
+        preview: "https://b.ppy.sh/preview/" + sid + ".mp3",
+      };
+    });
   }
 
   // Creates the backup gist on first run, otherwise updates the linked one.
@@ -1055,6 +1329,15 @@
     }
 
     // BUTTON / A checks below
+    // Guard: only treat a heart-icon button as a fav button when it actually
+    // sits in a beatmap context (a beatmapset detail page, or inside a listing
+    // card). Hearts also appear on profiles, forums, modding posts, etc., and
+    // previously those matched here, then failed id resolution and produced
+    // spurious "couldn't resolve a beatmap id" errors.
+    const hasBeatmapContext =
+      !!getBeatmapId() || !!el.closest(".beatmapset-panel");
+    if (!hasBeatmapContext) return false;
+
     if (
       el.querySelector(
         ".fa-heart, .fas.fa-heart, .far.fa-heart, .fal.fa-heart, .fa-solid.fa-heart, .fa-regular.fa-heart",
@@ -1149,24 +1432,34 @@
   // fields (tags/source/genre/language/etc.) that may be stale or were saved
   // in an older, differently-normalized format.
   function enrichBeatmapData(beatmapId) {
-    return fetch("https://osu.ppy.sh/beatmapsets/" + beatmapId, {
-      credentials: "include",
-    })
-      .then((r) => (r.ok ? r.text() : null))
-      .then((html) => {
-        if (!html) return;
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        const el = doc.getElementById("json-beatmapset");
-        if (!el) return;
-        let raw;
-        try {
-          raw = JSON.parse(el.textContent);
-        } catch (e) {
-          return;
-        }
-        const bm = raw.beatmapset || raw;
-        if (!bm || !bm.id) return;
+    // Prefer the osu! API v2 when connected (clean JSON, no HTML parsing,
+    // no reliance on the embedded #json-beatmapset element). Falls back to
+    // scraping the beatmapset page's embedded JSON when the API isn't set up.
+    const useApi = osuApiIsConnected() && osuApiIsConfigured();
+    const fetchNormalized = useApi
+      ? osuApiFetchBeatmapset(beatmapId)
+      : fetch("https://osu.ppy.sh/beatmapsets/" + beatmapId, {
+        credentials: "include",
+      })
+        .then((r) => (r.ok ? r.text() : null))
+        .then((html) => {
+          if (!html) return null;
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, "text/html");
+          const el = doc.getElementById("json-beatmapset");
+          if (!el) return null;
+          try {
+            const raw = JSON.parse(el.textContent);
+            const bm = raw.beatmapset || raw;
+            return bm && bm.id ? bm : null;
+          } catch (e) {
+            return null;
+          }
+        });
+
+    return Promise.resolve(fetchNormalized)
+      .then((bm) => {
+        if (!bm) return;
         const favs = getFavorites();
         const sid = String(bm.id);
         if (!favs[sid]) return; // Removed before enrichment finished — skip
@@ -1605,12 +1898,12 @@
       try {
         const ctx = resolveBeatmapContext(button);
         if (!ctx.beatmapId) {
-          console.error(
-            "[osu-local-favorites] couldn't resolve a beatmap id for this button",
+          // Not an error: isFavButton()'s matching is heuristic, so an
+          // occasional false positive can slip past it. Just ignore the click
+          // quietly instead of spamming the console and toasting the user.
+          console.debug(
+            "[osu-local-favorites] ignoring heart-like button without resolvable beatmap id",
             button,
-          );
-          showOsuFavToast(
-            "Local Favorites: couldn't identify this beatmap (see F12 console)",
           );
           return;
         }
@@ -2308,6 +2601,68 @@
         }
         e.target.value = "";
       });
+
+      wrap.appendChild(divider());
+
+      // ── osu! API v2 (OAuth) ──
+      wrap.appendChild(sectionLabel("osu! API"));
+
+      const apiConnected = osuApiIsConnected();
+      if (!apiConnected) {
+        const apiHint = document.createElement("div");
+        apiHint.style.cssText = "font-size:10px;color:#666;line-height:1.5;margin-bottom:8px";
+        apiHint.innerHTML =
+          "Connect the official osu! API v2 for reliable metadata enrichment. Create an " +
+          '<a href="https://osu.ppy.sh/home/account/edit#new-oauth-app" target="_blank" style="color:var(--osu-fav-accent);text-decoration:none">new OAuth application →</a>' +
+          " with callback URL <code style='color:#aaa'>https://osu.ppy.sh/osu-local-favorites</code>, then paste its Client ID and Secret below.";
+        wrap.appendChild(apiHint);
+      } else {
+        const apiStatus = document.createElement("div");
+        apiStatus.style.cssText = "font-size:11px;color:#8c8;margin-bottom:6px";
+        apiStatus.textContent = "Connected" + (GM_getValue(OSU_API_USERNAME_KEY, "") ? " as " + GM_getValue(OSU_API_USERNAME_KEY, "") : "") + " — enrichment uses the API";
+        wrap.appendChild(apiStatus);
+      }
+
+      if (!apiConnected) {
+        const apiIdInput = document.createElement("input");
+        apiIdInput.type = "text";
+        apiIdInput.inputMode = "numeric";
+        apiIdInput.placeholder = "Client ID";
+        apiIdInput.value = GM_getValue(OSU_API_CLIENT_ID_KEY, "");
+        const apiSecretInput = document.createElement("input");
+        apiSecretInput.type = "password";
+        apiSecretInput.placeholder = "Client Secret";
+        apiSecretInput.value = GM_getValue(OSU_API_CLIENT_SECRET_KEY, "");
+        for (const inp of [apiIdInput, apiSecretInput]) {
+          inp.style.cssText = "width:100%;box-sizing:border-box;padding:6px 10px;background:#111;border:1px solid #333;border-radius:3px;color:#ddd;font-size:12px;outline:none;margin-bottom:6px";
+          inp.addEventListener("focus", () => (inp.style.borderColor = "var(--osu-fav-accent)"));
+          inp.addEventListener("blur", () => (inp.style.borderColor = "#333"));
+          wrap.appendChild(inp);
+        }
+
+        const apiConnectBtn = makeBtn("Connect osu! API", "width:100%;box-sizing:border-box;text-align:center;padding:6px;margin-bottom:4px");
+        wrap.appendChild(apiConnectBtn);
+        apiConnectBtn.addEventListener("click", () => {
+          const id = apiIdInput.value.trim();
+          const secret = apiSecretInput.value.trim();
+          if (!id || !secret || Number.isNaN(Number(id))) {
+            showToast("Enter a valid numeric Client ID and a Secret");
+            return;
+          }
+          GM_setValue(OSU_API_CLIENT_ID_KEY, id);
+          GM_setValue(OSU_API_CLIENT_SECRET_KEY, secret);
+          // Redirects to osu!'s authorize page; we resume on /osu-local-favorites?code=…
+          osuApiStartAuth();
+        });
+      } else {
+        const apiDisconnectBtn = makeBtn("Disconnect", "width:100%;box-sizing:border-box;text-align:center;padding:6px;margin-bottom:4px;color:#f88");
+        wrap.appendChild(apiDisconnectBtn);
+        apiDisconnectBtn.addEventListener("click", () => {
+          osuApiDisconnect();
+          showToast("Disconnected from osu! API");
+          renderSettingsView();
+        });
+      }
 
       wrap.appendChild(divider());
 
@@ -3773,6 +4128,9 @@
   function init() {
     applyTheme();
     injectInterceptor();
+    // OAuth callback must be handled as early as possible so the user never
+    // sees osu!'s 404 page for /osu-local-favorites.
+    osuApiHandleOAuthCallback();
 
     // ═══ Cross-tab sync ═══
     // When another tab writes to the favorites key, refresh all UI in this tab.
