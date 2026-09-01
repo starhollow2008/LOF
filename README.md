@@ -15,10 +15,11 @@ Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with 
 
 The script adds a **View Local Favorites** option in the Tampermonkey menu. Click it to open a side panel with all your favorites.
 
-**Heavily deprecated browser extension** 
-this is behind by about 1.6 major releases [85 commits behind check here](https://github.com/starhollow2008/LOF/compare/v3.4.2...main)
+Browser Extensions
+> **Heavily deprecated browser extension** 
+this is behind by about 1.6 major releases [87 commits behind check here](https://github.com/starhollow2008/LOF/compare/v3.4.2...main)
+> The old browser-extension build (`manifest.json`, `content.js`, `popup.*`, `background.js`, etc.) is no longer maintained or included in this repository — only the archived v3.4.2 release below still has those files. All active development happens on the Tampermonkey userscript.
 
-Deprecated Extensions
 1. Download `osu-favorites-extension.zip` or `osu-favorites-extension.xpi` from the [last extension release](https://github.com/starhollow2008/LOF/releases/tag/v3.4.2)
 2. Unzip
 3. Go to `chrome://extensions/`, enable Developer mode
@@ -29,8 +30,6 @@ For Firefox
 2. To install it in Firefox go to `about:debugging` → `This Firefox` → `Load Temporary Add-on` → pick the .xpi file*(temporary - it will be removed after browser restart)*
 
 Or clone the repo and load it directly:```git clone https://github.com/starhollow2008/LOF.git``` Then load the folder in `chrome://extensions/`.
-
-> The old browser-extension build (`manifest.json`, `content.js`, `popup.*`, `background.js`, etc.) is no longer maintained or included in this repository — only the archived v3.4.2 release above still has those files. All active development happens on the Tampermonkey userscript.
 
 ## Side Panel Demo
 
