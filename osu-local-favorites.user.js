@@ -6,7 +6,7 @@
 // @version      4.8.0
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
-// @author       vyroxat
+// @author       Starhollow2008 | FlareonGhh
 // @match        https://osu.ppy.sh/*
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -23,24 +23,25 @@
  *
  * Table of contents (search for the ═══ markers below):
  *   1. Page-world XHR/fetch interceptor  — blocks osu!'s own favourite calls
- *   2. Storage                           — local favourites CRUD (GM_*Value)
- *   3. Theme                             — accent color + opacity, as CSS vars
- *   4. Download Mirrors                  — 3rd-party download fallback + popover
- *   5. GitHub Gist Backup                — connect, manual/auto sync, restore
- *   6. Beatmap data extraction           — parse JSON / DOM card into a record
- *   7. Favorite button detection         — find osu!'s heart buttons on page
- *   8. Visual helpers                    — heart icon fill/outline state
- *   9. Background enrichment             — fetch full detail-page JSON
- *  10. Global re-enrichment              — Settings → Library Maintenance
- *  11. Toggle favorite                   — the core add/remove action
- *  12. Copy-all button                   — bulk-import from a profile page's
+ *   2. Error reporting                   — console + on-page toast for failures
+ *   3. Storage                           — local favourites CRUD (GM_*Value)
+ *   4. Theme                             — accent color + opacity, as CSS vars
+ *   5. Download Mirrors                  — 3rd-party download fallback + popover
+ *   6. GitHub Gist Backup                — connect, manual/auto sync, restore
+ *   7. Beatmap data extraction           — parse JSON / DOM card into a record
+ *   8. Favorite button detection         — find osu!'s heart buttons on page
+ *   9. Visual helpers                    — heart icon fill/outline state
+ *  10. Background enrichment             — fetch full detail-page JSON
+ *  11. Global re-enrichment              — Settings → Library Maintenance
+ *  12. Toggle favorite                   — the core add/remove action
+ *  13. Copy-all button                   — bulk-import from a profile page's
  *                                            Favourite/Most Played sections
- *  13. Floating heart indicator          — always-on-screen shortcut
- *  14. Favorites panel                   — the side panel UI + Settings view
- *  15. Guest-mode fallback button        — heart button on detail pages
- *  16. Guest downloads + mirror buttons    — download links when logged out
- *  17. Toast / version-check / update UI — misc helpers
- *  18. Init                              — observers, polling, menu commands
+ *  14. Floating heart indicator          — always-on-screen shortcut
+ *  15. Favorites panel                   — the side panel UI + Settings view
+ *  16. Guest-mode fallback button        — heart button on detail pages
+ *  17. Guest downloads + mirror buttons    — download links when logged out
+ *  18. Toast / version-check / update UI — misc helpers
+ *  19. Init                              — observers, polling, menu commands
  */
 (() => {
   "use strict";
@@ -246,6 +247,100 @@
     }})();`;
     (document.head || document.documentElement).appendChild(script);
   }
+
+  // ═══ Error reporting ═══
+  // One place for every failure in this script to end up: a structured
+  // console.error() (name/message/HTTP status/stack, so pasting that one
+  // line is enough to file a useful bug report) plus a small on-page toast
+  // when it's worth telling the user something failed. Call sites that
+  // already showed a plain toast on failure route through reportError()
+  // below instead of building their own message, so they pick up the
+  // console detail for free without changing what appears on screen.
+  const ERROR_TOAST_MIN_GAP_MS = 4000; // don't flood the screen if something fails repeatedly
+  let _lastErrorToastAt = 0;
+
+  function showOsuFavErrorToast(msg) {
+    if (!document.body) return; // page not ready — the console line already has the detail
+    const t = document.createElement("div");
+    Object.assign(t.style, {
+      position: "fixed",
+      bottom: "20px",
+      right: "20px",
+      zIndex: "100002",
+      maxWidth: "320px",
+      background: "#2a1414",
+      border: "1px solid #6b2222",
+      borderRadius: "4px",
+      padding: "8px 14px",
+      fontSize: "12px",
+      lineHeight: "1.4",
+      color: "#f5b8b8",
+      boxShadow: "0 2px 8px rgba(0,0,0,.5)",
+      pointerEvents: "none",
+      transition: "opacity 0.2s ease",
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    });
+    t.textContent = "⚠ " + msg;
+    document.body.appendChild(t);
+    setTimeout(() => {
+      t.style.opacity = "0";
+      setTimeout(() => t.remove(), 200);
+    }, 4000);
+  }
+
+  // context: short human label for where this happened, shown in both the
+  // toast and the console line (e.g. "Gist backup", "Toggle favorite").
+  // err: whatever was thrown/rejected — normally an Error, handled
+  // gracefully either way. extra: optional {status, statusText, ...} for
+  // callers that know more than what's already on the Error object (most
+  // network helpers below attach .status/.statusText themselves, so this is
+  // rarely needed).
+  function reportError(context, err, extra) {
+    extra = extra || {};
+    const name = (err && err.name) || "Error";
+    const message = (err && err.message) || String(err);
+    const status = extra.status != null ? extra.status : (err && err.status) || null;
+    const statusText = extra.statusText != null ? extra.statusText : (err && err.statusText) || null;
+    const stack = (err && err.stack) || null;
+    const statusPart = status ? ` (status ${status}${statusText ? " " + statusText : ""})` : "";
+
+    console.error(
+      `[osu! Local Favorites] ${context} — ${name}: ${message}${statusPart}`,
+      Object.assign(
+        { context, name, message, status, statusText, stack, time: new Date().toISOString() },
+        extra,
+      ),
+    );
+
+    const now = Date.now();
+    if (now - _lastErrorToastAt < ERROR_TOAST_MIN_GAP_MS) return; // already told the user something just failed
+    _lastErrorToastAt = now;
+    showOsuFavErrorToast(`${context}: ${message}${statusPart} — see console for details`);
+  }
+
+  // Last-resort safety net for bugs that slip past every try/catch above.
+  // window-level "error"/"unhandledrejection" fire for *every* script on the
+  // page, not just this one, so each listener below only reports when the
+  // stack trace contains one of this script's own function names — a
+  // best-effort filter (Tampermonkey doesn't expose a reliable "this came
+  // from a userscript" flag), but good enough to avoid popping a Local
+  // Favorites error toast for osu!'s own unrelated page bugs.
+  const OWN_STACK_MARKERS = [
+    "toggleFavorite", "ghApiRequest", "osuApiGetToken", "osuApiTokenRequest",
+    "enrichBeatmapData", "showFavoritesPanel", "refreshButtons", "performGistBackup",
+  ];
+  function looksLikeOwnError(err) {
+    const stack = (err && err.stack) || "";
+    return OWN_STACK_MARKERS.some((name) => stack.includes(name));
+  }
+  window.addEventListener("error", (e) => {
+    if (!looksLikeOwnError(e.error)) return;
+    reportError("Uncaught error", e.error || new Error(e.message));
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    if (!looksLikeOwnError(e.reason)) return;
+    reportError("Unhandled rejection", e.reason instanceof Error ? e.reason : new Error(String(e.reason)));
+  });
 
   // ═══ Storage ═══
   function getFavorites() {
@@ -643,11 +738,14 @@
           if (response.status >= 200 && response.status < 300) {
             resolve(json);
           } else {
-            reject(new Error((json && json.message) || ("GitHub error " + response.status)));
+            reject(Object.assign(
+              new Error((json && json.message) || ("GitHub error " + response.status)),
+              { status: response.status, statusText: response.statusText },
+            ));
           }
         },
-        onerror: () => reject(new Error("Network error contacting GitHub")),
-        ontimeout: () => reject(new Error("GitHub request timed out")),
+        onerror: () => reject(Object.assign(new Error("Network error contacting GitHub"), { status: 0 })),
+        ontimeout: () => reject(Object.assign(new Error("GitHub request timed out"), { status: 0 })),
       });
     });
   }
@@ -774,7 +872,10 @@
     }).then(async (r) => {
       const data = await r.json().catch(() => ({}));
       if (!r.ok || !data.access_token) {
-        throw new Error(data.error_description || data.error || "token request failed (HTTP " + r.status + ")");
+        throw Object.assign(
+          new Error(data.error_description || data.error || "token request failed (HTTP " + r.status + ")"),
+          { status: r.status, statusText: r.statusText },
+        );
       }
       return data;
     });
@@ -876,7 +977,10 @@
             GM_setValue(OSU_API_TOKEN_KEY, null);
             return attempt(true);
           }
-          if (!r.ok) throw new Error("osu! API HTTP " + r.status + " for " + cleanPath);
+          if (!r.ok) throw Object.assign(
+            new Error("osu! API HTTP " + r.status + " for " + cleanPath),
+            { status: r.status, statusText: r.statusText },
+          );
           return r.json();
         }),
       );
@@ -941,8 +1045,7 @@
           if (document.body) notify(); else document.addEventListener("DOMContentLoaded", notify);
         })
         .catch((err) => {
-          console.error("[osu-local-favorites] osu! API token exchange failed", err);
-          const notify = () => showOsuFavToast("osu! API connect failed: " + err.message);
+          const notify = () => reportError("osu! API connect", err);
           if (document.body) notify(); else document.addEventListener("DOMContentLoaded", notify);
         });
     } catch (e) { /* never break page load over this */ }
@@ -1024,7 +1127,7 @@
           const statusEl = document.getElementById("osu-fav-footer-status");
           if (statusEl && typeof statusEl._refresh === "function") statusEl._refresh();
         })
-        .catch((err) => showOsuFavToast("Gist backup failed: " + err.message));
+        .catch((err) => reportError("Gist auto-backup", err));
     }, 4000);
   }
 
@@ -2026,10 +2129,7 @@
           button.style.transform = "scale(1)";
         }, 120);
       } catch (err) {
-        console.error("[osu-local-favorites] error while toggling favorite", err);
-        showOsuFavToast(
-          "Local Favorites: something went wrong (see F12 console)",
-        );
+        reportError("Toggle favorite", err);
       }
     },
     true,
@@ -2706,7 +2806,7 @@
           renderList();
           showToast(`Added ${added}. Total: ${Object.keys(existing).length}`);
         } catch (err) {
-          showToast("Import failed: " + err.message);
+          reportError("Import backup", err);
         }
         e.target.value = "";
       });
@@ -2858,7 +2958,7 @@
                 }
               });
             })
-            .catch((err) => showToast("Connection failed: " + err.message))
+            .catch((err) => reportError("GitHub connect", err))
             .then(() => {
               renderSettingsView();
               updateFooterStatus();
@@ -2936,7 +3036,7 @@
               updateFooterStatus();
               renderSettingsView();
             })
-            .catch((err) => showToast("Backup failed: " + err.message))
+            .catch((err) => reportError("Gist backup", err))
             .then(() => {
               backupNowBtn.disabled = false;
               backupNowBtn.textContent = "Backup now";
@@ -2968,7 +3068,7 @@
               renderList();
               showToast(`Restored ${added} maps from Gist backup`);
             })
-            .catch((err) => showToast("Restore failed: " + err.message))
+            .catch((err) => reportError("Gist restore", err))
             .then(() => {
               restoreBtn.disabled = false;
               restoreBtn.textContent = "Restore from Gist";
@@ -3024,7 +3124,7 @@
               fetchInput.value = "";
               showToast(`Fetched — added ${added} maps`);
             })
-            .catch((err) => showToast("Fetch failed: " + err.message))
+            .catch((err) => reportError("Gist fetch", err))
             .then(() => {
               fetchBtn.disabled = false;
               fetchBtn.textContent = "Fetch";
