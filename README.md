@@ -15,32 +15,16 @@ Replaces the default "Favorite" button on [osu.ppy.sh](https://osu.ppy.sh) with 
 
 The script adds a **View Local Favorites** option in the Tampermonkey menu. Click it to open a side panel with all your favorites.
 
-### [Deprecated] Extension
 
-1. Download `osu-favorites-extension.zip` or `osu-favorites-extension.xpi` from the [last extension release](https://github.com/starhollow2008/LOF/releases/tag/v3.4.2)
-2. Unzip
-3. Go to `chrome://extensions/`, enable Developer mode
-4. Click **Load unpacked** and select the unzipped folder
+> Deprecated Extensions 1. Download `osu-favorites-extension.zip` or `osu-favorites-extension.xpi` from the [last extension release](https://github.com/starhollow2008/LOF/releases/tag/v3.4.2) 2. Unzip 3. Go to `chrome://extensions/`, enable Developer mode 4. Click **Load unpacked** and select the unzipped folder
 
-**For Firefox**
+> For Firefox 1. Download `osu-favorites-extension.xpi` from the [last extension release](https://github.com/starhollow2008/LOF/releases/tag/v3.4.2) (.xpi file) 2. To install it in Firefox go to `about:debugging` → `This Firefox` → `Load Temporary Add-on` → pick the .xpi file*(temporary - it will be removed after browser restart)*
 
-1. Download `osu-favorites-extension.xpi` from the [last extension release](https://github.com/starhollow2008/LOF/releases/tag/v3.4.2) (.xpi file)
-2. To install it in Firefox go to `about:debugging` → `This Firefox` → `Load Temporary Add-on` → pick the .xpi file
-   *(temporary - it will be removed after browser restart)*
-
-**Or** clone the repo and load it directly:
-
-```
-git clone https://github.com/starhollow2008/LOF.git
-```
-
-Then load the folder in `chrome://extensions/`.
+> Or clone the repo and load it directly:```git clone https://github.com/starhollow2008/LOF.git``` Then load the folder in `chrome://extensions/`.
 
 > The old browser-extension build (`manifest.json`, `content.js`, `popup.*`, `background.js`, etc.) is no longer maintained or included in this repository — only the archived v3.4.2 release above still has those files. All active development happens on the Tampermonkey userscript.
 
-## Demo
-
-## Side Panel
+## Side Panel Demo
 
 Search, sort, preview, and download every favorite without leaving the panel — including per-map access to any download mirrors you've enabled.
 
