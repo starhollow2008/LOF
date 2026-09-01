@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      4.8.0
+// @version      4.9.0
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -343,8 +343,82 @@
   });
 
   // ═══ Storage ═══
+  // Persisted (and exported) records are intentionally minimal — cover art,
+  // preview clip, and page url are all a fixed formula away from the id
+  // (which is already the object's key), so none of them are stored:
+  //   "2579649": {
+  //     "artist": "METANICK", "title": "Otome Kaijuu (TV Size)",
+  //     "creator": "joshywa", "status": "ranked", "bpm": 192, "tags": "…",
+  //     "favourite_count": 119, "play_count": 41179,
+  //     "source": "乙女怪獣キャラメリゼ", "favourited_at": "2026-08-26T14:39:56.443Z"
+  //   }
+  // Field names mirror osu!'s own API (favourite_count / play_count /
+  // favourited_at) rather than shortened aliases, so a raw API/JSON payload
+  // can be handed to toStoredFavorite() below without translating keys.
+  // genre / is_artist_featured / nsfw aren't in that example, but they're
+  // kept as optional fields (omitted whenever falsy, so the common case
+  // still matches the example exactly) — they're real per-map facts, not
+  // derivable from id, and dropping them would silently kill the NSFW /
+  // Featured Artist badges in this panel.
+  function beatmapCoverUrl(id) {
+    return `https://assets.ppy.sh/beatmaps/${id}/covers/cover.jpg`;
+  }
+  function beatmapPreviewUrl(id) {
+    return `https://b.ppy.sh/preview/${id}.mp3`;
+  }
+  function beatmapPageUrl(id) {
+    return `https://osu.ppy.sh/beatmapsets/${id}`;
+  }
+
+  // Detects records still carrying any pre-simplification field, so the
+  // one-time migration in getFavorites() only rewrites what actually needs it.
+  function _favNeedsMigration(rec) {
+    return (
+      "covers" in rec || "preview" in rec || "url" in rec || "id" in rec ||
+      "artist_unicode" in rec || "title_unicode" in rec || "user_id" in rec ||
+      "language" in rec || "fav" in rec || "plays" in rec || "fav_at" in rec
+    );
+  }
+
+  // Strips any freshly-scraped/fetched/imported beatmap object down to the
+  // minimal persisted shape. Accepts both osu!'s full field names and this
+  // script's older shortened ones (imports/gist restores may carry either),
+  // so it doubles as the migration step for legacy records.
+  function toStoredFavorite(data) {
+    const out = {
+      artist: data.artist || "",
+      title: data.title || data.title_unicode || "",
+      creator: data.creator || "",
+      status: data.status || "",
+      bpm: data.bpm || 0,
+      tags: data.tags || "",
+      favourite_count: data.favourite_count != null ? data.favourite_count : (data.fav || 0),
+      play_count: data.play_count != null ? data.play_count : (data.plays || 0),
+      source: data.source || "",
+      favourited_at: data.favourited_at || data.fav_at || new Date().toISOString(),
+    };
+    const genre = data.genre || "";
+    if (genre) out.genre = genre;
+    if (data.is_artist_featured) out.is_artist_featured = true;
+    if (data.nsfw) out.nsfw = true;
+    return out;
+  }
+
+  let _favSchemaMigrated = false;
   function getFavorites() {
-    return GM_getValue(STORAGE_KEY, {});
+    const favs = GM_getValue(STORAGE_KEY, {});
+    if (!_favSchemaMigrated) {
+      _favSchemaMigrated = true;
+      let changed = false;
+      for (const id in favs) {
+        if (favs[id] && _favNeedsMigration(favs[id])) {
+          favs[id] = toStoredFavorite(favs[id]);
+          changed = true;
+        }
+      }
+      if (changed) setFavorites(favs);
+    }
+    return favs;
   }
 
   function setFavorites(favs) {
@@ -435,6 +509,84 @@
 
   function pauseSVG(size = 11) {
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-label="pause"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
+  }
+
+  // ── Media Session integration ──
+  // Mobile browsers (Chrome/Android in particular) will freeze or throttle
+  // a backgrounded tab — timers included — once it's decided nothing
+  // important is happening in it. A tab the OS recognizes as actively
+  // playing media is normally exempt from that, but only if it's told so
+  // via the Media Session API; a plain <audio> element alone isn't enough
+  // on some devices. This also gets us lock-screen/notification playback
+  // controls for free — including a real scrubber, which needs
+  // setPositionState() below or the OS just shows a static 00:00/00:00
+  // regardless of what the audio element itself is doing. Best-effort
+  // only — some mobile browsers still suspend background audio regardless
+  // after long enough away from the tab.
+  function updateMediaSession(f, isPlaying) {
+    if (!("mediaSession" in navigator)) return;
+    try {
+      if (f) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: f.title || "Unknown",
+          artist: f.artist || "",
+          album: "osu! — Local Favorites",
+          artwork: f.coverUrl
+            ? [
+              { src: f.coverUrl, sizes: "512x512", type: "image/jpeg" },
+              { src: f.coverUrl, sizes: "256x256", type: "image/jpeg" },
+            ]
+            : [],
+        });
+      }
+      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+      navigator.mediaSession.setActionHandler("play", () => {
+        if (window._osuFavAudio) window._osuFavAudio.play();
+      });
+      navigator.mediaSession.setActionHandler("pause", () => {
+        if (window._osuFavAudio) window._osuFavAudio.pause();
+      });
+      navigator.mediaSession.setActionHandler("stop", () => {
+        const a = window._osuFavAudio;
+        if (!a) return;
+        a.pause();
+        a.currentTime = 0;
+      });
+      try {
+        // Lets the OS's own lock-screen/notification scrubber drag the
+        // playhead — not every mobile browser implements this action, so
+        // it's wrapped separately and failing to register it shouldn't
+        // block play/pause/stop above from being set.
+        navigator.mediaSession.setActionHandler("seekto", (details) => {
+          const a = window._osuFavAudio;
+          if (a && details.seekTime != null && isFinite(a.duration)) {
+            a.currentTime = details.seekTime;
+            syncMediaSessionPosition();
+          }
+        });
+      } catch (e) { /* seekto unsupported on this browser — play/pause/stop still work */ }
+    } catch (e) {
+      // MediaMetadata unsupported, or a malformed field — never break playback over this
+    }
+  }
+
+  // Reports current position/duration to the OS so the lock-screen and
+  // notification scrubber shows real progress instead of a static
+  // 00:00/00:00. Call this on loadedmetadata (duration becomes known) and
+  // on timeupdate (position keeps advancing).
+  function syncMediaSessionPosition() {
+    if (!("mediaSession" in navigator) || typeof navigator.mediaSession.setPositionState !== "function") return;
+    const a = window._osuFavAudio;
+    if (!a || !a.duration || !isFinite(a.duration)) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: a.duration,
+        playbackRate: a.playbackRate || 1,
+        position: Math.min(a.currentTime, a.duration),
+      });
+    } catch (e) {
+      // Throws if called mid-seek with a stale position — safe to ignore, next tick retries
+    }
   }
 
   // ═══ Download Mirrors ═══
@@ -1592,15 +1744,10 @@
         const favs = getFavorites();
         const sid = String(bm.id);
         if (!favs[sid]) return; // Removed before enrichment finished — skip
-        favs[sid] = {
-          id: sid,
+        favs[sid] = toStoredFavorite({
           artist: bm.artist || "",
-          artist_unicode: bm.artist_unicode || bm.artist || "",
-          title: bm.title || "",
-          title_unicode: bm.title_unicode || bm.title || "",
+          title: bm.title || bm.title_unicode || "",
           creator: bm.creator || "",
-          user_id: String(bm.user_id || ""),
-          covers: bm.covers || {},
           status: bm.status || "",
           favourite_count: bm.favourite_count || 0,
           play_count: bm.play_count || 0,
@@ -1608,13 +1755,10 @@
           source: bm.source || "",
           tags: bm.tags || "",
           genre: (bm.genre && bm.genre.name) || "",
-          language: (bm.language && bm.language.name) || "",
-          url: "https://osu.ppy.sh/beatmapsets/" + sid,
           favourited_at: favs[sid].favourited_at || new Date().toISOString(),
           is_artist_featured: !!bm.track_id,
-          nsfw: bm.nsfw || false,
-          preview: "https://b.ppy.sh/preview/" + sid + ".mp3",
-        };
+          nsfw: !!bm.nsfw,
+        });
         setFavorites(favs);
         scheduleAutoBackup();
       })
@@ -1719,15 +1863,13 @@
     } else {
       const jsonData = getBeatmapDataFromJSON();
       if (jsonData) {
-        favs[beatmapId] = jsonData;
+        favs[beatmapId] = toStoredFavorite(jsonData);
       } else {
         needsEnrich = true;
         const data = (card ? getBeatmapDataFromCard(card) : null) || {
-          id: beatmapId,
-          url: "https://osu.ppy.sh/beatmapsets/" + beatmapId,
           favourited_at: new Date().toISOString(),
         };
-        favs[beatmapId] = data;
+        favs[beatmapId] = toStoredFavorite(data);
       }
     }
 
@@ -1872,7 +2014,7 @@
             } else {
               // Subtract i seconds so first row (top) gets newest timestamp
               data.favourited_at = new Date(baseTime - i * 1000).toISOString();
-              favs[data.id] = data;
+              favs[data.id] = toStoredFavorite(data);
               newIds.push(data.id);
               count++;
             }
@@ -2796,7 +2938,7 @@
           let added = 0;
           for (const [id, fav] of Object.entries(data)) {
             if (!existing[id]) {
-              existing[id] = fav;
+              existing[id] = toStoredFavorite(fav);
               added++;
             }
           }
@@ -3059,7 +3201,7 @@
               let added = 0;
               for (const [id, fav] of Object.entries(data)) {
                 if (!existing[id]) {
-                  existing[id] = fav;
+                  existing[id] = toStoredFavorite(fav);
                   added++;
                 }
               }
@@ -3113,7 +3255,7 @@
               let added = 0;
               for (const [id, fav] of Object.entries(data)) {
                 if (!existing[id]) {
-                  existing[id] = fav;
+                  existing[id] = toStoredFavorite(fav);
                   added++;
                 }
               }
@@ -3405,13 +3547,13 @@
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         entries = entries.filter(
-          ([, f]) =>
+          ([id, f]) =>
             (f.title || "").toLowerCase().includes(q) ||
             (f.artist || "").toLowerCase().includes(q) ||
             (f.creator || "").toLowerCase().includes(q) ||
             (f.tags || "").toLowerCase().includes(q) ||
             (f.source || "").toLowerCase().includes(q) ||
-            (f.id || "").includes(q),
+            id.includes(q),
         );
       }
 
@@ -3483,12 +3625,7 @@
         card.addEventListener("mouseleave", () => (card.style.background = ""));
 
         // Cover
-        const coverUrl =
-          (f.covers || {}).card ||
-          (f.covers || {})["card@2x"] ||
-          (f.covers || {}).list ||
-          (f.covers || {}).cover ||
-          "";
+        const coverUrl = beatmapCoverUrl(id);
         const coverEl = document.createElement("div");
         coverEl.style.cssText =
           "position:relative;width:56px;height:42px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;cursor:pointer";
@@ -3527,7 +3664,7 @@
         const titleDiv = document.createElement("div");
         titleDiv.style.cssText =
           "font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3";
-        titleDiv.textContent = f.title || f.title_unicode || "Unknown";
+        titleDiv.textContent = f.title || "Unknown";
         if (f.nsfw) {
           const badge = document.createElement("span");
           badge.textContent = "EXPLICIT";
@@ -3540,7 +3677,7 @@
           "font-size:10px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;display:flex;align-items:center;gap:4px";
         const artistText = document.createElement("span");
         artistText.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
-        artistText.textContent = f.artist || f.artist_unicode || "";
+        artistText.textContent = f.artist || "";
         artistDiv.appendChild(artistText);
         if (f.is_artist_featured) {
           const faBadge = document.createElement("span");
@@ -3593,7 +3730,7 @@
           "display:flex;flex-direction:column;gap:4px;flex-shrink:0;justify-content:center";
 
         const openLink = document.createElement("a");
-        openLink.href = f.url || `https://osu.ppy.sh/beatmapsets/${id}`;
+        openLink.href = beatmapPageUrl(id);
         openLink.target = "_blank";
         openLink.textContent = "Open";
         openLink.style.cssText =
@@ -3671,6 +3808,11 @@
         // Preview button — singleton audio, only one plays at a time
         if (!window._osuFavAudio) {
           window._osuFavAudio = new Audio();
+          // Lets the browser fetch duration/timing right away instead of only
+          // once playback starts — the OS lock-screen scrubber needs a.duration
+          // to be known as early as possible to show real progress instead of
+          // a static 00:00/00:00.
+          window._osuFavAudio.preload = "metadata";
           window._osuFavAudio._activeBtn = null;
           window._osuFavAudio._activeBar = null;
           window._osuFavAudio._activeDim = null;
@@ -3691,17 +3833,23 @@
             a._activeBtn = null;
             a._activeBar = null;
             a._activeDim = null;
+            if ("mediaSession" in navigator) {
+              navigator.mediaSession.playbackState = "none";
+              navigator.mediaSession.metadata = null;
+            }
           });
+          window._osuFavAudio.addEventListener("loadedmetadata", syncMediaSessionPosition);
           window._osuFavAudio.addEventListener("timeupdate", () => {
             const a = window._osuFavAudio;
             if (a._activeBar && a.duration) {
               const pct = (a.currentTime / a.duration) * 100;
               a._activeBar.style.width = pct + "%";
             }
+            syncMediaSessionPosition();
           });
         }
 
-        const previewUrl = previewSourceUrl(id, f.preview || `https://b.ppy.sh/preview/${id}.mp3`);
+        const previewUrl = previewSourceUrl(id, beatmapPreviewUrl(id));
 
         // Play button — lives inside the cover, centred, shown on hover or while playing
         const previewBtn = document.createElement("button");
@@ -3712,6 +3860,36 @@
           "font-size:11px;padding:2px 6px;border:1px solid #333;border-radius:2px;" +
           "background:none;color:#999;cursor:pointer;text-align:center;line-height:1;" +
           "opacity:var(--osu-fav-idle-opacity, 0.15);transition:opacity 0.15s";
+
+        // If this track is the one already playing in the background — e.g.
+        // the panel was closed and reopened while it kept going — re-link
+        // the singleton's active-element references to *this* row's fresh
+        // DOM and reflect the real playback state immediately. Without
+        // this, the old references keep pointing at now-detached elements
+        // from the previous render, so timeupdate keeps drawing progress
+        // nobody can see and the reopened row just looks paused at 0% —
+        // matching exactly what pausing and playing again used to "fix",
+        // since resuming was the only path that re-linked things.
+        if (window._osuFavAudio && window._osuFavAudio.src) {
+          const linkAudio = window._osuFavAudio;
+          const sameTrack =
+            linkAudio.src === previewUrl || linkAudio.src.replace("https://", "") === previewUrl.replace("https://", "");
+          if (sameTrack && !linkAudio.ended) {
+            linkAudio._activeBtn = previewBtn;
+            linkAudio._activeBar = progressBar;
+            linkAudio._activeDim = dimOverlay;
+            progressWrap.style.display = "block";
+            if (linkAudio.duration) progressBar.style.width = (linkAudio.currentTime / linkAudio.duration) * 100 + "%";
+            if (!linkAudio.paused) {
+              previewBtn.innerHTML = pauseSVG();
+              previewBtn._playing = true;
+              previewBtn.style.opacity = "var(--osu-fav-active-opacity, 0.8)";
+              previewBtn.style.borderColor = "var(--osu-fav-accent)";
+              previewBtn.style.color = "var(--osu-fav-accent)";
+              dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
+            }
+          }
+        }
 
         // Show/hide button on cover hover; restore original border/color on hover
         coverEl.addEventListener("mouseenter", () => {
@@ -3741,6 +3919,7 @@
               previewBtn.style.borderColor = "#333";
               previewBtn.style.color = "#999";
               dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
+              updateMediaSession(null, false);
             } else {
               // Re-link the bar/dim to this card every time we (re)start
               // playback, not just on a genuinely new src — if the previous
@@ -3759,6 +3938,8 @@
               previewBtn.style.borderColor = "var(--osu-fav-accent)";
               previewBtn.style.color = "var(--osu-fav-accent)";
               dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
+              updateMediaSession({ title: f.title, artist: f.artist, coverUrl }, true);
+              syncMediaSessionPosition();
             }
             return;
           }
@@ -3789,6 +3970,7 @@
           previewBtn.style.borderColor = "var(--osu-fav-accent)";
           previewBtn.style.color = "var(--osu-fav-accent)";
           dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
+          updateMediaSession({ title: f.title, artist: f.artist, coverUrl }, true);
           audio.play().catch(() => {
             previewBtn.innerHTML = playSVG();
             previewBtn._playing = false;
@@ -3796,6 +3978,7 @@
             previewBtn.style.borderColor = "#333";
             previewBtn.style.color = "#999";
             dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
+            updateMediaSession(null, false);
           });
         });
 
