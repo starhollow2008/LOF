@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      5.0.5
+// @version      5.1.0
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -2498,7 +2498,14 @@
         "#osu-fav-settings::-webkit-scrollbar-thumb{background:#333;border-radius:2px}" +
         "#osu-fav-settings::-webkit-scrollbar-thumb:hover{background:var(--osu-fav-accent)}" +
         "@keyframes osuFavSlideDown{from{max-height:0;opacity:0;overflow:hidden}to{max-height:50px;opacity:1}}" +
-        "@keyframes osuFavSlideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}";
+        "@keyframes osuFavSlideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}" +
+        "#osu-fav-nowplaying{height:74px;min-height:74px!important;padding:8px 12px!important;gap:10px!important;}" +
+        "#osu-fav-nowplaying .osu-fav-np-thumb{width:54px!important;height:54px!important;}" +
+        "#osu-fav-nowplaying .osu-fav-np-title{font-size:13px!important;line-height:1.3!important;}" +
+        "#osu-fav-nowplaying .osu-fav-np-artist{font-size:11px!important;line-height:1.25!important;margin-top:3px!important;}" +
+        "#osu-fav-nowplaying .osu-fav-np-controls{gap:5px!important;}" +
+        "#osu-fav-nowplaying .osu-fav-np-btn{width:38px!important;height:38px!important;padding:7px!important;}" +
+        "@media(max-width:600px){#osu-fav-nowplaying{height:76px;min-height:76px!important;padding:8px 10px!important;gap:8px!important;}#osu-fav-nowplaying .osu-fav-np-thumb{width:50px!important;height:50px!important;}#osu-fav-nowplaying .osu-fav-np-controls{gap:3px!important;}#osu-fav-nowplaying .osu-fav-np-btn{width:34px!important;height:34px!important;padding:6px!important;}#osu-fav-nowplaying .osu-fav-np-title{font-size:12px!important;}#osu-fav-nowplaying .osu-fav-np-artist{font-size:10px!important;}#osu-fav-nowplaying .osu-fav-np-info{min-width:72px!important;}}";
       document.head.appendChild(s);
     }
 
@@ -2866,6 +2873,7 @@
     // background-only image, so the current cover remains identifiable.
     const npThumb = document.createElement("img");
     npThumb.alt = "";
+    npThumb.className = "osu-fav-np-thumb";
     npThumb.style.cssText =
       "position:relative;z-index:2;width:42px;height:42px;border-radius:3px;object-fit:cover;" +
       "background:#111;display:block;flex-shrink:0;border:1px solid rgba(255,255,255,.08)";
@@ -2875,11 +2883,14 @@
     });
 
     const npInfo = document.createElement("div");
+    npInfo.className = "osu-fav-np-info";
     npInfo.style.cssText = "position:relative;z-index:2;flex:1;min-width:0;overflow:hidden";
     const npTitle = document.createElement("div");
+    npTitle.className = "osu-fav-np-title";
     npTitle.style.cssText =
       "font-size:12px;color:#eee;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35";
     const npArtist = document.createElement("div");
+    npArtist.className = "osu-fav-np-artist";
     npArtist.style.cssText =
       "font-size:10px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;line-height:1.25";
     npInfo.append(npTitle, npArtist);
@@ -2893,11 +2904,13 @@
     npProgressWrap.appendChild(npProgressBar);
 
     const npControls = document.createElement("div");
+    npControls.className = "osu-fav-np-controls";
     npControls.style.cssText =
       "position:relative;z-index:2;display:flex;align-items:center;gap:4px;flex-shrink:0";
 
     function npIconBtn(svgFn, title) {
       const b = document.createElement("button");
+      b.className = "osu-fav-np-btn";
       b.type = "button";
       b.title = title;
       b.innerHTML = svgFn();
