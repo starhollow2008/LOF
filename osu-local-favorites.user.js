@@ -2640,8 +2640,9 @@
     titleEl.append("Local Favorites", countBadge);
 
     const settingsBtn = document.createElement("button");
-    settingsBtn.textContent = "⚙ Settings";
+    settingsBtn.textContent = "⚙";
     settingsBtn.title = "Settings";
+    settingsBtn.setAttribute("aria-label", "Settings");
     settingsBtn.style.cssText =
       "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:13px;flex-shrink:0;line-height:1.4";
     settingsBtn.addEventListener("mouseenter", () => {
@@ -3035,7 +3036,7 @@
       }
 
       if (audio._npBar) {
-        audio._npBar.style.display = "flex";
+        audio._npBar.style.display = settingsOpen ? "flex" : "none";
         if (audio._npTitle) audio._npTitle.textContent = audio._npCurrentTitle;
         if (audio._npArtist) audio._npArtist.textContent = audio._npCurrentArtist;
         if (audio._npProgressBar) audio._npProgressBar.style.width = "0%";
@@ -3142,7 +3143,7 @@
     }
 
     if (npAudio.src && npAudio._npCurrentId) {
-      nowPlayingBar.style.display = "flex";
+      nowPlayingBar.style.display = settingsOpen ? "flex" : "none";
       npTitle.textContent = npAudio._npCurrentTitle || "";
       npArtist.textContent = npAudio._npCurrentArtist || "";
       const currentFav = getFavorites()[npAudio._npCurrentId];
@@ -3169,6 +3170,8 @@
       listEl.style.display = showSettings ? "none" : "block";
       settingsView.style.display = showSettings ? "block" : "none";
       searchInput.style.display = showSettings ? "none" : "block";
+      footer.style.display = showSettings ? "none" : "block";
+      nowPlayingBar.style.display = showSettings && npAudio.src && npAudio._npCurrentId ? "flex" : "none";
       settingsBtn.style.color = showSettings ? "var(--osu-fav-accent)" : "#999";
       settingsBtn.style.borderColor = showSettings ? "var(--osu-fav-accent)" : "#333";
       settingsBtn.title = showSettings ? "Back to favorites" : "Settings";
