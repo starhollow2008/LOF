@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      5.0.1
+// @version      5.0.2
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -282,7 +282,7 @@
       transition: "opacity 0.2s ease",
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     });
-    t.textContent = "⚠ " + msg;
+    t.textContent = "Error: " + msg;
     document.body.appendChild(t);
     setTimeout(() => {
       t.style.opacity = "0";
@@ -1325,7 +1325,7 @@
         .then((data) => {
           osuApiSaveToken(data);
           GM_setValue(OSU_API_USERNAME_KEY, "");
-          const notify = () => showOsuFavToast("osu! API connected ✔");
+          const notify = () => showOsuFavToast("osu! API connected");
           if (document.body) notify(); else document.addEventListener("DOMContentLoaded", notify);
         })
         .catch((err) => {
@@ -1407,7 +1407,7 @@
       _autoBackupTimer = null;
       performGistBackup()
         .then(() => {
-          showOsuFavToast("☁ Gist backup updated");
+          showOsuFavToast("Gist backup updated");
           const statusEl = document.getElementById("osu-fav-footer-status");
           if (statusEl && typeof statusEl._refresh === "function") statusEl._refresh();
         })
@@ -2447,12 +2447,13 @@
     });
   }
 
+  // The audio element is deliberately page-lifetime. Closing the favorites panel
+  // must only detach the panel UI — never pause/reset the actual preview. This lets
+  // previews keep playing while the user closes the panel, switches tabs, or opens
+  // another app on mobile. A newly opened panel re-binds its Now Playing controls.
   function clearFavoritesPanelAudio() {
     const audio = window._osuFavAudio;
     if (!audio) return;
-    audio.pause();
-    audio.removeAttribute("src");
-    try { audio.load(); } catch (e) { /* best effort */ }
     audio._activeBtn = null;
     audio._activeBar = null;
     audio._activeDim = null;
@@ -2461,12 +2462,9 @@
     audio._npArtist = null;
     audio._npPlayBtn = null;
     audio._npProgressBar = null;
+    // The queue callback closes over this panel's DOM/list, so do not keep it after
+    // the panel is gone. Playback itself remains untouched.
     audio._queueAdvance = null;
-    audio._npCurrentId = null;
-    audio._npCurrentTitle = "";
-    audio._npCurrentArtist = "";
-    audio._queueNavigated = false;
-    audio._queueSkipAttempt = 0;
   }
 
   // ═══ Favorites panel ═══
@@ -2474,8 +2472,7 @@
     const existing = document.getElementById("osu-local-fav-panel");
     if (existing) {
       // The audio element is page-lifetime, while the player UI belongs to the
-      // panel. Clean both sides of that binding when the panel is toggled closed
-      // so a detached Now Playing bar can never resurrect later.
+      // panel. Detach only the old UI binding; never stop the preview when closing.
       clearFavoritesPanelAudio();
       existing.remove();
       return;
@@ -2640,7 +2637,7 @@
     titleEl.append("Local Favorites", countBadge);
 
     const settingsBtn = document.createElement("button");
-    settingsBtn.textContent = "⚙";
+    settingsBtn.textContent = "Settings";
     settingsBtn.title = "Settings";
     settingsBtn.style.cssText =
       "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:13px;flex-shrink:0;line-height:1.4";
@@ -2796,13 +2793,14 @@
     Object.assign(listEl.style, {
       flex: "1",
       overflowY: "auto",
-      padding: "4px 0",
+      padding: "4px 0 58px",
+      boxSizing: "border-box",
     });
 
     // ── Settings view (hidden until the gear button is clicked) ──
     const settingsView = document.createElement("div");
     settingsView.id = "osu-fav-settings";
-    settingsView.style.cssText = "flex:1;overflow-y:auto;display:none";
+    settingsView.style.cssText = "flex:1;overflow-y:auto;display:none;padding-bottom:58px;box-sizing:border-box";
 
     contentArea.append(listEl, settingsView);
 
@@ -2820,15 +2818,15 @@
       const auto = GM_getValue(GH_AUTO_BACKUP_KEY, false);
       const lastSync = GM_getValue(GH_LAST_SYNC_KEY, 0);
       if (!token) {
-        footer.textContent = "⚙ Set up Gist backup in Settings";
+        footer.textContent = "Set up Gist backup in Settings";
       } else if (auto) {
         footer.textContent = lastSync
-          ? "☁ Auto-backup on · synced " + formatDate(new Date(lastSync).toISOString())
-          : "☁ Auto-backup on · not yet synced";
+          ? "Auto-backup on · synced " + formatDate(new Date(lastSync).toISOString())
+          : "Auto-backup on · not yet synced";
       } else {
         footer.textContent = lastSync
-          ? "☁ Manual backup · synced " + formatDate(new Date(lastSync).toISOString())
-          : "☁ Manual backup · not yet synced";
+          ? "Manual backup · synced " + formatDate(new Date(lastSync).toISOString())
+          : "Manual backup · not yet synced";
       }
     }
     footer._refresh = updateFooterStatus;
@@ -2841,7 +2839,8 @@
     nowPlayingBar.id = "osu-fav-nowplaying";
     nowPlayingBar.style.cssText =
       "display:none;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid #333;" +
-      "background:#1a1a1a;flex-shrink:0;position:relative";
+      "background:#1a1a1a;position:absolute;left:0;right:0;bottom:0;z-index:5;" +
+      "box-shadow:0 -4px 12px rgba(0,0,0,.35)";
 
     const npInfo = document.createElement("div");
     npInfo.style.cssText = "flex:1;min-width:0";
@@ -2919,8 +2918,8 @@
 
     npControls.append(npShuffleBtn, npBackBtn, npPlayBtn, npNextBtn, npLoopBtn);
     nowPlayingBar.append(npInfo, npControls, npProgressWrap);
-    // Mount the player after it has been fully constructed so it stays static
-    // below the scrollable list/settings viewport.
+    // Mount the player after it has been fully constructed. It is absolutely
+    // positioned inside contentArea, so it stays pinned while list/settings scroll.
     contentArea.append(nowPlayingBar);
 
     // Resets whatever card is currently linked to the audio element back to
