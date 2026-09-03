@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      4.9.0
+// @version      4.10.0
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -26,7 +26,9 @@
  *   2. Error reporting                   — console + on-page toast for failures
  *   3. Storage                           — local favourites CRUD (GM_*Value)
  *   4. Theme                             — accent color + opacity, as CSS vars
- *   5. Download Mirrors                  — 3rd-party download fallback + popover
+ *   5. Download Mirrors                  — 3rd-party download fallback + popover;
+ *                                           also previews, playback settings, and the
+ *                                           IndexedDB cover/preview cache
  *   6. GitHub Gist Backup                — connect, manual/auto sync, restore
  *   7. Beatmap data extraction           — parse JSON / DOM card into a record
  *   8. Favorite button detection         — find osu!'s heart buttons on page
@@ -343,82 +345,8 @@
   });
 
   // ═══ Storage ═══
-  // Persisted (and exported) records are intentionally minimal — cover art,
-  // preview clip, and page url are all a fixed formula away from the id
-  // (which is already the object's key), so none of them are stored:
-  //   "2579649": {
-  //     "artist": "METANICK", "title": "Otome Kaijuu (TV Size)",
-  //     "creator": "joshywa", "status": "ranked", "bpm": 192, "tags": "…",
-  //     "favourite_count": 119, "play_count": 41179,
-  //     "source": "乙女怪獣キャラメリゼ", "favourited_at": "2026-08-26T14:39:56.443Z"
-  //   }
-  // Field names mirror osu!'s own API (favourite_count / play_count /
-  // favourited_at) rather than shortened aliases, so a raw API/JSON payload
-  // can be handed to toStoredFavorite() below without translating keys.
-  // genre / is_artist_featured / nsfw aren't in that example, but they're
-  // kept as optional fields (omitted whenever falsy, so the common case
-  // still matches the example exactly) — they're real per-map facts, not
-  // derivable from id, and dropping them would silently kill the NSFW /
-  // Featured Artist badges in this panel.
-  function beatmapCoverUrl(id) {
-    return `https://assets.ppy.sh/beatmaps/${id}/covers/cover.jpg`;
-  }
-  function beatmapPreviewUrl(id) {
-    return `https://b.ppy.sh/preview/${id}.mp3`;
-  }
-  function beatmapPageUrl(id) {
-    return `https://osu.ppy.sh/beatmapsets/${id}`;
-  }
-
-  // Detects records still carrying any pre-simplification field, so the
-  // one-time migration in getFavorites() only rewrites what actually needs it.
-  function _favNeedsMigration(rec) {
-    return (
-      "covers" in rec || "preview" in rec || "url" in rec || "id" in rec ||
-      "artist_unicode" in rec || "title_unicode" in rec || "user_id" in rec ||
-      "language" in rec || "fav" in rec || "plays" in rec || "fav_at" in rec
-    );
-  }
-
-  // Strips any freshly-scraped/fetched/imported beatmap object down to the
-  // minimal persisted shape. Accepts both osu!'s full field names and this
-  // script's older shortened ones (imports/gist restores may carry either),
-  // so it doubles as the migration step for legacy records.
-  function toStoredFavorite(data) {
-    const out = {
-      artist: data.artist || "",
-      title: data.title || data.title_unicode || "",
-      creator: data.creator || "",
-      status: data.status || "",
-      bpm: data.bpm || 0,
-      tags: data.tags || "",
-      favourite_count: data.favourite_count != null ? data.favourite_count : (data.fav || 0),
-      play_count: data.play_count != null ? data.play_count : (data.plays || 0),
-      source: data.source || "",
-      favourited_at: data.favourited_at || data.fav_at || new Date().toISOString(),
-    };
-    const genre = data.genre || "";
-    if (genre) out.genre = genre;
-    if (data.is_artist_featured) out.is_artist_featured = true;
-    if (data.nsfw) out.nsfw = true;
-    return out;
-  }
-
-  let _favSchemaMigrated = false;
   function getFavorites() {
-    const favs = GM_getValue(STORAGE_KEY, {});
-    if (!_favSchemaMigrated) {
-      _favSchemaMigrated = true;
-      let changed = false;
-      for (const id in favs) {
-        if (favs[id] && _favNeedsMigration(favs[id])) {
-          favs[id] = toStoredFavorite(favs[id]);
-          changed = true;
-        }
-      }
-      if (changed) setFavorites(favs);
-    }
-    return favs;
+    return GM_getValue(STORAGE_KEY, {});
   }
 
   function setFavorites(favs) {
@@ -511,82 +439,19 @@
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-label="pause"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
   }
 
-  // ── Media Session integration ──
-  // Mobile browsers (Chrome/Android in particular) will freeze or throttle
-  // a backgrounded tab — timers included — once it's decided nothing
-  // important is happening in it. A tab the OS recognizes as actively
-  // playing media is normally exempt from that, but only if it's told so
-  // via the Media Session API; a plain <audio> element alone isn't enough
-  // on some devices. This also gets us lock-screen/notification playback
-  // controls for free — including a real scrubber, which needs
-  // setPositionState() below or the OS just shows a static 00:00/00:00
-  // regardless of what the audio element itself is doing. Best-effort
-  // only — some mobile browsers still suspend background audio regardless
-  // after long enough away from the tab.
-  function updateMediaSession(f, isPlaying) {
-    if (!("mediaSession" in navigator)) return;
-    try {
-      if (f) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: f.title || "Unknown",
-          artist: f.artist || "",
-          album: "osu! — Local Favorites",
-          artwork: f.coverUrl
-            ? [
-              { src: f.coverUrl, sizes: "512x512", type: "image/jpeg" },
-              { src: f.coverUrl, sizes: "256x256", type: "image/jpeg" },
-            ]
-            : [],
-        });
-      }
-      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
-      navigator.mediaSession.setActionHandler("play", () => {
-        if (window._osuFavAudio) window._osuFavAudio.play();
-      });
-      navigator.mediaSession.setActionHandler("pause", () => {
-        if (window._osuFavAudio) window._osuFavAudio.pause();
-      });
-      navigator.mediaSession.setActionHandler("stop", () => {
-        const a = window._osuFavAudio;
-        if (!a) return;
-        a.pause();
-        a.currentTime = 0;
-      });
-      try {
-        // Lets the OS's own lock-screen/notification scrubber drag the
-        // playhead — not every mobile browser implements this action, so
-        // it's wrapped separately and failing to register it shouldn't
-        // block play/pause/stop above from being set.
-        navigator.mediaSession.setActionHandler("seekto", (details) => {
-          const a = window._osuFavAudio;
-          if (a && details.seekTime != null && isFinite(a.duration)) {
-            a.currentTime = details.seekTime;
-            syncMediaSessionPosition();
-          }
-        });
-      } catch (e) { /* seekto unsupported on this browser — play/pause/stop still work */ }
-    } catch (e) {
-      // MediaMetadata unsupported, or a malformed field — never break playback over this
-    }
+  // Player-bar icons - previous/next/shuffle/loop, same inline-SVG approach
+  // as playSVG/pauseSVG above and for the same reason.
+  function prevSVG(size = 14) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-label="previous"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>`;
   }
-
-  // Reports current position/duration to the OS so the lock-screen and
-  // notification scrubber shows real progress instead of a static
-  // 00:00/00:00. Call this on loadedmetadata (duration becomes known) and
-  // on timeupdate (position keeps advancing).
-  function syncMediaSessionPosition() {
-    if (!("mediaSession" in navigator) || typeof navigator.mediaSession.setPositionState !== "function") return;
-    const a = window._osuFavAudio;
-    if (!a || !a.duration || !isFinite(a.duration)) return;
-    try {
-      navigator.mediaSession.setPositionState({
-        duration: a.duration,
-        playbackRate: a.playbackRate || 1,
-        position: Math.min(a.currentTime, a.duration),
-      });
-    } catch (e) {
-      // Throws if called mid-seek with a stale position — safe to ignore, next tick retries
-    }
+  function nextSVG(size = 14) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-label="next"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>`;
+  }
+  function shuffleSVG(size = 14) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-label="shuffle"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>`;
+  }
+  function loopSVG(size = 14) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-label="loop"><path d="M7 7h10v3l4-4-4-4v3H5v6h2zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2z"/></svg>`;
   }
 
   // ═══ Download Mirrors ═══
@@ -714,10 +579,10 @@
   }
 
   // ═══ Full-length previews (Hinamizawa music mirror) ═══
-  // osu!'s own preview clip is a fixed ~30s cut. mirror.hinamizawa.ai runs a
+  // osu!'s own preview clip is a fixed ~10s cut. mirror.hinamizawa.ai runs a
   // separate music-streaming API (distinct from its beatmap-download mirror)
   // that serves the full track from its own disk when it has one cached, and
-  // otherwise transparently falls back to proxying the same ~30s official
+  // otherwise transparently falls back to proxying the same ~10s official
   // clip while it extracts the full song in the background — so pointing
   // the preview player at it is a strict upgrade, never a worse experience
   // than what we already show. No auth, open CORS, HTTP Range for seeking.
@@ -729,6 +594,269 @@
     return fullSongPreviewsEnabled()
       ? `https://mirror.hinamizawa.ai/v3/osu/music/audio/${id}`
       : fallbackUrl;
+  }
+
+  // ═══ Music Playback settings (loop / auto next / shuffle) ═══
+  const MUSIC_LOOP_KEY = "osu_music_loop";
+  const MUSIC_AUTONEXT_KEY = "osu_music_autonext";
+  const MUSIC_SHUFFLE_KEY = "osu_music_shuffle";
+  function musicLoopEnabled() {
+    return GM_getValue(MUSIC_LOOP_KEY, false);
+  }
+  function musicAutoNextEnabled() {
+    return GM_getValue(MUSIC_AUTONEXT_KEY, false);
+  }
+  function musicShuffleEnabled() {
+    return GM_getValue(MUSIC_SHUFFLE_KEY, false);
+  }
+
+  // ═══ Media Cache (background covers + audio previews) ═══
+  // Without this, every reload re-requests every visible cover image, and
+  // every reopen of the panel re-streams the same preview clips - none of
+  // it changes between visits, so by default it's pure repeat network
+  // traffic. This stores both kinds of media as Blobs in IndexedDB, keyed
+  // by their source URL, and serves them back as local blob: URLs on
+  // future renders until the entry's chosen expiry passes.
+  //
+  // "never" skips the cache store entirely (identical to how this script
+  // behaved before this feature existed - always straight to the network).
+  // "always" caches with no expiry; entries only change if the URL itself
+  // does. Every other mode is a fixed, or user-typed custom, TTL.
+  const CACHE_DURATION_KEY = "osu_cache_duration"; // "custom"|"30min"|"1h"|"6h"|"12h"|"24h"|"1week"|"1month"|"always"|"never"
+  const CACHE_CUSTOM_MINUTES_KEY = "osu_cache_custom_minutes";
+  const CACHE_DURATIONS_MIN = {
+    "30min": 30,
+    "1h": 60,
+    "6h": 6 * 60,
+    "12h": 12 * 60,
+    "24h": 24 * 60,
+    "1week": 7 * 24 * 60,
+    "1month": 30 * 24 * 60,
+  };
+  function cacheDurationMode() {
+    return GM_getValue(CACHE_DURATION_KEY, "24h");
+  }
+  function cacheCustomMinutes() {
+    const n = Number(GM_getValue(CACHE_CUSTOM_MINUTES_KEY, 60));
+    return Number.isFinite(n) && n > 0 ? n : 60;
+  }
+  // TTL in ms, or Infinity for "always" - "never" is handled by callers
+  // before this is ever reached (they skip the cache store outright).
+  function cacheDurationMs() {
+    const mode = cacheDurationMode();
+    if (mode === "always") return Infinity;
+    if (mode === "custom") return cacheCustomMinutes() * 60 * 1000;
+    return (CACHE_DURATIONS_MIN[mode] || CACHE_DURATIONS_MIN["24h"]) * 60 * 1000;
+  }
+  function formatCacheBytes(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  const CACHE_DB_NAME = "osu_local_favorites_media_cache";
+  const CACHE_STORE = "media";
+  let _cacheDbPromise = null;
+  function openCacheDb() {
+    if (_cacheDbPromise) return _cacheDbPromise;
+    _cacheDbPromise = new Promise((resolve) => {
+      if (typeof indexedDB === "undefined") { resolve(null); return; }
+      try {
+        const req = indexedDB.open(CACHE_DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          if (!req.result.objectStoreNames.contains(CACHE_STORE)) {
+            req.result.createObjectStore(CACHE_STORE, { keyPath: "url" });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        // Fail soft - callers treat a null db exactly like "cache
+        // unavailable" and fall back to plain network URLs, same as if
+        // caching were switched off.
+        req.onerror = () => resolve(null);
+        req.onblocked = () => resolve(null);
+      } catch (e) {
+        resolve(null);
+      }
+    });
+    return _cacheDbPromise;
+  }
+  function cacheGet(url) {
+    return openCacheDb().then((db) => {
+      if (!db) return null;
+      return new Promise((resolve) => {
+        try {
+          const req = db.transaction(CACHE_STORE, "readonly").objectStore(CACHE_STORE).get(url);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    });
+  }
+  function cachePut(url, blob) {
+    return openCacheDb().then((db) => {
+      if (!db) return;
+      try {
+        db.transaction(CACHE_STORE, "readwrite").objectStore(CACHE_STORE).put({ url, blob, cachedAt: Date.now() });
+      } catch (e) {
+        // Best-effort - a failed write just means no caching for this one item.
+      }
+    });
+  }
+  function cacheClearAll() {
+    return openCacheDb().then((db) => {
+      if (!db) return;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(CACHE_STORE, "readwrite");
+          tx.objectStore(CACHE_STORE).clear();
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
+    });
+  }
+  // Used by the Settings panel to show how much is currently stored.
+  function cacheStats() {
+    return openCacheDb().then((db) => {
+      if (!db) return { count: 0, bytes: 0 };
+      return new Promise((resolve) => {
+        try {
+          const req = db.transaction(CACHE_STORE, "readonly").objectStore(CACHE_STORE).getAll();
+          req.onsuccess = () => {
+            const rows = req.result || [];
+            resolve({ count: rows.length, bytes: rows.reduce((sum, r) => sum + (r.blob ? r.blob.size : 0), 0) });
+          };
+          req.onerror = () => resolve({ count: 0, bytes: 0 });
+        } catch (e) {
+          resolve({ count: 0, bytes: 0 });
+        }
+      });
+    });
+  }
+
+  // Resolves to a URL safe to hand straight to <img src> / <audio src>: a
+  // local blob: URL when a fresh cached copy exists, otherwise the original
+  // network URL unchanged - so a cache miss never delays first-time
+  // playback/display waiting on a full download. A miss also kicks off a
+  // background fetch to populate the cache for next time; fire-and-forget,
+  // not awaited by the caller either way.
+  //
+  // Cross-origin note: this relies on plain fetch(), which needs the source
+  // to allow cross-origin reads. b.ppy.sh/assets.ppy.sh and Hinamizawa's
+  // mirror (see "Full-length previews" above) both do. If some other
+  // source doesn't, the fetch silently fails and that one URL just never
+  // gets cached - display/playback are unaffected either way, since they
+  // already got the direct URL synchronously below.
+  function resolveCachedMediaUrl(url) {
+    if (!url) return Promise.resolve(url);
+    if (cacheDurationMode() === "never") return Promise.resolve(url);
+
+    return cacheGet(url).then((entry) => {
+      const ttl = cacheDurationMs();
+      const fresh = entry && (ttl === Infinity || Date.now() - entry.cachedAt < ttl);
+      if (fresh) return URL.createObjectURL(entry.blob);
+
+      fetch(url)
+        .then((r) => (r.ok ? r.blob() : null))
+        .then((blob) => { if (blob) cachePut(url, blob); })
+        .catch(() => { }); // no CORS / offline / etc - this URL just stays uncached
+      return url;
+    });
+  }
+
+  // A clip this short means Hinamizawa doesn't have the full track cached
+  // and previewSourceUrl() fell back to osu!'s own ~10s clip - see the
+  // "skip if not on Hina" check in ensureAudio() below.
+  const SHORT_CLIP_MAX_SECONDS = 15;
+
+  // Singleton <audio> element, shared across every card's preview button
+  // and the Now Playing bar. Created once per page load and reused for the
+  // lifetime of the tab, so its listeners key off dynamic `_np*`/`_queue*`
+  // properties (reassigned by whichever panel is currently open) rather
+  // than closing over any one panel's local variables, which would go
+  // stale the moment that panel is closed and reopened.
+  function ensureAudio() {
+    if (window._osuFavAudio) return window._osuFavAudio;
+    const audio = new Audio();
+    window._osuFavAudio = audio;
+    audio._activeBtn = null;
+    audio._activeBar = null;
+    audio._activeDim = null;
+    audio._npBar = null;
+    audio._npTitle = null;
+    audio._npArtist = null;
+    audio._npPlayBtn = null;
+    audio._npCurrentId = null;
+    audio._npCurrentTitle = "";
+    audio._npCurrentArtist = "";
+    audio._queueNavigated = false;
+    audio._queueDirection = 1;
+    audio._queueSkipAttempt = 0;
+    audio._queueAdvance = null;
+
+    audio.addEventListener("timeupdate", () => {
+      if (audio._activeBar && audio.duration) {
+        audio._activeBar.style.width = (audio.currentTime / audio.duration) * 100 + "%";
+      }
+    });
+
+    audio.addEventListener("play", () => {
+      if (audio._npPlayBtn) audio._npPlayBtn.innerHTML = pauseSVG();
+    });
+    audio.addEventListener("pause", () => {
+      if (audio._npPlayBtn) audio._npPlayBtn.innerHTML = playSVG();
+    });
+
+    // Fires once metadata loads for whatever we just set as .src. If we got
+    // here via Back/Next/auto-next/shuffle (not a direct click on this
+    // track's own preview button) and the clip turns out to be osu!'s
+    // short fallback rather than a full track, treat it as "not on Hina"
+    // and keep moving instead of playing the short clip.
+    audio.addEventListener("loadedmetadata", () => {
+      if (!audio._queueNavigated) return;
+      if (!fullSongPreviewsEnabled()) return;
+      if (!isFinite(audio.duration) || audio.duration > SHORT_CLIP_MAX_SECONDS) return;
+      if (audio._queueAdvance) {
+        const dir = audio._queueDirection || 1;
+        const attempt = (audio._queueSkipAttempt || 0) + 1;
+        audio._queueAdvance(dir, { skipAttempt: attempt });
+      }
+    });
+
+    audio.addEventListener("ended", () => {
+      if (musicLoopEnabled()) {
+        audio.currentTime = 0;
+        audio.play();
+        return;
+      }
+      if (musicAutoNextEnabled() && audio._queueAdvance) {
+        audio._queueAdvance(1, {});
+        return;
+      }
+      if (audio._activeBtn) {
+        audio._activeBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
+        audio._activeBtn.style.borderColor = "#333";
+        audio._activeBtn.style.color = "#999";
+        audio._activeBtn.innerHTML = playSVG();
+        audio._activeBtn._playing = false;
+      }
+      if (audio._activeBar) {
+        audio._activeBar.parentElement.style.display = "none";
+        audio._activeBar.style.width = "0%";
+      }
+      if (audio._activeDim) audio._activeDim.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
+      audio._activeBtn = null;
+      audio._activeBar = null;
+      audio._activeDim = null;
+      if (audio._npBar) audio._npBar.style.display = "none";
+      audio._npCurrentId = null;
+    });
+
+    return audio;
   }
 
   // Builds the ordered list of download options for a beatmapset. Official
@@ -1744,10 +1872,15 @@
         const favs = getFavorites();
         const sid = String(bm.id);
         if (!favs[sid]) return; // Removed before enrichment finished — skip
-        favs[sid] = toStoredFavorite({
+        favs[sid] = {
+          id: sid,
           artist: bm.artist || "",
-          title: bm.title || bm.title_unicode || "",
+          artist_unicode: bm.artist_unicode || bm.artist || "",
+          title: bm.title || "",
+          title_unicode: bm.title_unicode || bm.title || "",
           creator: bm.creator || "",
+          user_id: String(bm.user_id || ""),
+          covers: bm.covers || {},
           status: bm.status || "",
           favourite_count: bm.favourite_count || 0,
           play_count: bm.play_count || 0,
@@ -1755,10 +1888,13 @@
           source: bm.source || "",
           tags: bm.tags || "",
           genre: (bm.genre && bm.genre.name) || "",
+          language: (bm.language && bm.language.name) || "",
+          url: "https://osu.ppy.sh/beatmapsets/" + sid,
           favourited_at: favs[sid].favourited_at || new Date().toISOString(),
           is_artist_featured: !!bm.track_id,
-          nsfw: !!bm.nsfw,
-        });
+          nsfw: bm.nsfw || false,
+          preview: "https://b.ppy.sh/preview/" + sid + ".mp3",
+        };
         setFavorites(favs);
         scheduleAutoBackup();
       })
@@ -1863,13 +1999,15 @@
     } else {
       const jsonData = getBeatmapDataFromJSON();
       if (jsonData) {
-        favs[beatmapId] = toStoredFavorite(jsonData);
+        favs[beatmapId] = jsonData;
       } else {
         needsEnrich = true;
         const data = (card ? getBeatmapDataFromCard(card) : null) || {
+          id: beatmapId,
+          url: "https://osu.ppy.sh/beatmapsets/" + beatmapId,
           favourited_at: new Date().toISOString(),
         };
-        favs[beatmapId] = toStoredFavorite(data);
+        favs[beatmapId] = data;
       }
     }
 
@@ -2014,7 +2152,7 @@
             } else {
               // Subtract i seconds so first row (top) gets newest timestamp
               data.favourited_at = new Date(baseTime - i * 1000).toISOString();
-              favs[data.id] = toStoredFavorite(data);
+              favs[data.id] = data;
               newIds.push(data.id);
               count++;
             }
@@ -2660,6 +2798,210 @@
     }
     footer._refresh = updateFooterStatus;
 
+    // ── Now Playing bar - a small persistent player for previews, shown
+    // once something starts playing. Lets you skip through the visible
+    // list (respecting the current sort/filter) without hunting for the
+    // next card's play button.
+    const nowPlayingBar = document.createElement("div");
+    nowPlayingBar.id = "osu-fav-nowplaying";
+    nowPlayingBar.style.cssText =
+      "display:none;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid #333;" +
+      "background:#1a1a1a;flex-shrink:0";
+
+    const npInfo = document.createElement("div");
+    npInfo.style.cssText = "flex:1;min-width:0";
+    const npTitle = document.createElement("div");
+    npTitle.style.cssText =
+      "font-size:11px;color:#ddd;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+    const npArtist = document.createElement("div");
+    npArtist.style.cssText =
+      "font-size:10px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px";
+    npInfo.append(npTitle, npArtist);
+
+    const npControls = document.createElement("div");
+    npControls.style.cssText = "display:flex;align-items:center;gap:4px;flex-shrink:0";
+
+    function npIconBtn(svgFn, title) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.title = title;
+      b.innerHTML = svgFn();
+      b.style.cssText =
+        "background:none;border:1px solid #333;border-radius:3px;color:#999;cursor:pointer;" +
+        "padding:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0";
+      b.addEventListener("mouseenter", () => {
+        if (!b._active) { b.style.borderColor = "var(--osu-fav-accent)"; b.style.color = "var(--osu-fav-accent)"; }
+      });
+      b.addEventListener("mouseleave", () => {
+        if (!b._active) { b.style.borderColor = "#333"; b.style.color = "#999"; }
+      });
+      return b;
+    }
+
+    function setNpToggleActive(btn, active) {
+      btn._active = active;
+      btn.style.borderColor = active ? "var(--osu-fav-accent)" : "#333";
+      btn.style.color = active ? "var(--osu-fav-accent)" : "#999";
+    }
+
+    const npShuffleBtn = npIconBtn(shuffleSVG, "Shuffle");
+    const npBackBtn = npIconBtn(prevSVG, "Previous");
+    const npPlayBtn = npIconBtn(playSVG, "Play/Pause");
+    const npNextBtn = npIconBtn(nextSVG, "Next");
+    const npLoopBtn = npIconBtn(loopSVG, "Loop");
+    setNpToggleActive(npShuffleBtn, musicShuffleEnabled());
+    setNpToggleActive(npLoopBtn, musicLoopEnabled());
+
+    npShuffleBtn.addEventListener("click", () => {
+      const on = !musicShuffleEnabled();
+      GM_setValue(MUSIC_SHUFFLE_KEY, on);
+      setNpToggleActive(npShuffleBtn, on);
+    });
+    npLoopBtn.addEventListener("click", () => {
+      const on = !musicLoopEnabled();
+      GM_setValue(MUSIC_LOOP_KEY, on);
+      setNpToggleActive(npLoopBtn, on);
+    });
+    npBackBtn.addEventListener("click", () => queueAdvance(-1));
+    npNextBtn.addEventListener("click", () => queueAdvance(1));
+    npPlayBtn.addEventListener("click", () => {
+      const audio = window._osuFavAudio;
+      if (!audio || !audio.src) return;
+      if (audio.paused) audio.play();
+      else audio.pause();
+    });
+
+    npControls.append(npShuffleBtn, npBackBtn, npPlayBtn, npNextBtn, npLoopBtn);
+    nowPlayingBar.append(npInfo, npControls);
+
+    // Resets whatever card is currently linked to the audio element back to
+    // its idle look - shared by the "switch to a different track" path and
+    // the natural end-of-track path.
+    function resetActiveCardUI(audio) {
+      if (audio._activeBtn) {
+        audio._activeBtn.innerHTML = playSVG();
+        audio._activeBtn._playing = false;
+        audio._activeBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
+        audio._activeBtn.style.borderColor = "#333";
+        audio._activeBtn.style.color = "#999";
+      }
+      if (audio._activeBar) {
+        audio._activeBar.parentElement.style.display = "none";
+        audio._activeBar.style.width = "0%";
+      }
+      if (audio._activeDim) audio._activeDim.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
+      audio._activeBtn = null;
+      audio._activeBar = null;
+      audio._activeDim = null;
+    }
+
+    // Starts a track by id/record, linking up whichever card is currently
+    // on screen for it (if any - long lists build cards lazily) and the
+    // Now Playing bar. `navigated` marks a track reached via Back/Next/
+    // auto-next/shuffle rather than a direct click on its own preview
+    // button, which is what gates the "skip if not on Hina" check in
+    // ensureAudio().
+    function startPlayback(id, f, opts = {}) {
+      const { navigated = false, direction = 1, skipAttempt = 0 } = opts;
+      const audio = ensureAudio();
+      resetActiveCardUI(audio);
+      audio.pause();
+
+      const previewUrl = previewSourceUrl(id, f.preview || `https://b.ppy.sh/preview/${id}.mp3`);
+      audio._queueNavigated = navigated;
+      audio._queueDirection = direction;
+      audio._queueSkipAttempt = skipAttempt;
+      audio._npCurrentId = id;
+      audio._npCurrentTitle = f.title || f.title_unicode || "Unknown";
+      audio._npCurrentArtist = f.artist || f.artist_unicode || "";
+
+      const cardEl = listEl.querySelector('[data-fav-id="' + id + '"]');
+      if (cardEl) {
+        const btn = cardEl.querySelector(".osu-fav-preview-btn");
+        const barWrap = cardEl.querySelector(".osu-fav-progress-wrap");
+        const bar = cardEl.querySelector(".osu-fav-progress-bar");
+        const dim = cardEl.querySelector(".osu-fav-dim-overlay");
+        if (btn) {
+          audio._activeBtn = btn;
+          btn.innerHTML = pauseSVG();
+          btn._playing = true;
+          btn.style.opacity = "var(--osu-fav-active-opacity, 0.8)";
+          btn.style.borderColor = "var(--osu-fav-accent)";
+          btn.style.color = "var(--osu-fav-accent)";
+        }
+        if (barWrap) barWrap.style.display = "block";
+        if (bar) { audio._activeBar = bar; bar.style.width = "0%"; }
+        if (dim) { audio._activeDim = dim; dim.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))"; }
+      }
+
+      if (audio._npBar) {
+        audio._npBar.style.display = "flex";
+        if (audio._npTitle) audio._npTitle.textContent = audio._npCurrentTitle;
+        if (audio._npArtist) audio._npArtist.textContent = audio._npCurrentArtist;
+      }
+
+      // Cache lookup is local (IndexedDB) and normally resolves in a few ms,
+      // but it's still async - guard against the user navigating to a
+      // *different* track while this one is in flight, so a slow lookup
+      // can't clobber whatever's playing by the time it resolves.
+      const requestedId = id;
+      resolveCachedMediaUrl(previewUrl).then((resolvedUrl) => {
+        if (audio._npCurrentId !== requestedId) return;
+        audio.src = resolvedUrl;
+        audio.play().catch(() => {
+          resetActiveCardUI(audio);
+          if (audio._npBar) audio._npBar.style.display = "none";
+        });
+      });
+    }
+
+    // Moves to the next (direction 1) or previous (direction -1) track in
+    // the currently visible, sorted/filtered list. Shuffle picks a random
+    // track instead of stepping in order. skipAttempt is only set when
+    // we're being called again because the last pick turned out not to be
+    // on Hinamizawa - it caps how many times we'll auto-skip in a row so a
+    // list with nothing cached doesn't chain into an infinite loop.
+    function queueAdvance(direction, opts = {}) {
+      const entries = renderList._entries || [];
+      if (!entries.length) return;
+      const skipAttempt = opts.skipAttempt || 0;
+      if (skipAttempt > entries.length) return;
+
+      const audio = ensureAudio();
+      const currentIdx = entries.findIndex(([eid]) => eid === audio._npCurrentId);
+
+      let nextIdx;
+      if (musicShuffleEnabled() && entries.length > 1) {
+        do {
+          nextIdx = Math.floor(Math.random() * entries.length);
+        } while (nextIdx === currentIdx);
+      } else if (currentIdx === -1) {
+        nextIdx = direction > 0 ? 0 : entries.length - 1;
+      } else {
+        nextIdx = (currentIdx + direction + entries.length) % entries.length;
+      }
+
+      const [id, f] = entries[nextIdx];
+      startPlayback(id, f, { navigated: true, direction, skipAttempt });
+    }
+
+    // Wire this panel's Now Playing bar + queue functions into the
+    // (page-lifetime, singleton) audio element. Reassigned every time the
+    // panel is opened so a fresh panel always drives the persistent audio,
+    // even if a previous panel's bar was left playing when it was closed.
+    const npAudio = ensureAudio();
+    npAudio._npBar = nowPlayingBar;
+    npAudio._npTitle = npTitle;
+    npAudio._npArtist = npArtist;
+    npAudio._npPlayBtn = npPlayBtn;
+    npAudio._queueAdvance = queueAdvance;
+    if (npAudio.src && npAudio._npCurrentId) {
+      nowPlayingBar.style.display = "flex";
+      npTitle.textContent = npAudio._npCurrentTitle || "";
+      npArtist.textContent = npAudio._npCurrentArtist || "";
+      npPlayBtn.innerHTML = npAudio.paused ? playSVG() : pauseSVG();
+    }
+
     // ── View switching ───────────────────────────────────────
     function setView(showSettings) {
       settingsOpen = showSettings;
@@ -2736,7 +3078,10 @@
       if (subtitleText) {
         const sub = document.createElement("div");
         sub.style.cssText = "font-size:10px;color:#666;margin-top:2px;line-height:1.4";
-        sub.textContent = subtitleText;
+        // Usually plain text, but a row can also pass a Node/DocumentFragment
+        // (e.g. to embed a real hyperlink inside the subtitle)
+        if (typeof subtitleText === "string") sub.textContent = subtitleText;
+        else sub.appendChild(subtitleText);
         left.appendChild(sub);
       }
       row.append(left, controlEl);
@@ -2938,7 +3283,7 @@
           let added = 0;
           for (const [id, fav] of Object.entries(data)) {
             if (!existing[id]) {
-              existing[id] = toStoredFavorite(fav);
+              existing[id] = fav;
               added++;
             }
           }
@@ -3201,7 +3546,7 @@
               let added = 0;
               for (const [id, fav] of Object.entries(data)) {
                 if (!existing[id]) {
-                  existing[id] = toStoredFavorite(fav);
+                  existing[id] = fav;
                   added++;
                 }
               }
@@ -3255,7 +3600,7 @@
               let added = 0;
               for (const [id, fav] of Object.entries(data)) {
                 if (!existing[id]) {
-                  existing[id] = toStoredFavorite(fav);
+                  existing[id] = fav;
                   added++;
                 }
               }
@@ -3356,16 +3701,123 @@
       const fullSongHint = document.createElement("div");
       fullSongHint.style.cssText = "font-size:10px;color:#666;line-height:1.5;margin-bottom:4px";
       fullSongHint.textContent =
-        "The ▶ preview button in this panel plays osu!'s own ~30s clip by default. " +
+        "The ▶ preview button in this panel plays osu!'s own ~10s clip by default. " +
         "Hinamizawa's music mirror streams the full track instead whenever it has one " +
         "cached, and falls back to that same clip automatically when it doesn't.";
       wrap.appendChild(fullSongHint);
       const fullSongToggle = makeToggleSwitch(fullSongPreviewsEnabled(), (on) => {
         GM_setValue(PREVIEW_FULLSONG_KEY, on);
       });
+      const fullSongSubtitle = document.createDocumentFragment();
+      const hinaLink = document.createElement("a");
+      hinaLink.href = "https://mirror.hinamizawa.ai";
+      hinaLink.target = "_blank";
+      hinaLink.rel = "noopener";
+      hinaLink.textContent = "mirror.hinamizawa.ai";
+      hinaLink.style.cssText = "color:var(--osu-fav-accent);text-decoration:none";
+      hinaLink.addEventListener("mouseenter", () => (hinaLink.style.textDecoration = "underline"));
+      hinaLink.addEventListener("mouseleave", () => (hinaLink.style.textDecoration = "none"));
+      fullSongSubtitle.append("Streams from ", hinaLink, " - no login required");
+      wrap.appendChild(settingsRow("Full-length previews", fullSongToggle, fullSongSubtitle));
+
+      const loopToggle = makeToggleSwitch(musicLoopEnabled(), (on) => {
+        GM_setValue(MUSIC_LOOP_KEY, on);
+      });
       wrap.appendChild(
-        settingsRow("Full-length previews", fullSongToggle, "Streams from mirror.hinamizawa.ai — no login required"),
+        settingsRow("Loop track", loopToggle, "Replays the current song instead of stopping when it ends"),
       );
+
+      const autoNextToggle = makeToggleSwitch(musicAutoNextEnabled(), (on) => {
+        GM_setValue(MUSIC_AUTONEXT_KEY, on);
+      });
+      wrap.appendChild(
+        settingsRow("Auto next", autoNextToggle, "Plays the next favorite automatically when a track ends - ignored while Loop track is on"),
+      );
+
+      const shuffleToggle = makeToggleSwitch(musicShuffleEnabled(), (on) => {
+        GM_setValue(MUSIC_SHUFFLE_KEY, on);
+      });
+      wrap.appendChild(
+        settingsRow("Shuffle", shuffleToggle, "Picks the next favorite at random instead of going in list order"),
+      );
+
+      wrap.appendChild(divider());
+
+      // ── Media Cache ──
+      wrap.appendChild(sectionLabel("Media Cache"));
+      const cacheHint = document.createElement("div");
+      cacheHint.style.cssText = "font-size:10px;color:#666;line-height:1.5;margin-bottom:4px";
+      cacheHint.textContent =
+        "Background covers and preview clips are stored locally so reloading the page or " +
+        "reopening the panel doesn't re-request them. \"Never\" turns this off entirely; " +
+        "\"Always\" keeps a cached copy until you clear it below.";
+      wrap.appendChild(cacheHint);
+
+      const cacheDurationControl = makeDropdown(
+        [
+          { value: "custom", label: "Custom..." },
+          { value: "30min", label: "30 minutes" },
+          { value: "1h", label: "1 hour" },
+          { value: "6h", label: "6 hours" },
+          { value: "12h", label: "12 hours" },
+          { value: "24h", label: "24 hours" },
+          { value: "1week", label: "1 week" },
+          { value: "1month", label: "1 month" },
+          { value: "always", label: "Always" },
+          { value: "never", label: "Never" },
+        ],
+        cacheDurationMode(),
+        (val) => {
+          GM_setValue(CACHE_DURATION_KEY, val);
+          renderSettingsView(); // reveal/hide the custom-minutes row below
+        },
+      );
+      wrap.appendChild(
+        settingsRow(
+          "Cache duration",
+          cacheDurationControl,
+          "How long a cached cover/preview stays valid before it's re-fetched",
+        ),
+      );
+
+      if (cacheDurationMode() === "custom") {
+        const customInput = document.createElement("input");
+        customInput.type = "number";
+        customInput.min = "1";
+        customInput.step = "1";
+        customInput.value = String(cacheCustomMinutes());
+        customInput.style.cssText =
+          "width:70px;background:#111;border:1px solid #333;border-radius:3px;color:#ddd;" +
+          "font-size:10px;font-family:inherit;padding:4px 6px;flex-shrink:0";
+        customInput.addEventListener("change", () => {
+          const n = Math.max(1, Math.round(Number(customInput.value) || 60));
+          customInput.value = String(n);
+          GM_setValue(CACHE_CUSTOM_MINUTES_KEY, n);
+        });
+        wrap.appendChild(settingsRow("Custom duration (minutes)", customInput));
+      }
+
+      const cacheStatsText = document.createElement("div");
+      cacheStatsText.style.cssText = "font-size:10px;color:#666;margin:4px 0 8px";
+      cacheStatsText.textContent = "Checking cache size…";
+      wrap.appendChild(cacheStatsText);
+      cacheStats().then(({ count, bytes }) => {
+        cacheStatsText.textContent = count
+          ? `${count} item${count === 1 ? "" : "s"} cached, ${formatCacheBytes(bytes)}`
+          : "Nothing cached yet";
+      });
+
+      const clearCacheBtn = makeBtn("Clear cache", "width:100%;box-sizing:border-box;text-align:center;padding:6px");
+      clearCacheBtn.addEventListener("click", () => {
+        clearCacheBtn.disabled = true;
+        clearCacheBtn.textContent = "Clearing…";
+        cacheClearAll().then(() => {
+          clearCacheBtn.disabled = false;
+          clearCacheBtn.textContent = "Clear cache";
+          cacheStatsText.textContent = "Nothing cached yet";
+        });
+      });
+      wrap.appendChild(clearCacheBtn);
 
       wrap.appendChild(divider());
 
@@ -3547,13 +3999,13 @@
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         entries = entries.filter(
-          ([id, f]) =>
+          ([, f]) =>
             (f.title || "").toLowerCase().includes(q) ||
             (f.artist || "").toLowerCase().includes(q) ||
             (f.creator || "").toLowerCase().includes(q) ||
             (f.tags || "").toLowerCase().includes(q) ||
             (f.source || "").toLowerCase().includes(q) ||
-            id.includes(q),
+            (f.id || "").includes(q),
         );
       }
 
@@ -3572,6 +4024,10 @@
         return sortAsc ? cmp : -cmp;
       });
 
+      // Snapshot for the Now Playing bar's Back/Next/shuffle - always the
+      // currently visible, filtered/sorted order.
+      renderList._entries = entries;
+
       listEl.innerHTML = "";
       // Invalidate any chunk-append from a previous render (also covers the
       // early-return paths below).
@@ -3588,11 +4044,18 @@
           entries.forEach((entry) => {
             if (!entry.isIntersecting) return;
             const img = entry.target;
-            if (img.dataset.src) {
-              img.src = img.dataset.src;
-              delete img.dataset.src;
-            }
             obs.unobserve(img);
+            if (img.dataset.src) {
+              const url = img.dataset.src;
+              delete img.dataset.src;
+              // IndexedDB lookup is local and fast, so it's fine to wait for
+              // it before assigning src - avoids a network fetch now and a
+              // second, cached-copy swap-in moments later (which would
+              // otherwise cause a visible flicker on every card).
+              resolveCachedMediaUrl(url).then((resolvedUrl) => {
+                img.src = resolvedUrl;
+              });
+            }
           });
         },
         { root: listEl, rootMargin: "100px 0px", threshold: 0 },
@@ -3616,6 +4079,7 @@
       // doesn't build ~15k DOM nodes inside the click handler.
       const buildCard = ([id, f]) => {
         const card = document.createElement("div");
+        card.dataset.favId = id;
         card.style.cssText =
           "display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid #1e1e1e;align-items:center";
         card.addEventListener(
@@ -3625,7 +4089,12 @@
         card.addEventListener("mouseleave", () => (card.style.background = ""));
 
         // Cover
-        const coverUrl = beatmapCoverUrl(id);
+        const coverUrl =
+          (f.covers || {}).card ||
+          (f.covers || {})["card@2x"] ||
+          (f.covers || {}).list ||
+          (f.covers || {}).cover ||
+          "";
         const coverEl = document.createElement("div");
         coverEl.style.cssText =
           "position:relative;width:56px;height:42px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;cursor:pointer";
@@ -3653,6 +4122,7 @@
         // Dim overlay — sits at --osu-fav-idle-dim normally (0 by default,
         // i.e. invisible) and brightens to --osu-fav-hover-dim on hover/while playing
         const dimOverlay = document.createElement("div");
+        dimOverlay.className = "osu-fav-dim-overlay";
         dimOverlay.style.cssText =
           "position:absolute;inset:0;background:rgba(51,51,51,var(--osu-fav-idle-dim, 0));transition:background 0.15s;pointer-events:none";
         coverEl.appendChild(dimOverlay);
@@ -3664,7 +4134,7 @@
         const titleDiv = document.createElement("div");
         titleDiv.style.cssText =
           "font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3";
-        titleDiv.textContent = f.title || "Unknown";
+        titleDiv.textContent = f.title || f.title_unicode || "Unknown";
         if (f.nsfw) {
           const badge = document.createElement("span");
           badge.textContent = "EXPLICIT";
@@ -3677,7 +4147,7 @@
           "font-size:10px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;display:flex;align-items:center;gap:4px";
         const artistText = document.createElement("span");
         artistText.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
-        artistText.textContent = f.artist || "";
+        artistText.textContent = f.artist || f.artist_unicode || "";
         artistDiv.appendChild(artistText);
         if (f.is_artist_featured) {
           const faBadge = document.createElement("span");
@@ -3717,8 +4187,10 @@
 
         // Progress bar (shown during playback)
         const progressWrap = document.createElement("div");
+        progressWrap.className = "osu-fav-progress-wrap";
         progressWrap.style.cssText = "height:2px;background:#333;border-radius:1px;margin-top:3px;overflow:hidden;display:none";
         const progressBar = document.createElement("div");
+        progressBar.className = "osu-fav-progress-bar";
         progressBar.style.cssText = "height:100%;width:0%;background:var(--osu-fav-accent);border-radius:1px";
         progressWrap.appendChild(progressBar);
 
@@ -3730,7 +4202,7 @@
           "display:flex;flex-direction:column;gap:4px;flex-shrink:0;justify-content:center";
 
         const openLink = document.createElement("a");
-        openLink.href = beatmapPageUrl(id);
+        openLink.href = f.url || `https://osu.ppy.sh/beatmapsets/${id}`;
         openLink.target = "_blank";
         openLink.textContent = "Open";
         openLink.style.cssText =
@@ -3805,54 +4277,14 @@
           renderList();
         });
 
-        // Preview button — singleton audio, only one plays at a time
-        if (!window._osuFavAudio) {
-          window._osuFavAudio = new Audio();
-          // Lets the browser fetch duration/timing right away instead of only
-          // once playback starts — the OS lock-screen scrubber needs a.duration
-          // to be known as early as possible to show real progress instead of
-          // a static 00:00/00:00.
-          window._osuFavAudio.preload = "metadata";
-          window._osuFavAudio._activeBtn = null;
-          window._osuFavAudio._activeBar = null;
-          window._osuFavAudio._activeDim = null;
-          window._osuFavAudio.addEventListener("ended", () => {
-            const a = window._osuFavAudio;
-            if (a._activeBtn) {
-              a._activeBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
-              a._activeBtn.style.borderColor = "#333";
-              a._activeBtn.style.color = "#999";
-              a._activeBtn.innerHTML = playSVG();
-              a._activeBtn._playing = false;
-            }
-            if (a._activeBar) {
-              a._activeBar.parentElement.style.display = "none";
-              a._activeBar.style.width = "0%";
-            }
-            if (a._activeDim) a._activeDim.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
-            a._activeBtn = null;
-            a._activeBar = null;
-            a._activeDim = null;
-            if ("mediaSession" in navigator) {
-              navigator.mediaSession.playbackState = "none";
-              navigator.mediaSession.metadata = null;
-            }
-          });
-          window._osuFavAudio.addEventListener("loadedmetadata", syncMediaSessionPosition);
-          window._osuFavAudio.addEventListener("timeupdate", () => {
-            const a = window._osuFavAudio;
-            if (a._activeBar && a.duration) {
-              const pct = (a.currentTime / a.duration) * 100;
-              a._activeBar.style.width = pct + "%";
-            }
-            syncMediaSessionPosition();
-          });
-        }
+        // Preview button - singleton audio (module-level ensureAudio()), only one plays at a time
+        ensureAudio();
 
-        const previewUrl = previewSourceUrl(id, beatmapPreviewUrl(id));
+        const previewUrl = previewSourceUrl(id, f.preview || `https://b.ppy.sh/preview/${id}.mp3`);
 
         // Play button — lives inside the cover, centred, shown on hover or while playing
         const previewBtn = document.createElement("button");
+        previewBtn.className = "osu-fav-preview-btn";
         previewBtn.innerHTML = playSVG();
         previewBtn.title = "Preview audio";
         previewBtn.style.cssText =
@@ -3860,36 +4292,6 @@
           "font-size:11px;padding:2px 6px;border:1px solid #333;border-radius:2px;" +
           "background:none;color:#999;cursor:pointer;text-align:center;line-height:1;" +
           "opacity:var(--osu-fav-idle-opacity, 0.15);transition:opacity 0.15s";
-
-        // If this track is the one already playing in the background — e.g.
-        // the panel was closed and reopened while it kept going — re-link
-        // the singleton's active-element references to *this* row's fresh
-        // DOM and reflect the real playback state immediately. Without
-        // this, the old references keep pointing at now-detached elements
-        // from the previous render, so timeupdate keeps drawing progress
-        // nobody can see and the reopened row just looks paused at 0% —
-        // matching exactly what pausing and playing again used to "fix",
-        // since resuming was the only path that re-linked things.
-        if (window._osuFavAudio && window._osuFavAudio.src) {
-          const linkAudio = window._osuFavAudio;
-          const sameTrack =
-            linkAudio.src === previewUrl || linkAudio.src.replace("https://", "") === previewUrl.replace("https://", "");
-          if (sameTrack && !linkAudio.ended) {
-            linkAudio._activeBtn = previewBtn;
-            linkAudio._activeBar = progressBar;
-            linkAudio._activeDim = dimOverlay;
-            progressWrap.style.display = "block";
-            if (linkAudio.duration) progressBar.style.width = (linkAudio.currentTime / linkAudio.duration) * 100 + "%";
-            if (!linkAudio.paused) {
-              previewBtn.innerHTML = pauseSVG();
-              previewBtn._playing = true;
-              previewBtn.style.opacity = "var(--osu-fav-active-opacity, 0.8)";
-              previewBtn.style.borderColor = "var(--osu-fav-accent)";
-              previewBtn.style.color = "var(--osu-fav-accent)";
-              dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
-            }
-          }
-        }
 
         // Show/hide button on cover hover; restore original border/color on hover
         coverEl.addEventListener("mouseenter", () => {
@@ -3909,7 +4311,9 @@
         previewBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           const audio = window._osuFavAudio;
-          const isSame = audio.src === previewUrl || audio.src.replace("https://", "") === previewUrl.replace("https://", "");
+          // Compare by id, not by src string - a cached play sets audio.src
+          // to a local blob: URL, which never string-matches previewUrl.
+          const isSame = audio._npCurrentId === id;
           if (isSame) {
             if (!audio.paused) {
               audio.pause();
@@ -3919,7 +4323,6 @@
               previewBtn.style.borderColor = "#333";
               previewBtn.style.color = "#999";
               dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
-              updateMediaSession(null, false);
             } else {
               // Re-link the bar/dim to this card every time we (re)start
               // playback, not just on a genuinely new src — if the previous
@@ -3938,48 +4341,12 @@
               previewBtn.style.borderColor = "var(--osu-fav-accent)";
               previewBtn.style.color = "var(--osu-fav-accent)";
               dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
-              updateMediaSession({ title: f.title, artist: f.artist, coverUrl }, true);
-              syncMediaSessionPosition();
             }
             return;
           }
-          // Stop previous
-          const a = audio;
-          if (a._activeBtn) {
-            a._activeBtn.innerHTML = playSVG();
-            a._activeBtn._playing = false;
-            a._activeBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
-            a._activeBtn.style.borderColor = "#333";
-            a._activeBtn.style.color = "#999";
-          }
-          if (a._activeBar) {
-            a._activeBar.parentElement.style.display = "none";
-            a._activeBar.style.width = "0%";
-          }
-          if (a._activeDim) a._activeDim.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
-          audio.pause();
-          // Start new
-          audio.src = previewUrl;
-          audio._activeBtn = previewBtn;
-          audio._activeBar = progressBar;
-          audio._activeDim = dimOverlay;
-          progressWrap.style.display = "block";
-          previewBtn.innerHTML = pauseSVG();
-          previewBtn._playing = true;
-          previewBtn.style.opacity = "var(--osu-fav-active-opacity, 0.8)";
-          previewBtn.style.borderColor = "var(--osu-fav-accent)";
-          previewBtn.style.color = "var(--osu-fav-accent)";
-          dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))";
-          updateMediaSession({ title: f.title, artist: f.artist, coverUrl }, true);
-          audio.play().catch(() => {
-            previewBtn.innerHTML = playSVG();
-            previewBtn._playing = false;
-            previewBtn.style.opacity = "var(--osu-fav-idle-opacity, 0.15)";
-            previewBtn.style.borderColor = "#333";
-            previewBtn.style.color = "#999";
-            dimOverlay.style.background = "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
-            updateMediaSession(null, false);
-          });
+          // Different track - hand off to the shared player so the Now
+          // Playing bar and Back/Next queue stay in sync too.
+          startPlayback(id, f, { navigated: false });
         });
 
         coverEl.appendChild(previewBtn);
@@ -4005,7 +4372,7 @@
     }
 
     // ── Assemble & wire events ─────────────────────────────
-    panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, footer);
+    panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, nowPlayingBar, footer);
     document.body.appendChild(panel);
     updateSortBtns();
     renderList();
