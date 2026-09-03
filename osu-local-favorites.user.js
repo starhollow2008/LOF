@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         osu! Local Favorites
-// @namespace    https://github.com/starhollow2008/LOF
-// @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
+// @namespace    https://github.com/starhollow2008/osu-Local-Favorites
+// @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
+// @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @version      5.1.3
-// @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
+// @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
 // @match        https://osu.ppy.sh/*
