@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      5.0.2
+// @version      5.0.3
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -790,6 +790,9 @@
     audio._npTitle = null;
     audio._npArtist = null;
     audio._npPlayBtn = null;
+    audio._npProgressBar = null;
+    audio._npThumb = null;
+    audio._npBg = null;
     audio._npCurrentId = null;
     audio._npCurrentTitle = "";
     audio._npCurrentArtist = "";
@@ -2660,8 +2663,6 @@
     closeBtn.style.cssText =
       "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:12px;flex-shrink:0";
     closeBtn.addEventListener("click", () => {
-      const audio = window._osuFavAudio;
-      if (audio) resetActiveCardUI(audio);
       clearFavoritesPanelAudio();
       panel.remove();
     });
@@ -2831,40 +2832,63 @@
     }
     footer._refresh = updateFooterStatus;
 
-    // ── Now Playing bar - a small persistent player for previews, shown
-    // once something starts playing. Lets you skip through the visible
-    // list (respecting the current sort/filter) without hunting for the
-    // next card's play button.
+    // ── Now Playing bar — persistent mini-player ─────────────────
+    // This intentionally lives as a direct child of the fixed panel rather
+    // than inside the scrolling content area. It therefore never moves with
+    // the favorites/settings scroll position.
     const nowPlayingBar = document.createElement("div");
     nowPlayingBar.id = "osu-fav-nowplaying";
     nowPlayingBar.style.cssText =
-      "display:none;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid #333;" +
-      "background:#1a1a1a;position:absolute;left:0;right:0;bottom:0;z-index:5;" +
-      "box-shadow:0 -4px 12px rgba(0,0,0,.35)";
+      "display:none;position:relative;align-items:center;gap:9px;padding:7px 14px;" +
+      "min-height:58px;box-sizing:border-box;border-top:1px solid #333;" +
+      "border-bottom:1px solid #222;background:#1a1a1a;flex-shrink:0;overflow:hidden;" +
+      "box-shadow:0 -3px 12px rgba(0,0,0,.35)";
+
+    // Album-art backdrop — subtle and blurred, so the bar visually inherits
+    // the same artwork as the track without making the controls unreadable.
+    const npBg = document.createElement("div");
+    npBg.style.cssText =
+      "position:absolute;inset:-14px;background-position:center;background-size:cover;" +
+      "background-repeat:no-repeat;filter:blur(12px);transform:scale(1.08);opacity:.24;" +
+      "pointer-events:none";
+
+    const npBgShade = document.createElement("div");
+    npBgShade.style.cssText =
+      "position:absolute;inset:0;background:rgba(17,17,17,.64);pointer-events:none;z-index:1";
+
+    // Track thumbnail — this is deliberately a normal img rather than a
+    // background-only image, so the current cover remains identifiable.
+    const npThumb = document.createElement("img");
+    npThumb.alt = "";
+    npThumb.style.cssText =
+      "position:relative;z-index:2;width:42px;height:42px;border-radius:3px;object-fit:cover;" +
+      "background:#111;display:block;flex-shrink:0;border:1px solid rgba(255,255,255,.08)";
+    npThumb.addEventListener("error", () => {
+      npThumb.removeAttribute("src");
+      npThumb.style.visibility = "hidden";
+    });
 
     const npInfo = document.createElement("div");
-    npInfo.style.cssText = "flex:1;min-width:0";
+    npInfo.style.cssText = "position:relative;z-index:2;flex:1;min-width:0;overflow:hidden";
     const npTitle = document.createElement("div");
     npTitle.style.cssText =
-      "font-size:11px;color:#ddd;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+      "font-size:12px;color:#eee;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35";
     const npArtist = document.createElement("div");
     npArtist.style.cssText =
-      "font-size:10px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px";
+      "font-size:10px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;line-height:1.25";
     npInfo.append(npTitle, npArtist);
 
-    // The player owns its own progress track so it survives favorite-list
-    // rerenders. It intentionally mirrors the card preview progress styling:
-    // dark background track + accent-colored fill.
     const npProgressWrap = document.createElement("div");
     npProgressWrap.style.cssText =
-      "position:absolute;left:0;right:0;bottom:0;height:2px;background:#111;overflow:hidden";
+      "position:absolute;left:0;right:0;bottom:0;height:2px;background:#111;overflow:hidden;z-index:4";
     const npProgressBar = document.createElement("div");
     npProgressBar.style.cssText =
       "height:100%;width:0%;background:var(--osu-fav-accent);transition:width .05s linear";
     npProgressWrap.appendChild(npProgressBar);
 
     const npControls = document.createElement("div");
-    npControls.style.cssText = "display:flex;align-items:center;gap:4px;flex-shrink:0";
+    npControls.style.cssText =
+      "position:relative;z-index:2;display:flex;align-items:center;gap:4px;flex-shrink:0";
 
     function npIconBtn(svgFn, title) {
       const b = document.createElement("button");
@@ -2872,7 +2896,7 @@
       b.title = title;
       b.innerHTML = svgFn();
       b.style.cssText =
-        "background:none;border:1px solid #333;border-radius:3px;color:#999;cursor:pointer;" +
+        "background:rgba(17,17,17,.46);border:1px solid #333;border-radius:3px;color:#999;cursor:pointer;" +
         "padding:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0";
       b.addEventListener("mouseenter", () => {
         if (!b._active) { b.style.borderColor = "var(--osu-fav-accent)"; b.style.color = "var(--osu-fav-accent)"; }
@@ -2917,10 +2941,7 @@
     });
 
     npControls.append(npShuffleBtn, npBackBtn, npPlayBtn, npNextBtn, npLoopBtn);
-    nowPlayingBar.append(npInfo, npControls, npProgressWrap);
-    // Mount the player after it has been fully constructed. It is absolutely
-    // positioned inside contentArea, so it stays pinned while list/settings scroll.
-    contentArea.append(nowPlayingBar);
+    nowPlayingBar.append(npBg, npBgShade, npThumb, npInfo, npControls, npProgressWrap);
 
     // Resets whatever card is currently linked to the audio element back to
     // its idle look - shared by the "switch to a different track" path and
@@ -2944,6 +2965,19 @@
       if (audio._npProgressBar) audio._npProgressBar.style.width = "0%";
     }
 
+    function getPlaybackCover(f, id) {
+      const stored = f && f.covers && (
+        f.covers.card ||
+        f.covers["card@2x"] ||
+        f.covers.list ||
+        f.covers.cover
+      );
+      // Older local favorites may not have a stored covers object. Fall back to
+      // osu!'s deterministic beatmapset cover URL so the mini-player still gets
+      // artwork even for those entries.
+      return stored || (id ? `https://assets.ppy.sh/beatmaps/${id}/covers/card.jpg` : "");
+    }
+
     // Starts a track by id/record, linking up whichever card is currently
     // on screen for it (if any - long lists build cards lazily) and the
     // Now Playing bar. `navigated` marks a track reached via Back/Next/
@@ -2963,6 +2997,22 @@
       audio._npCurrentId = id;
       audio._npCurrentTitle = f.title || f.title_unicode || "Unknown";
       audio._npCurrentArtist = f.artist || f.artist_unicode || "";
+
+      const playbackCover = getPlaybackCover(f, id);
+      if (audio._npThumb) {
+        if (playbackCover) {
+          audio._npThumb.src = playbackCover;
+          audio._npThumb.style.visibility = "visible";
+        } else {
+          audio._npThumb.removeAttribute("src");
+          audio._npThumb.style.visibility = "hidden";
+        }
+      }
+      if (audio._npBg) {
+        audio._npBg.style.backgroundImage = playbackCover
+          ? 'url("' + playbackCover.replace(/"/g, '\"') + '")'
+          : "none";
+      }
 
       const cardEl = listEl.querySelector('[data-fav-id="' + id + '"]');
       if (cardEl) {
@@ -3045,6 +3095,8 @@
     npAudio._npArtist = npArtist;
     npAudio._npPlayBtn = npPlayBtn;
     npAudio._npProgressBar = npProgressBar;
+    npAudio._npThumb = npThumb;
+    npAudio._npBg = npBg;
     npAudio._queueAdvance = queueAdvance;
 
     // Reconcile the freshly-rendered favorite cards with the singleton audio.
@@ -3092,6 +3144,17 @@
       nowPlayingBar.style.display = "flex";
       npTitle.textContent = npAudio._npCurrentTitle || "";
       npArtist.textContent = npAudio._npCurrentArtist || "";
+      const currentFav = getFavorites()[npAudio._npCurrentId];
+      const currentCover = getPlaybackCover(currentFav, npAudio._npCurrentId);
+      if (currentCover) {
+        npThumb.src = currentCover;
+        npThumb.style.visibility = "visible";
+        npBg.style.backgroundImage = 'url("' + currentCover.replace(/"/g, '\"') + '")';
+      } else {
+        npThumb.removeAttribute("src");
+        npThumb.style.visibility = "hidden";
+        npBg.style.backgroundImage = "none";
+      }
       npPlayBtn.innerHTML = npAudio.paused ? playSVG() : pauseSVG();
       npProgressBar.style.width =
         npAudio.duration ? (npAudio.currentTime / npAudio.duration) * 100 + "%" : "0%";
@@ -4470,7 +4533,9 @@
     }
 
     // ── Assemble & wire events ─────────────────────────────
-    panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, footer);
+    // The list/settings viewport scrolls; the mini-player is a sibling of it,
+    // so it remains pinned to the bottom of the panel while the page is scrolled.
+    panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, nowPlayingBar, footer);
     document.body.appendChild(panel);
     updateSortBtns();
     renderList();
