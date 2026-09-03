@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      5.1.0
+// @version      5.1.1
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -2499,13 +2499,15 @@
         "#osu-fav-settings::-webkit-scrollbar-thumb:hover{background:var(--osu-fav-accent)}" +
         "@keyframes osuFavSlideDown{from{max-height:0;opacity:0;overflow:hidden}to{max-height:50px;opacity:1}}" +
         "@keyframes osuFavSlideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}" +
-        "#osu-fav-nowplaying{height:74px;min-height:74px!important;padding:8px 12px!important;gap:10px!important;}" +
+        "#osu-fav-nowplaying{height:74px!important;min-height:74px!important;max-height:74px!important;flex:0 0 74px!important;padding:8px 12px!important;gap:10px!important;}" +
         "#osu-fav-nowplaying .osu-fav-np-thumb{width:54px!important;height:54px!important;}" +
         "#osu-fav-nowplaying .osu-fav-np-title{font-size:13px!important;line-height:1.3!important;}" +
         "#osu-fav-nowplaying .osu-fav-np-artist{font-size:11px!important;line-height:1.25!important;margin-top:3px!important;}" +
         "#osu-fav-nowplaying .osu-fav-np-controls{gap:5px!important;}" +
         "#osu-fav-nowplaying .osu-fav-np-btn{width:38px!important;height:38px!important;padding:7px!important;}" +
-        "@media(max-width:600px){#osu-fav-nowplaying{height:76px;min-height:76px!important;padding:8px 10px!important;gap:8px!important;}#osu-fav-nowplaying .osu-fav-np-thumb{width:50px!important;height:50px!important;}#osu-fav-nowplaying .osu-fav-np-controls{gap:3px!important;}#osu-fav-nowplaying .osu-fav-np-btn{width:34px!important;height:34px!important;padding:6px!important;}#osu-fav-nowplaying .osu-fav-np-title{font-size:12px!important;}#osu-fav-nowplaying .osu-fav-np-artist{font-size:10px!important;}#osu-fav-nowplaying .osu-fav-np-info{min-width:72px!important;}}";
+        "#osu-fav-footer-status{height:29px!important;min-height:29px!important;max-height:29px!important;padding:6px 14px!important;line-height:15px!important;}" +
+        "#osu-fav-bottom-bar{height:auto!important;min-height:0!important;max-height:none!important;padding-bottom:0!important;}" +
+        "@media(max-width:600px){#osu-fav-nowplaying{height:76px!important;min-height:76px!important;max-height:76px!important;flex:0 0 76px!important;padding:8px 10px!important;gap:8px!important;padding-bottom:8px!important;}#osu-fav-nowplaying .osu-fav-np-thumb{width:50px!important;height:50px!important;}#osu-fav-nowplaying .osu-fav-np-controls{gap:3px!important;}#osu-fav-nowplaying .osu-fav-np-btn{width:34px!important;height:34px!important;padding:6px!important;}#osu-fav-nowplaying .osu-fav-np-title{font-size:12px!important;}#osu-fav-nowplaying .osu-fav-np-artist{font-size:10px!important;}#osu-fav-nowplaying .osu-fav-np-info{min-width:72px!important;}#osu-fav-footer-status{height:28px!important;min-height:28px!important;max-height:28px!important;padding:6px 10px!important;line-height:14px!important;}}";
       document.head.appendChild(s);
     }
 
@@ -2821,7 +2823,7 @@
     const footer = document.createElement("div");
     footer.id = "osu-fav-footer-status";
     footer.style.cssText =
-      "width:100%;box-sizing:border-box;padding:6px 14px;border-top:1px solid #333;background:#1a1a1a;font-size:10px;color:#555;text-align:center;cursor:pointer;user-select:none";
+      "width:100%;height:29px;min-height:29px;max-height:29px;box-sizing:border-box;padding:6px 14px;border-top:1px solid #333;background:#1a1a1a;font-size:10px;line-height:15px;color:#555;text-align:center;cursor:pointer;user-select:none;overflow:hidden";
     footer.addEventListener("click", () => setView(true));
     footer.addEventListener("mouseenter", () => (footer.style.color = "var(--osu-fav-accent)"));
     footer.addEventListener("mouseleave", () => (footer.style.color = "#555"));
@@ -2852,10 +2854,9 @@
     nowPlayingBar.id = "osu-fav-nowplaying";
     nowPlayingBar.style.cssText =
       "display:none;position:relative;align-items:center;gap:9px;padding:7px 14px;" +
-      "min-height:58px;box-sizing:border-box;border-top:1px solid #333;" +
-      "border-bottom:1px solid #222;background:#1a1a1a;flex-shrink:0;overflow:hidden;" +
-      "box-shadow:0 -3px 12px rgba(0,0,0,.35);margin-top:0;" +
-      "padding-bottom:max(7px, env(safe-area-inset-bottom))";
+      "height:74px;min-height:74px;max-height:74px;box-sizing:border-box;border-top:1px solid #333;" +
+      "border-bottom:1px solid #222;background:#1a1a1a;flex:0 0 74px;overflow:hidden;" +
+      "box-shadow:0 -3px 12px rgba(0,0,0,.35);margin-top:0;padding-bottom:7px";
 
     // Album-art backdrop — subtle and blurred, so the bar visually inherits
     // the same artwork as the track without making the controls unreadable.
@@ -4602,7 +4603,7 @@
     bottomBar.style.cssText =
       "position:absolute;left:0;right:0;bottom:0;z-index:20;overflow:hidden;" +
       "background:#1a1a1a;box-shadow:0 -3px 12px rgba(0,0,0,.35);" +
-      "padding-bottom:env(safe-area-inset-bottom);box-sizing:border-box;";
+      "padding-bottom:0;box-sizing:border-box;min-height:0;height:auto;";
     bottomBar.append(nowPlayingBar, footer);
     panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, bottomBar);
     document.body.appendChild(panel);
