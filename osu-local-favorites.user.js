@@ -2803,7 +2803,7 @@
     // ── Settings view (hidden until the gear button is clicked) ──
     const settingsView = document.createElement("div");
     settingsView.id = "osu-fav-settings";
-    settingsView.style.cssText = "flex:1 1 0%;min-height:0;overflow-y:auto;display:none;padding-bottom:58px;box-sizing:border-box";
+    settingsView.style.cssText = "flex:1 1 0%;min-height:0;overflow-y:auto;display:none;padding-bottom:42px;box-sizing:border-box";
 
     contentArea.append(listEl, settingsView);
 
@@ -2811,7 +2811,7 @@
     const footer = document.createElement("div");
     footer.id = "osu-fav-footer-status";
     footer.style.cssText =
-      "padding:6px 14px;border-top:1px solid #333;background:#1a1a1a;flex-shrink:0;font-size:10px;color:#555;text-align:center;cursor:pointer;user-select:none";
+      "width:100%;box-sizing:border-box;padding:6px 14px;border-top:1px solid #333;background:#1a1a1a;font-size:10px;color:#555;text-align:center;cursor:pointer;user-select:none";
     footer.addEventListener("click", () => setView(true));
     footer.addEventListener("mouseenter", () => (footer.style.color = "var(--osu-fav-accent)"));
     footer.addEventListener("mouseleave", () => (footer.style.color = "#555"));
@@ -3172,6 +3172,7 @@
       searchInput.style.display = showSettings ? "none" : "block";
       footer.style.display = showSettings ? "block" : "none";
       nowPlayingBar.style.display = !showSettings && npAudio.src && npAudio._npCurrentId ? "flex" : "none";
+      bottomBar.setAttribute("data-view", showSettings ? "settings" : "favorites");
       settingsBtn.style.color = showSettings ? "var(--osu-fav-accent)" : "#999";
       settingsBtn.style.borderColor = showSettings ? "var(--osu-fav-accent)" : "#333";
       settingsBtn.title = showSettings ? "Back to favorites" : "Settings";
@@ -4537,9 +4538,16 @@
     }
 
     // ── Assemble & wire events ─────────────────────────────
-    // The list/settings viewport scrolls; the mini-player is a sibling of it,
-    // so it remains pinned to the bottom of the panel while the page is scrolled.
-    panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, nowPlayingBar, footer);
+    // Bottom UI is a panel-level sibling of the scrolling content, exactly like
+    // the top header: it is absolutely pinned to the panel bottom and never
+    // participates in the scrollable list/settings viewport.
+    const bottomBar = document.createElement("div");
+    bottomBar.id = "osu-fav-bottom-bar";
+    bottomBar.style.cssText =
+      "position:absolute;left:0;right:0;bottom:0;z-index:20;overflow:hidden;" +
+      "background:#1a1a1a;box-shadow:0 -3px 12px rgba(0,0,0,.35);";
+    bottomBar.append(nowPlayingBar, footer);
+    panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, bottomBar);
     document.body.appendChild(panel);
     updateSortBtns();
     renderList();
