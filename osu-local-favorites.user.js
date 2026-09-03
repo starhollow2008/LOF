@@ -1233,7 +1233,7 @@
           `background:${activeId === id ? "var(--osu-fav-accent)" : "transparent"};color:${activeId === id ? "#fff" : "#ddd"}`;
         selectBtn.addEventListener("mouseenter", () => { if (activeId !== id) selectBtn.style.background = "#242424"; });
         selectBtn.addEventListener("mouseleave", () => { if (activeId !== id) selectBtn.style.background = "transparent"; });
-        selectBtn.addEventListener("click", () => { onSelect(id); cleanup(); });
+        selectBtn.addEventListener("click", () => { onSelect(activeId === id ? "" : id); cleanup(); });
 
         const delBtn = document.createElement("button");
         delBtn.type = "button";
