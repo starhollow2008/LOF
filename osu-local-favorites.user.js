@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.2.1
+// @version      5.3.0
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -1073,12 +1073,56 @@
     window.addEventListener("scroll", cleanup, true);
   }
 
-  // ── Genre filter popover ──
-  // 3-tap cycle per genre row: neutral → include (green) → exclude (red) → neutral.
-  // Multiple "include" genres are OR'd together; any "exclude" genre is always
+  // ── Genre + Tags term collection ──
+  // Builds two frequency-counted term lists from the current favorites:
+  // one from the `genre` field (osu!'s own taxonomy — a handful of values),
+  // one from the freeform `tags` field (can be large). Each favorite counts
+  // once per unique term even if it shows up twice (e.g. a tag repeated).
+  // Any tag string that collides with a genre value is dropped from the tag
+  // list so the same term never appears twice across both sections.
+  function collectGenreAndTagTerms(favs) {
+    const genreCounts = new Map(); // lowercase key -> { display, count }
+    const tagCounts = new Map();
+    Object.values(favs).forEach((f) => {
+      const genre = (f.genre && f.genre.trim()) || "Unspecified";
+      const gKey = genre.toLowerCase();
+      const gEntry = genreCounts.get(gKey) || { display: genre, count: 0 };
+      gEntry.count++;
+      genreCounts.set(gKey, gEntry);
+
+      const seen = new Set();
+      (f.tags || "").split(/\s+/).forEach((raw) => {
+        const tag = raw.trim();
+        if (!tag) return;
+        const tKey = tag.toLowerCase();
+        if (seen.has(tKey)) return;
+        seen.add(tKey);
+        const tEntry = tagCounts.get(tKey) || { display: tag, count: 0 };
+        tEntry.count++;
+        tagCounts.set(tKey, tEntry);
+      });
+    });
+    // A term that's ever used as an actual genre value is a genre, not a tag.
+    genreCounts.forEach((_, key) => tagCounts.delete(key));
+    return { genreCounts, tagCounts };
+  }
+
+  // Whether a favorite matches a given genre/tag filter key (both compared
+  // lowercase) — true if it's that favorite's genre, or one of its tags.
+  function favMatchesGenreTerm(f, key) {
+    const genre = ((f.genre && f.genre.trim()) || "Unspecified").toLowerCase();
+    if (genre === key) return true;
+    return (f.tags || "").toLowerCase().split(/\s+/).includes(key);
+  }
+
+  // ── Genre + Tags filter popover ──
+  // 3-tap cycle per row: neutral → include (green) → exclude (red) → neutral.
+  // Multiple "include" terms are OR'd together; any "exclude" term is always
   // dropped, even if it would otherwise match an include. currentState is
-  // { [genreName]: "include" | "exclude" }; onApply is called after every tap
-  // with a fresh copy so the caller can re-render live without closing the menu.
+  // { [lowercaseTerm]: "include" | "exclude" }; onApply is called after every
+  // tap with a fresh copy so the caller can re-render live without closing
+  // the menu. Rows are split into a "Genres" section (osu!'s own taxonomy)
+  // and a "Tags" section (freeform, can be large — hence the search box).
   function showGenreFilterMenu(anchorEl, currentState, onApply) {
     const existing = document.getElementById("osu-fav-genre-menu");
     const reopening = existing && existing._anchor === anchorEl;
@@ -1088,17 +1132,19 @@
     const state = Object.assign({}, currentState);
 
     const favs = getFavorites();
-    const genreSet = new Set();
-    Object.values(favs).forEach((f) =>
-      genreSet.add((f.genre && f.genre.trim()) || "Unspecified"),
-    );
-    const genres = Array.from(genreSet).sort((a, b) => a.localeCompare(b));
+    const { genreCounts, tagCounts } = collectGenreAndTagTerms(favs);
+    const genreList = Array.from(genreCounts.entries())
+      .map(([key, v]) => ({ key, display: v.display, count: v.count }))
+      .sort((a, b) => a.display.localeCompare(b.display));
+    const tagList = Array.from(tagCounts.entries())
+      .map(([key, v]) => ({ key, display: v.display, count: v.count }))
+      .sort((a, b) => b.count - a.count || a.display.localeCompare(b.display));
 
     const menu = document.createElement("div");
     menu.id = "osu-fav-genre-menu";
     menu._anchor = anchorEl;
     menu.style.cssText =
-      "position:fixed;z-index:100002;min-width:170px;max-width:220px;max-height:320px;overflow-y:auto;" +
+      "position:fixed;z-index:100002;min-width:190px;max-width:240px;max-height:360px;overflow-y:auto;" +
       "background:#1a1a1a;border:1px solid #333;border-radius:4px;" +
       "box-shadow:0 4px 16px rgba(0,0,0,.5);padding:4px;" +
       "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
@@ -1123,43 +1169,89 @@
     hint.textContent = "Tap: include (green) → exclude (red) → off";
     menu.appendChild(hint);
 
+    // Tags can run into the hundreds for a big library — a live filter box
+    // keeps that usable instead of relying on scrolling alone.
+    const searchBox = document.createElement("input");
+    searchBox.type = "text";
+    searchBox.placeholder = "Filter list...";
+    searchBox.style.cssText =
+      "width:100%;box-sizing:border-box;background:#111;border:1px solid #333;border-radius:3px;color:#ddd;" +
+      "font-size:10px;padding:4px 6px;outline:none;margin-bottom:4px";
+    searchBox.addEventListener("click", (e) => e.stopPropagation());
+    searchBox.addEventListener("keydown", (e) => e.stopPropagation());
+    menu.appendChild(searchBox);
+
+    const rowsWrap = document.createElement("div");
+    menu.appendChild(rowsWrap);
+
     function styleForState(s) {
       if (s === "include") return { bg: "#215a2b", border: "#3fa54a", color: "#fff" };
       if (s === "exclude") return { bg: "#5a2121", border: "#c0392b", color: "#fff" };
       return { bg: "transparent", border: "#333", color: "#ccc" };
     }
 
-    if (genres.length === 0) {
-      const empty = document.createElement("div");
-      empty.style.cssText = "font-size:11px;color:#666;padding:8px 10px";
-      empty.textContent = "No favorites to filter yet.";
-      menu.appendChild(empty);
-    }
-
-    genres.forEach((g) => {
+    function makeRow(term) {
       const row = document.createElement("button");
       row.type = "button";
-      const sty = styleForState(state[g]);
+      const sty = styleForState(state[term.key]);
       row.style.cssText =
-        `display:block;width:100%;text-align:left;margin:2px 0;padding:5px 8px;font-size:11px;` +
-        `border:1px solid ${sty.border};border-radius:3px;background:${sty.bg};color:${sty.color};cursor:pointer;` +
-        `white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box`;
-      row.textContent = g;
+        `display:flex;justify-content:space-between;align-items:center;gap:6px;width:100%;text-align:left;` +
+        `margin:2px 0;padding:5px 8px;font-size:11px;border:1px solid ${sty.border};border-radius:3px;` +
+        `background:${sty.bg};color:${sty.color};cursor:pointer;box-sizing:border-box`;
+      const label = document.createElement("span");
+      label.textContent = term.display;
+      label.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+      const count = document.createElement("span");
+      count.textContent = term.count;
+      count.style.cssText = "flex-shrink:0;opacity:0.65;font-size:10px";
+      row.append(label, count);
       row.addEventListener("click", () => {
-        const cur = state[g];
+        const cur = state[term.key];
         const next = cur === undefined ? "include" : cur === "include" ? "exclude" : undefined;
-        if (next === undefined) delete state[g];
-        else state[g] = next;
-        const s2 = styleForState(state[g]);
+        if (next === undefined) delete state[term.key];
+        else state[term.key] = next;
+        const s2 = styleForState(state[term.key]);
         row.style.borderColor = s2.border;
         row.style.background = s2.bg;
         row.style.color = s2.color;
         onApply(Object.assign({}, state));
       });
-      menu.appendChild(row);
-    });
+      return row;
+    }
 
-    if (genres.length) {
+    function renderRows(query) {
+      rowsWrap.innerHTML = "";
+      const q = (query || "").toLowerCase();
+      const filteredGenres = q ? genreList.filter((t) => t.display.toLowerCase().includes(q)) : genreList;
+      const filteredTags = q ? tagList.filter((t) => t.display.toLowerCase().includes(q)) : tagList;
+
+      if (filteredGenres.length === 0 && filteredTags.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.cssText = "font-size:11px;color:#666;padding:8px 10px";
+        empty.textContent = q ? "No matches." : "No favorites to filter yet.";
+        rowsWrap.appendChild(empty);
+        return;
+      }
+
+      if (filteredGenres.length) {
+        const label = document.createElement("div");
+        label.style.cssText = "font-size:9px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.03em;padding:4px 8px 2px";
+        label.textContent = "Genres";
+        rowsWrap.appendChild(label);
+        filteredGenres.forEach((t) => rowsWrap.appendChild(makeRow(t)));
+      }
+      if (filteredTags.length) {
+        const label = document.createElement("div");
+        label.style.cssText = "font-size:9px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.03em;padding:6px 8px 2px";
+        label.textContent = "Tags";
+        rowsWrap.appendChild(label);
+        filteredTags.forEach((t) => rowsWrap.appendChild(makeRow(t)));
+      }
+    }
+    renderRows("");
+    searchBox.addEventListener("input", () => renderRows(searchBox.value.trim()));
+
+    if (genreList.length || tagList.length) {
       const divider = document.createElement("div");
       divider.style.cssText = "height:1px;background:#333;margin:4px 2px";
       menu.appendChild(divider);
@@ -3271,7 +3363,7 @@
     // cluster on the left.
     const genreBtn = document.createElement("button");
     genreBtn.type = "button";
-    genreBtn.title = "Filter by genre";
+    genreBtn.title = "Filter by genre or tag";
     genreBtn.style.cssText =
       "font-size:10px;font-weight:500;padding:3px 7px;border:1px solid transparent;border-radius:3px;background:transparent;cursor:pointer;user-select:none;color:#666;white-space:nowrap";
     function updateGenreBtn() {
@@ -4753,17 +4845,18 @@
         );
       }
 
-      // Genre filter — multiple "include" genres are OR'd together; any
-      // "exclude" genre always drops the entry, even if it also matched an
-      // include (see showGenreFilterMenu for the 3-tap state machine).
+      // Genre/tag filter — terms are stored as lowercase keys (see
+      // showGenreFilterMenu). Multiple "include" terms are OR'd together;
+      // any "exclude" term always drops the entry, even if it also matched
+      // an include. A term matches either the favorite's genre or any one
+      // of its space-separated tags (favMatchesGenreTerm).
       const genreKeys = Object.keys(genreFilterState);
       if (genreKeys.length) {
-        const includeGenres = genreKeys.filter((g) => genreFilterState[g] === "include");
-        const excludeGenres = genreKeys.filter((g) => genreFilterState[g] === "exclude");
+        const includeTerms = genreKeys.filter((g) => genreFilterState[g] === "include");
+        const excludeTerms = genreKeys.filter((g) => genreFilterState[g] === "exclude");
         entries = entries.filter(([, f]) => {
-          const g = (f.genre && f.genre.trim()) || "Unspecified";
-          if (excludeGenres.includes(g)) return false;
-          if (includeGenres.length && !includeGenres.includes(g)) return false;
+          if (excludeTerms.some((k) => favMatchesGenreTerm(f, k))) return false;
+          if (includeTerms.length && !includeTerms.some((k) => favMatchesGenreTerm(f, k))) return false;
           return true;
         });
       }
