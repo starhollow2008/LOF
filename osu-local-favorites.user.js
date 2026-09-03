@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.2.0
+// @version      5.2.1
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -16,6 +16,9 @@
 // @connect      raw.githubusercontent.com
 // @connect      api.github.com
 // @connect      gist.githubusercontent.com
+// @connect      assets.ppy.sh
+// @connect      b.ppy.sh
+// @connect      mirror.hinamizawa.ai
 // @run-at       document-start
 // ==/UserScript==
 
@@ -796,19 +799,52 @@
     });
   }
 
+  // Fetches a URL's raw bytes as a Blob for caching, via GM_xmlhttpRequest
+  // rather than a page-context fetch(). osu!'s own CDN (assets.ppy.sh /
+  // b.ppy.sh) doesn't send permissive Access-Control-Allow-Origin headers,
+  // so a plain fetch() from here is blocked by the browser as a cross-origin
+  // network error before any bytes ever arrive — the image/audio still
+  // displays fine via <img>/<audio> (those aren't subject to CORS), but the
+  // cache store silently never gets populated, which is exactly why caching
+  // "worked" for nothing. GM_xmlhttpRequest runs outside the page's CORS
+  // sandbox (same mechanism already used for the GitHub/osu! API calls
+  // above), so it isn't affected. Falls back to a normal fetch() if this
+  // userscript manager doesn't support GM_xmlhttpRequest at all.
+  function gmFetchBlob(url) {
+    if (typeof GM_xmlhttpRequest === "function") {
+      return new Promise((resolve) => {
+        try {
+          GM_xmlhttpRequest({
+            method: "GET",
+            url,
+            responseType: "blob",
+            timeout: 20000,
+            onload: (response) => {
+              if (response.status >= 200 && response.status < 300 && response.response) {
+                resolve(response.response);
+              } else {
+                resolve(null);
+              }
+            },
+            onerror: () => resolve(null),
+            ontimeout: () => resolve(null),
+          });
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+    return fetch(url)
+      .then((r) => (r.ok ? r.blob() : null))
+      .catch(() => null);
+  }
+
   // Resolves to a URL safe to hand straight to <img src> / <audio src>: a
   // local blob: URL when a fresh cached copy exists, otherwise the original
   // network URL unchanged - so a cache miss never delays first-time
   // playback/display waiting on a full download. A miss also kicks off a
   // background fetch to populate the cache for next time; fire-and-forget,
   // not awaited by the caller either way.
-  //
-  // Cross-origin note: this relies on plain fetch(), which needs the source
-  // to allow cross-origin reads. b.ppy.sh/assets.ppy.sh and Hinamizawa's
-  // mirror (see "Full-length previews" above) both do. If some other
-  // source doesn't, the fetch silently fails and that one URL just never
-  // gets cached - display/playback are unaffected either way, since they
-  // already got the direct URL synchronously below.
   function resolveCachedMediaUrl(url) {
     if (!url) return Promise.resolve(url);
     if (cacheDurationMode() === "never") return Promise.resolve(url);
@@ -818,10 +854,7 @@
       const fresh = entry && (ttl === Infinity || Date.now() - entry.cachedAt < ttl);
       if (fresh) return URL.createObjectURL(entry.blob);
 
-      fetch(url)
-        .then((r) => (r.ok ? r.blob() : null))
-        .then((blob) => { if (blob) cachePut(url, blob); })
-        .catch(() => { }); // no CORS / offline / etc - this URL just stays uncached
+      gmFetchBlob(url).then((blob) => { if (blob) cachePut(url, blob); });
       return url;
     });
   }
@@ -4991,19 +5024,34 @@
         // the normal "Download ▾" trigger — resolveDefaultMirror() already
         // returns null for anything that wouldn't work, so this never
         // hands out a dead link.
+        //
+        // Separately: even with no default set, buildDownloadOptions() can
+        // still only have exactly one entry (e.g. a signed-out guest with
+        // every mirror disabled — Official is the only option, "requires
+        // sign-in" and all). A "▾" dropdown that opens to one single row is
+        // just a pointless extra click, so that case also collapses to a
+        // plain link, same as the default-mirror path.
         const defaultMirror = resolveDefaultMirror(id);
+        let soleOption = null;
+        if (!defaultMirror) {
+          const opts = buildDownloadOptions(id);
+          if (opts.length === 1) soleOption = opts[0];
+        }
         const downloadStyle =
           "font-size:10px;padding:4px 8px;border:1px solid #333;border-radius:2px;background:none;color:#999;" +
           "cursor:pointer;text-align:center;white-space:nowrap;width:100%;text-decoration:none;display:block;box-sizing:border-box";
 
         let downloadLink;
-        if (defaultMirror) {
+        if (defaultMirror || soleOption) {
+          const target = defaultMirror || soleOption;
           downloadLink = document.createElement("a");
-          downloadLink.href = defaultMirror.url;
+          downloadLink.href = target.url;
           downloadLink.target = "_blank";
           downloadLink.rel = "noopener";
           downloadLink.textContent = "Download";
-          downloadLink.title = `Download via ${defaultMirror.label} — change default in Settings`;
+          downloadLink.title = defaultMirror
+            ? `Download via ${target.label} — change default in Settings`
+            : `Download via ${target.label}`;
         } else {
           downloadLink = document.createElement("button");
           downloadLink.type = "button";
