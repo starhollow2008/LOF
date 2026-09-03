@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      5.0.3
+// @version      5.0.4
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -282,7 +282,7 @@
       transition: "opacity 0.2s ease",
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     });
-    t.textContent = "Error: " + msg;
+    t.textContent = "⚠ Error: " + msg;
     document.body.appendChild(t);
     setTimeout(() => {
       t.style.opacity = "0";
@@ -2640,7 +2640,7 @@
     titleEl.append("Local Favorites", countBadge);
 
     const settingsBtn = document.createElement("button");
-    settingsBtn.textContent = "Settings";
+    settingsBtn.textContent = "⚙ Settings";
     settingsBtn.title = "Settings";
     settingsBtn.style.cssText =
       "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:13px;flex-shrink:0;line-height:1.4";
@@ -2786,13 +2786,14 @@
     // ── Content area (favorites list + settings view share this space) ──
     const contentArea = document.createElement("div");
     contentArea.style.cssText =
-      "flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative";
+      "flex:1 1 0%;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative";
 
     // ── List ───────────────────────────────────────────────
     const listEl = document.createElement("div");
     listEl.id = "osu-fav-list";
     Object.assign(listEl.style, {
-      flex: "1",
+      flex: "1 1 0%",
+      minHeight: "0",
       overflowY: "auto",
       padding: "4px 0 58px",
       boxSizing: "border-box",
@@ -2801,7 +2802,7 @@
     // ── Settings view (hidden until the gear button is clicked) ──
     const settingsView = document.createElement("div");
     settingsView.id = "osu-fav-settings";
-    settingsView.style.cssText = "flex:1;overflow-y:auto;display:none;padding-bottom:58px;box-sizing:border-box";
+    settingsView.style.cssText = "flex:1 1 0%;min-height:0;overflow-y:auto;display:none;padding-bottom:58px;box-sizing:border-box";
 
     contentArea.append(listEl, settingsView);
 
@@ -2819,7 +2820,7 @@
       const auto = GM_getValue(GH_AUTO_BACKUP_KEY, false);
       const lastSync = GM_getValue(GH_LAST_SYNC_KEY, 0);
       if (!token) {
-        footer.textContent = "Set up Gist backup in Settings";
+        footer.textContent = "⚙ Set up Gist backup in Settings";
       } else if (auto) {
         footer.textContent = lastSync
           ? "Auto-backup on · synced " + formatDate(new Date(lastSync).toISOString())
@@ -2842,7 +2843,7 @@
       "display:none;position:relative;align-items:center;gap:9px;padding:7px 14px;" +
       "min-height:58px;box-sizing:border-box;border-top:1px solid #333;" +
       "border-bottom:1px solid #222;background:#1a1a1a;flex-shrink:0;overflow:hidden;" +
-      "box-shadow:0 -3px 12px rgba(0,0,0,.35)";
+      "box-shadow:0 -3px 12px rgba(0,0,0,.35);margin-top:0";
 
     // Album-art backdrop — subtle and blurred, so the bar visually inherits
     // the same artwork as the track without making the controls unreadable.
@@ -3511,7 +3512,7 @@
       } else {
         const apiStatus = document.createElement("div");
         apiStatus.style.cssText = "font-size:11px;color:#8c8;margin-bottom:6px";
-        apiStatus.textContent = "Connected" + (GM_getValue(OSU_API_USERNAME_KEY, "") ? " as " + GM_getValue(OSU_API_USERNAME_KEY, "") : "") + " — enrichment uses the API";
+        apiStatus.textContent = "✔ Connected" + (GM_getValue(OSU_API_USERNAME_KEY, "") ? " as " + GM_getValue(OSU_API_USERNAME_KEY, "") : "") + " — enrichment uses the API";
         wrap.appendChild(apiStatus);
       }
 
