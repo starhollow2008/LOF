@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      5.0.4
+// @version      5.0.5
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -2509,8 +2509,9 @@
       top: "0",
       right: "0",
       zIndex: "100000",
-      width: "360px",
+      width: "min(360px, 100vw)",
       height: "100vh",
+      maxHeight: "100dvh",
       background: "#111",
       color: "#ddd",
       fontFamily:
@@ -2660,9 +2661,11 @@
     settingsBtn.addEventListener("click", () => setView(!settingsOpen));
 
     const closeBtn = document.createElement("button");
-    closeBtn.textContent = "✕ Close";
+    closeBtn.textContent = "✕";
+    closeBtn.title = "Close";
+    closeBtn.setAttribute("aria-label", "Close");
     closeBtn.style.cssText =
-      "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:12px;flex-shrink:0";
+      "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:3px 7px;border-radius:3px;font-size:13px;line-height:1;flex-shrink:0";
     closeBtn.addEventListener("click", () => {
       clearFavoritesPanelAudio();
       panel.remove();
@@ -2844,7 +2847,8 @@
       "display:none;position:relative;align-items:center;gap:9px;padding:7px 14px;" +
       "min-height:58px;box-sizing:border-box;border-top:1px solid #333;" +
       "border-bottom:1px solid #222;background:#1a1a1a;flex-shrink:0;overflow:hidden;" +
-      "box-shadow:0 -3px 12px rgba(0,0,0,.35);margin-top:0";
+      "box-shadow:0 -3px 12px rgba(0,0,0,.35);margin-top:0;" +
+      "padding-bottom:max(7px, env(safe-area-inset-bottom))";
 
     // Album-art backdrop — subtle and blurred, so the bar visually inherits
     // the same artwork as the track without making the controls unreadable.
@@ -4537,6 +4541,45 @@
       if (entries.length) requestAnimationFrame(renderChunk);
     }
 
+    // ── Mobile search bar behavior ─────────────────────────────
+    // On narrow screens the search field collapses while the favorites list is
+    // scrolled down, giving the cards more vertical room. The mini-player is
+    // deliberately outside the scrolling list, so it remains pinned while the
+    // search bar hides/reappears.
+    let lastListScrollTop = 0;
+    let searchBarCollapsed = false;
+    function updateMobileSearchBar() {
+      const isMobile = window.matchMedia("(max-width: 600px)").matches;
+      if (!isMobile) {
+        searchInput.style.maxHeight = "40px";
+        searchInput.style.opacity = "1";
+        searchInput.style.marginBottom = "0";
+        searchInput.style.paddingTop = "6px";
+        searchInput.style.paddingBottom = "6px";
+        searchInput.style.borderWidth = "1px";
+        searchInput.style.pointerEvents = "auto";
+        searchBarCollapsed = false;
+        return;
+      }
+
+      const scrollTop = listEl.scrollTop;
+      const scrollingDown = scrollTop > lastListScrollTop + 2;
+      const scrollingUp = scrollTop < lastListScrollTop - 2;
+      if (scrollTop <= 4 || scrollingUp) searchBarCollapsed = false;
+      else if (scrollingDown) searchBarCollapsed = true;
+      lastListScrollTop = scrollTop;
+
+      searchInput.style.maxHeight = searchBarCollapsed ? "0" : "40px";
+      searchInput.style.opacity = searchBarCollapsed ? "0" : "1";
+      searchInput.style.marginBottom = searchBarCollapsed ? "-1px" : "0";
+      searchInput.style.paddingTop = searchBarCollapsed ? "0" : "6px";
+      searchInput.style.paddingBottom = searchBarCollapsed ? "0" : "6px";
+      searchInput.style.borderWidth = searchBarCollapsed ? "0" : "1px";
+      searchInput.style.pointerEvents = searchBarCollapsed ? "none" : "auto";
+    }
+    listEl.addEventListener("scroll", updateMobileSearchBar, { passive: true });
+    window.addEventListener("resize", updateMobileSearchBar);
+
     // ── Assemble & wire events ─────────────────────────────
     // Bottom UI is a panel-level sibling of the scrolling content, exactly like
     // the top header: it is absolutely pinned to the panel bottom and never
@@ -4545,13 +4588,15 @@
     bottomBar.id = "osu-fav-bottom-bar";
     bottomBar.style.cssText =
       "position:absolute;left:0;right:0;bottom:0;z-index:20;overflow:hidden;" +
-      "background:#1a1a1a;box-shadow:0 -3px 12px rgba(0,0,0,.35);";
+      "background:#1a1a1a;box-shadow:0 -3px 12px rgba(0,0,0,.35);" +
+      "padding-bottom:env(safe-area-inset-bottom);box-sizing:border-box;";
     bottomBar.append(nowPlayingBar, footer);
     panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, bottomBar);
     document.body.appendChild(panel);
     updateSortBtns();
     renderList();
     updateFooterStatus();
+    updateMobileSearchBar();
 
     // Always check for updates on panel open (force=true skips 24h throttle)
     const currentVersion = getCurrentVersion();
