@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.1.3
+// @version      5.2.0
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -355,6 +355,64 @@
 
   function isFavorited(id) {
     return !!getFavorites()[id];
+  }
+
+  // ═══ Collections (playlists) ═══
+  // User-defined groupings of favorites, entirely separate from osu!'s own
+  // collections. Stored as { [collectionId]: { name, created, ids: [beatmapId,...] } }.
+  const COLLECTIONS_KEY = "osu_fav_collections";
+
+  function getCollections() {
+    return GM_getValue(COLLECTIONS_KEY, {});
+  }
+
+  function setCollections(cols) {
+    GM_setValue(COLLECTIONS_KEY, cols);
+  }
+
+  function createCollection(name) {
+    const cols = getCollections();
+    const id =
+      "col_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    cols[id] = {
+      name: (name || "").trim() || "Untitled",
+      created: new Date().toISOString(),
+      ids: [],
+    };
+    setCollections(cols);
+    return id;
+  }
+
+  function deleteCollection(id) {
+    const cols = getCollections();
+    delete cols[id];
+    setCollections(cols);
+  }
+
+  // Adds/removes a beatmap from a collection; returns the new membership state.
+  function toggleMapInCollection(collectionId, mapId) {
+    const cols = getCollections();
+    const col = cols[collectionId];
+    if (!col) return false;
+    if (!Array.isArray(col.ids)) col.ids = [];
+    const idx = col.ids.indexOf(mapId);
+    let nowIn;
+    if (idx === -1) {
+      col.ids.push(mapId);
+      nowIn = true;
+    } else {
+      col.ids.splice(idx, 1);
+      nowIn = false;
+    }
+    setCollections(cols);
+    return nowIn;
+  }
+
+  function collectionsContainingMap(mapId) {
+    const cols = getCollections();
+    return Object.entries(cols)
+      .filter(([, c]) => Array.isArray(c.ids) && c.ids.includes(mapId))
+      .map(([id]) => id);
   }
 
   // ═══ Theme ═══
@@ -977,6 +1035,407 @@
     menu.style.left = left + "px";
 
     // Defer attaching so this same click doesn't immediately close the menu
+    setTimeout(() => document.addEventListener("click", onOutsideClick, true), 0);
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", cleanup, true);
+  }
+
+  // ── Genre filter popover ──
+  // 3-tap cycle per genre row: neutral → include (green) → exclude (red) → neutral.
+  // Multiple "include" genres are OR'd together; any "exclude" genre is always
+  // dropped, even if it would otherwise match an include. currentState is
+  // { [genreName]: "include" | "exclude" }; onApply is called after every tap
+  // with a fresh copy so the caller can re-render live without closing the menu.
+  function showGenreFilterMenu(anchorEl, currentState, onApply) {
+    const existing = document.getElementById("osu-fav-genre-menu");
+    const reopening = existing && existing._anchor === anchorEl;
+    if (existing && existing._cleanup) existing._cleanup();
+    if (reopening) return;
+
+    const state = Object.assign({}, currentState);
+
+    const favs = getFavorites();
+    const genreSet = new Set();
+    Object.values(favs).forEach((f) =>
+      genreSet.add((f.genre && f.genre.trim()) || "Unspecified"),
+    );
+    const genres = Array.from(genreSet).sort((a, b) => a.localeCompare(b));
+
+    const menu = document.createElement("div");
+    menu.id = "osu-fav-genre-menu";
+    menu._anchor = anchorEl;
+    menu.style.cssText =
+      "position:fixed;z-index:100002;min-width:170px;max-width:220px;max-height:320px;overflow-y:auto;" +
+      "background:#1a1a1a;border:1px solid #333;border-radius:4px;" +
+      "box-shadow:0 4px 16px rgba(0,0,0,.5);padding:4px;" +
+      "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+
+    function cleanup() {
+      menu.remove();
+      document.removeEventListener("click", onOutsideClick, true);
+      document.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", cleanup, true);
+    }
+    function onOutsideClick(e) {
+      if (menu.contains(e.target)) return;
+      cleanup();
+    }
+    function onKey(e) {
+      if (e.key === "Escape") cleanup();
+    }
+    menu._cleanup = cleanup;
+
+    const hint = document.createElement("div");
+    hint.style.cssText = "font-size:9px;color:#666;padding:2px 6px 6px;line-height:1.4";
+    hint.textContent = "Tap: include (green) → exclude (red) → off";
+    menu.appendChild(hint);
+
+    function styleForState(s) {
+      if (s === "include") return { bg: "#215a2b", border: "#3fa54a", color: "#fff" };
+      if (s === "exclude") return { bg: "#5a2121", border: "#c0392b", color: "#fff" };
+      return { bg: "transparent", border: "#333", color: "#ccc" };
+    }
+
+    if (genres.length === 0) {
+      const empty = document.createElement("div");
+      empty.style.cssText = "font-size:11px;color:#666;padding:8px 10px";
+      empty.textContent = "No favorites to filter yet.";
+      menu.appendChild(empty);
+    }
+
+    genres.forEach((g) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      const sty = styleForState(state[g]);
+      row.style.cssText =
+        `display:block;width:100%;text-align:left;margin:2px 0;padding:5px 8px;font-size:11px;` +
+        `border:1px solid ${sty.border};border-radius:3px;background:${sty.bg};color:${sty.color};cursor:pointer;` +
+        `white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box`;
+      row.textContent = g;
+      row.addEventListener("click", () => {
+        const cur = state[g];
+        const next = cur === undefined ? "include" : cur === "include" ? "exclude" : undefined;
+        if (next === undefined) delete state[g];
+        else state[g] = next;
+        const s2 = styleForState(state[g]);
+        row.style.borderColor = s2.border;
+        row.style.background = s2.bg;
+        row.style.color = s2.color;
+        onApply(Object.assign({}, state));
+      });
+      menu.appendChild(row);
+    });
+
+    if (genres.length) {
+      const divider = document.createElement("div");
+      divider.style.cssText = "height:1px;background:#333;margin:4px 2px";
+      menu.appendChild(divider);
+
+      const clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.textContent = "Clear filters";
+      clearBtn.style.cssText =
+        "display:block;width:100%;text-align:center;padding:5px 8px;font-size:10px;box-sizing:border-box;" +
+        "border:1px solid #333;border-radius:3px;background:transparent;color:#888;cursor:pointer";
+      clearBtn.addEventListener("mouseenter", () => (clearBtn.style.color = "var(--osu-fav-accent)"));
+      clearBtn.addEventListener("mouseleave", () => (clearBtn.style.color = "#888"));
+      clearBtn.addEventListener("click", () => {
+        Object.keys(state).forEach((k) => delete state[k]);
+        onApply({});
+        cleanup();
+      });
+      menu.appendChild(clearBtn);
+    }
+
+    document.body.appendChild(menu);
+    const rect = anchorEl.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    let top = rect.bottom + 4;
+    if (top + menuRect.height > window.innerHeight) top = Math.max(8, rect.top - menuRect.height - 4);
+    let left = Math.max(8, Math.min(rect.left, window.innerWidth - menuRect.width - 8));
+    menu.style.top = top + "px";
+    menu.style.left = left + "px";
+
+    setTimeout(() => document.addEventListener("click", onOutsideClick, true), 0);
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", cleanup, true);
+  }
+
+  // ── Collections selector popover (toolbar) ──
+  // Lets the user pick which collection to filter the list by ("All favorites"
+  // clears it), create new collections, and delete existing ones (two-tap
+  // confirm, matching the "Remove all favorites" pattern elsewhere).
+  function showCollectionsMenu(anchorEl, activeId, onSelect) {
+    const existing = document.getElementById("osu-fav-cols-menu");
+    const reopening = existing && existing._anchor === anchorEl;
+    if (existing && existing._cleanup) existing._cleanup();
+    if (reopening) return;
+
+    const menu = document.createElement("div");
+    menu.id = "osu-fav-cols-menu";
+    menu._anchor = anchorEl;
+    menu.style.cssText =
+      "position:fixed;z-index:100002;min-width:190px;max-width:240px;max-height:320px;overflow-y:auto;" +
+      "background:#1a1a1a;border:1px solid #333;border-radius:4px;" +
+      "box-shadow:0 4px 16px rgba(0,0,0,.5);padding:4px;" +
+      "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+
+    function cleanup() {
+      menu.remove();
+      document.removeEventListener("click", onOutsideClick, true);
+      document.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", cleanup, true);
+    }
+    function onOutsideClick(e) {
+      if (menu.contains(e.target)) return;
+      cleanup();
+    }
+    function onKey(e) {
+      if (e.key === "Escape") cleanup();
+    }
+    menu._cleanup = cleanup;
+
+    function renderRows() {
+      menu.innerHTML = "";
+
+      const allRow = document.createElement("button");
+      allRow.type = "button";
+      allRow.textContent = "All favorites";
+      allRow.style.cssText =
+        `display:block;width:100%;text-align:left;padding:6px 10px;margin-bottom:2px;font-size:11px;border:none;` +
+        `border-radius:3px;cursor:pointer;box-sizing:border-box;` +
+        `background:${activeId ? "transparent" : "var(--osu-fav-accent)"};color:${activeId ? "#ddd" : "#fff"}`;
+      allRow.addEventListener("mouseenter", () => { if (activeId) allRow.style.background = "#242424"; });
+      allRow.addEventListener("mouseleave", () => { if (activeId) allRow.style.background = "transparent"; });
+      allRow.addEventListener("click", () => { onSelect(""); cleanup(); });
+      menu.appendChild(allRow);
+
+      const cols = getCollections();
+      const entries = Object.entries(cols).sort((a, b) => a[1].name.localeCompare(b[1].name));
+
+      if (entries.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.cssText = "font-size:11px;color:#666;padding:8px 10px;line-height:1.4";
+        empty.textContent = "No collections yet — create one below.";
+        menu.appendChild(empty);
+      }
+
+      entries.forEach(([id, col]) => {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;align-items:center;gap:4px";
+
+        const selectBtn = document.createElement("button");
+        selectBtn.type = "button";
+        selectBtn.textContent = `${col.name} (${(col.ids || []).length})`;
+        selectBtn.style.cssText =
+          `flex:1;min-width:0;text-align:left;padding:6px 10px;font-size:11px;border:none;border-radius:3px;` +
+          `cursor:pointer;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;` +
+          `background:${activeId === id ? "var(--osu-fav-accent)" : "transparent"};color:${activeId === id ? "#fff" : "#ddd"}`;
+        selectBtn.addEventListener("mouseenter", () => { if (activeId !== id) selectBtn.style.background = "#242424"; });
+        selectBtn.addEventListener("mouseleave", () => { if (activeId !== id) selectBtn.style.background = "transparent"; });
+        selectBtn.addEventListener("click", () => { onSelect(id); cleanup(); });
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.textContent = "\u2715";
+        delBtn.title = "Delete collection";
+        delBtn.style.cssText =
+          "flex-shrink:0;font-size:9px;padding:3px 5px;border:1px solid #333;border-radius:3px;background:transparent;color:#666;cursor:pointer";
+        let confirming = false;
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (!confirming) {
+            confirming = true;
+            delBtn.textContent = "Sure?";
+            delBtn.style.borderColor = "#e55";
+            delBtn.style.color = "#e55";
+            setTimeout(() => {
+              if (confirming) {
+                confirming = false;
+                delBtn.textContent = "\u2715";
+                delBtn.style.borderColor = "#333";
+                delBtn.style.color = "#666";
+              }
+            }, 3000);
+          } else {
+            deleteCollection(id);
+            if (activeId === id) onSelect("");
+            renderRows();
+          }
+        });
+
+        row.append(selectBtn, delBtn);
+        menu.appendChild(row);
+      });
+
+      const divider = document.createElement("div");
+      divider.style.cssText = "height:1px;background:#333;margin:4px 2px";
+      menu.appendChild(divider);
+
+      const newRow = document.createElement("div");
+      newRow.style.cssText = "display:flex;gap:4px;padding:4px";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "New collection...";
+      input.style.cssText =
+        "flex:1;min-width:0;background:#111;border:1px solid #333;border-radius:3px;color:#ddd;" +
+        "font-size:10px;padding:4px 6px;outline:none;box-sizing:border-box";
+      input.addEventListener("click", (e) => e.stopPropagation());
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") createBtn.click();
+      });
+      const createBtn = document.createElement("button");
+      createBtn.type = "button";
+      createBtn.textContent = "Create";
+      createBtn.style.cssText =
+        "font-size:10px;padding:4px 8px;border:1px solid var(--osu-fav-accent);border-radius:3px;" +
+        "background:var(--osu-fav-accent);color:#fff;cursor:pointer;flex-shrink:0";
+      createBtn.addEventListener("click", () => {
+        const name = input.value.trim();
+        if (!name) return;
+        createCollection(name);
+        input.value = "";
+        renderRows();
+      });
+      newRow.append(input, createBtn);
+      menu.appendChild(newRow);
+    }
+    renderRows();
+
+    document.body.appendChild(menu);
+    const rect = anchorEl.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    let top = rect.bottom + 4;
+    if (top + menuRect.height > window.innerHeight) top = Math.max(8, rect.top - menuRect.height - 4);
+    let left = rect.right - menuRect.width;
+    left = Math.max(8, Math.min(left, window.innerWidth - menuRect.width - 8));
+    menu.style.top = top + "px";
+    menu.style.left = left + "px";
+
+    setTimeout(() => document.addEventListener("click", onOutsideClick, true), 0);
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", cleanup, true);
+  }
+
+  // ── Per-card "add to collection" popover ──
+  // Toggle-style checklist (a map can belong to several collections at once),
+  // plus the same inline "new collection" creator as the toolbar selector.
+  function showAddToCollectionMenu(anchorEl, mapId, onChange) {
+    const existing = document.getElementById("osu-fav-col-menu");
+    const reopening = existing && existing._anchor === anchorEl;
+    if (existing && existing._cleanup) existing._cleanup();
+    if (reopening) return;
+
+    const menu = document.createElement("div");
+    menu.id = "osu-fav-col-menu";
+    menu._anchor = anchorEl;
+    menu.style.cssText =
+      "position:fixed;z-index:100002;min-width:180px;max-width:240px;max-height:320px;overflow-y:auto;" +
+      "background:#1a1a1a;border:1px solid #333;border-radius:4px;" +
+      "box-shadow:0 4px 16px rgba(0,0,0,.5);padding:4px;" +
+      "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+
+    function cleanup() {
+      menu.remove();
+      document.removeEventListener("click", onOutsideClick, true);
+      document.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", cleanup, true);
+    }
+    function onOutsideClick(e) {
+      if (menu.contains(e.target)) return;
+      cleanup();
+    }
+    function onKey(e) {
+      if (e.key === "Escape") cleanup();
+    }
+    menu._cleanup = cleanup;
+
+    function renderRows() {
+      menu.innerHTML = "";
+      const cols = getCollections();
+      const entries = Object.entries(cols).sort((a, b) => a[1].name.localeCompare(b[1].name));
+
+      if (entries.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.cssText = "font-size:11px;color:#666;padding:8px 10px;line-height:1.4";
+        empty.textContent = "No collections yet — create one below.";
+        menu.appendChild(empty);
+      } else {
+        entries.forEach(([id, col]) => {
+          const inCol = (col.ids || []).includes(mapId);
+          const row = document.createElement("button");
+          row.type = "button";
+          row.style.cssText =
+            "display:flex;align-items:center;gap:6px;width:100%;text-align:left;padding:6px 10px;" +
+            "font-size:11px;color:#ddd;background:transparent;border:none;border-radius:3px;cursor:pointer;" +
+            "white-space:nowrap;box-sizing:border-box";
+          row.addEventListener("mouseenter", () => (row.style.background = "#242424"));
+          row.addEventListener("mouseleave", () => (row.style.background = "transparent"));
+
+          const check = document.createElement("span");
+          check.textContent = inCol ? "\u2713" : "";
+          check.style.cssText = "width:12px;flex-shrink:0;color:var(--osu-fav-accent);font-weight:700";
+
+          const label = document.createElement("span");
+          label.textContent = `${col.name} (${(col.ids || []).length})`;
+          label.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1";
+
+          row.append(check, label);
+          row.addEventListener("click", () => {
+            toggleMapInCollection(id, mapId);
+            renderRows();
+            if (onChange) onChange();
+          });
+          menu.appendChild(row);
+        });
+      }
+
+      const divider = document.createElement("div");
+      divider.style.cssText = "height:1px;background:#333;margin:4px 2px";
+      menu.appendChild(divider);
+
+      const newRow = document.createElement("div");
+      newRow.style.cssText = "display:flex;gap:4px;padding:4px";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "New collection...";
+      input.style.cssText =
+        "flex:1;min-width:0;background:#111;border:1px solid #333;border-radius:3px;color:#ddd;" +
+        "font-size:10px;padding:4px 6px;outline:none;box-sizing:border-box";
+      input.addEventListener("click", (e) => e.stopPropagation());
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") confirmBtn.click();
+      });
+      const confirmBtn = document.createElement("button");
+      confirmBtn.type = "button";
+      confirmBtn.textContent = "Add";
+      confirmBtn.style.cssText =
+        "font-size:10px;padding:4px 8px;border:1px solid var(--osu-fav-accent);border-radius:3px;" +
+        "background:var(--osu-fav-accent);color:#fff;cursor:pointer;flex-shrink:0";
+      confirmBtn.addEventListener("click", () => {
+        const name = input.value.trim();
+        if (!name) return;
+        const id = createCollection(name);
+        toggleMapInCollection(id, mapId);
+        input.value = "";
+        renderRows();
+        if (onChange) onChange();
+      });
+      newRow.append(input, confirmBtn);
+      menu.appendChild(newRow);
+    }
+    renderRows();
+
+    document.body.appendChild(menu);
+    const rect = anchorEl.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    let top = rect.bottom + 4;
+    if (top + menuRect.height > window.innerHeight) top = Math.max(8, rect.top - menuRect.height - 4);
+    let left = rect.right - menuRect.width;
+    left = Math.max(8, Math.min(left, window.innerWidth - menuRect.width - 8));
+    menu.style.top = top + "px";
+    menu.style.left = left + "px";
+
     setTimeout(() => document.addEventListener("click", onOutsideClick, true), 0);
     document.addEventListener("keydown", onKey, true);
     window.addEventListener("scroll", cleanup, true);
@@ -2484,7 +2943,9 @@
     let currentSort = "date",
       sortAsc = false,
       searchQuery = "",
-      settingsOpen = false;
+      settingsOpen = false,
+      genreFilterState = {}, // { [genreName]: "include" | "exclude" }
+      activeCollectionId = ""; // "" = no collection filter (show all)
 
     // Inject shared styles once — covers scrollbar, slide-down banner, and slide-up prompt
     if (!document.getElementById("osu-fav-panel-style")) {
@@ -2747,10 +3208,10 @@
     // ── Toolbar ────────────────────────────────────────────
     const toolbar = document.createElement("div");
     toolbar.style.cssText =
-      "display:flex;align-items:center;gap:4px;padding:5px 14px;background:#1a1a1a;border-bottom:1px solid #333;flex-shrink:0";
+      "display:flex;align-items:center;gap:4px;padding:5px 14px;background:#1a1a1a;border-bottom:1px solid #333;flex-shrink:0;flex-wrap:wrap;row-gap:4px";
 
     const sortGroup = document.createElement("div");
-    sortGroup.style.cssText = "display:flex;gap:2px;flex:1";
+    sortGroup.style.cssText = "display:flex;gap:2px;flex:1;flex-wrap:wrap;row-gap:4px";
 
     const SORTS = ["date", "title", "artist", "status"];
     const sortBtns = {};
@@ -2771,6 +3232,31 @@
       sortGroup.appendChild(btn);
       sortBtns[s] = btn;
     });
+
+    // Genre filter — 3-tap cycle per genre: neutral → include (green) →
+    // exclude (red) → neutral. Sits at the end of the Date/Title/Artist/Status
+    // cluster on the left.
+    const genreBtn = document.createElement("button");
+    genreBtn.type = "button";
+    genreBtn.title = "Filter by genre";
+    genreBtn.style.cssText =
+      "font-size:10px;font-weight:500;padding:3px 7px;border:1px solid transparent;border-radius:3px;background:transparent;cursor:pointer;user-select:none;color:#666;white-space:nowrap";
+    function updateGenreBtn() {
+      const active = Object.keys(genreFilterState).length;
+      genreBtn.textContent = "Genre" + (active ? ` (${active})` : "") + " \u25be";
+      genreBtn.style.background = active ? "var(--osu-fav-accent)" : "transparent";
+      genreBtn.style.color = active ? "#fff" : "#666";
+      genreBtn.style.borderColor = active ? "var(--osu-fav-accent)" : "transparent";
+    }
+    updateGenreBtn();
+    genreBtn.addEventListener("click", () => {
+      showGenreFilterMenu(genreBtn, genreFilterState, (newState) => {
+        genreFilterState = newState;
+        updateGenreBtn();
+        renderList();
+      });
+    });
+    sortGroup.appendChild(genreBtn);
 
     function updateSortBtns() {
       SORTS.forEach((s) => {
@@ -2800,6 +3286,42 @@
     }
 
     toolbar.appendChild(sortGroup);
+
+    // Collections selector — opposite side of the toolbar from the sort/genre
+    // cluster. Picks which collection (if any) the list is filtered to.
+    const collectionsBtn = document.createElement("button");
+    collectionsBtn.type = "button";
+    collectionsBtn.title = "Filter by collection";
+    collectionsBtn.style.cssText =
+      "font-size:10px;font-weight:500;padding:3px 7px;border:1px solid #333;border-radius:3px;background:transparent;cursor:pointer;user-select:none;color:#999;white-space:nowrap;flex-shrink:0;max-width:130px;overflow:hidden;text-overflow:ellipsis";
+    function updateCollectionsBtn() {
+      if (!activeCollectionId) {
+        collectionsBtn.textContent = "\ud83d\udcc1 Collections \u25be";
+        collectionsBtn.style.background = "transparent";
+        collectionsBtn.style.color = "#999";
+        collectionsBtn.style.borderColor = "#333";
+        return;
+      }
+      const col = getCollections()[activeCollectionId];
+      if (!col) {
+        activeCollectionId = "";
+        updateCollectionsBtn();
+        return;
+      }
+      collectionsBtn.textContent = `\ud83d\udcc1 ${col.name} \u25be`;
+      collectionsBtn.style.background = "var(--osu-fav-accent)";
+      collectionsBtn.style.color = "#fff";
+      collectionsBtn.style.borderColor = "var(--osu-fav-accent)";
+    }
+    updateCollectionsBtn();
+    collectionsBtn.addEventListener("click", () => {
+      showCollectionsMenu(collectionsBtn, activeCollectionId, (newId) => {
+        activeCollectionId = newId;
+        updateCollectionsBtn();
+        renderList();
+      });
+    });
+    toolbar.appendChild(collectionsBtn);
 
     // ── Content area (favorites list + settings view share this space) ──
     const contentArea = document.createElement("div");
@@ -4198,6 +4720,28 @@
         );
       }
 
+      // Genre filter — multiple "include" genres are OR'd together; any
+      // "exclude" genre always drops the entry, even if it also matched an
+      // include (see showGenreFilterMenu for the 3-tap state machine).
+      const genreKeys = Object.keys(genreFilterState);
+      if (genreKeys.length) {
+        const includeGenres = genreKeys.filter((g) => genreFilterState[g] === "include");
+        const excludeGenres = genreKeys.filter((g) => genreFilterState[g] === "exclude");
+        entries = entries.filter(([, f]) => {
+          const g = (f.genre && f.genre.trim()) || "Unspecified";
+          if (excludeGenres.includes(g)) return false;
+          if (includeGenres.length && !includeGenres.includes(g)) return false;
+          return true;
+        });
+      }
+
+      // Collection filter
+      if (activeCollectionId) {
+        const col = getCollections()[activeCollectionId];
+        const idSet = new Set(col && Array.isArray(col.ids) ? col.ids : []);
+        entries = entries.filter(([id]) => idSet.has(id));
+      }
+
       // Sort
       entries.sort(([idA, a], [idB, b]) => {
         let cmp = 0;
@@ -4370,9 +4914,44 @@
           metaDiv.appendChild(bpm);
         }
 
-        const dateDiv = document.createElement("div");
-        dateDiv.style.cssText = "font-size:9px;color:#555;margin-top:1px";
+        const dateRow = document.createElement("div");
+        dateRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:1px";
+
+        const dateDiv = document.createElement("span");
+        dateDiv.style.cssText =
+          "font-size:9px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
         dateDiv.textContent = formatDate(f.favourited_at);
+
+        // Add-to-collection dropdown — sits right next to the date-added text.
+        // Shows a checkmark + count once the map is in at least one collection.
+        const collCount = () => collectionsContainingMap(id).length;
+        const addToCollBtn = document.createElement("button");
+        addToCollBtn.type = "button";
+        function refreshAddToCollBtn() {
+          const n = collCount();
+          addToCollBtn.textContent = n ? `\u2713 ${n}` : "+ Playlist";
+          addToCollBtn.title = n
+            ? `In ${n} collection${n > 1 ? "s" : ""} — click to manage`
+            : "Add to a collection";
+          addToCollBtn.style.borderColor = n ? "var(--osu-fav-accent)" : "#333";
+          addToCollBtn.style.color = n ? "var(--osu-fav-accent)" : "#666";
+        }
+        addToCollBtn.style.cssText =
+          "font-size:8px;font-weight:600;padding:1px 5px;border-radius:2px;flex-shrink:0;cursor:pointer;background:transparent";
+        refreshAddToCollBtn();
+        addToCollBtn.style.border = `1px solid ${collCount() ? "var(--osu-fav-accent)" : "#333"}`;
+        addToCollBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showAddToCollectionMenu(addToCollBtn, id, () => {
+            refreshAddToCollBtn();
+            addToCollBtn.style.borderColor = collCount() ? "var(--osu-fav-accent)" : "#333";
+            // Membership changed — if a collection filter is active, this
+            // card may need to appear/disappear from the visible list.
+            if (activeCollectionId) renderList();
+          });
+        });
+
+        dateRow.append(dateDiv, addToCollBtn);
 
         // Progress bar (shown during playback)
         const progressWrap = document.createElement("div");
@@ -4383,7 +4962,7 @@
         progressBar.style.cssText = "height:100%;width:0%;background:var(--osu-fav-accent);border-radius:1px";
         progressWrap.appendChild(progressBar);
 
-        info.append(titleDiv, artistDiv, metaDiv, dateDiv, progressWrap);
+        info.append(titleDiv, artistDiv, metaDiv, dateRow, progressWrap);
 
         // Actions
         const actions = document.createElement("div");
