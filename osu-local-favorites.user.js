@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      5.1.2
+// @version      5.1.3
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -2507,7 +2507,7 @@
         "#osu-fav-nowplaying .osu-fav-np-btn{width:38px!important;height:38px!important;padding:7px!important;}" +
         "#osu-fav-footer-status{height:29px!important;min-height:29px!important;max-height:29px!important;padding:6px 14px!important;line-height:15px!important;}" +
         "#osu-fav-bottom-bar{height:auto!important;min-height:0!important;max-height:none!important;padding-bottom:0!important;}" +
-        "@media(max-width:600px){#osu-local-fav-panel button[title=Settings],#osu-local-fav-panel button[title=Close]{width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important;max-width:34px!important;max-height:34px!important;padding:0!important;box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;}#osu-local-fav-panel input[type=text]{height:40px!important;min-height:40px!important;max-height:40px!important;box-sizing:border-box!important;}#osu-fav-nowplaying{height:76px!important;min-height:76px!important;max-height:76px!important;flex:0 0 76px!important;padding:8px 10px!important;gap:8px!important;padding-bottom:8px!important;}#osu-fav-nowplaying .osu-fav-np-thumb{width:50px!important;height:50px!important;}#osu-fav-nowplaying .osu-fav-np-controls{gap:3px!important;}#osu-fav-nowplaying .osu-fav-np-btn{width:34px!important;height:34px!important;padding:6px!important;}#osu-fav-nowplaying .osu-fav-np-title{font-size:12px!important;}#osu-fav-nowplaying .osu-fav-np-artist{font-size:10px!important;}#osu-fav-nowplaying .osu-fav-np-info{min-width:72px!important;}#osu-fav-footer-status{height:28px!important;min-height:28px!important;max-height:28px!important;padding:6px 10px!important;line-height:14px!important;}}";
+        "@media(max-width:600px){#osu-local-fav-panel>div:first-child{min-height:0!important;max-height:100px!important;box-sizing:border-box!important;overflow:hidden!important;}#osu-local-fav-panel button[title=Settings],#osu-local-fav-panel button[title=Close]{width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important;max-width:34px!important;max-height:34px!important;padding:0!important;box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;}#osu-local-fav-panel input[type=text]{height:40px!important;min-height:40px!important;max-height:40px!important;box-sizing:border-box!important;}#osu-fav-nowplaying{height:76px!important;min-height:76px!important;max-height:76px!important;flex:0 0 76px!important;padding:8px 10px!important;gap:8px!important;padding-bottom:8px!important;}#osu-fav-nowplaying .osu-fav-np-thumb{width:50px!important;height:50px!important;}#osu-fav-nowplaying .osu-fav-np-controls{gap:3px!important;}#osu-fav-nowplaying .osu-fav-np-btn{width:34px!important;height:34px!important;padding:6px!important;}#osu-fav-nowplaying .osu-fav-np-title{font-size:12px!important;}#osu-fav-nowplaying .osu-fav-np-artist{font-size:10px!important;}#osu-fav-nowplaying .osu-fav-np-info{min-width:72px!important;}#osu-fav-footer-status{height:28px!important;min-height:28px!important;max-height:28px!important;padding:6px 10px!important;line-height:14px!important;}}";
       document.head.appendChild(s);
     }
 
@@ -2629,12 +2629,17 @@
       padding: "10px 14px 8px",
       background: "#1a1a1a",
       borderBottom: "2px solid var(--osu-fav-accent)",
-      flexShrink: "0",
+      flex: "0 0 auto",
+      minHeight: "0",
+      maxHeight: "110px",
+      boxSizing: "border-box",
+      overflow: "hidden",
+      transition: "height 160ms ease, padding 160ms ease",
     });
 
     const headerTop = document.createElement("div");
     headerTop.style.cssText =
-      "display:flex;align-items:center;gap:8px;margin-bottom:8px";
+      "display:flex;align-items:center;gap:8px;margin-bottom:8px;height:34px;min-height:34px;box-sizing:border-box";
 
     const logoImg = document.createElement("img");
     logoImg.src = "https://raw.githubusercontent.com/starhollow2008/LOF/main/icons/icon48.png";
@@ -4572,6 +4577,11 @@
         searchInput.style.paddingBottom = "6px";
         searchInput.style.borderWidth = "1px";
         searchInput.style.pointerEvents = "auto";
+        header.style.height = "100px";
+        header.style.maxHeight = "100px";
+        header.style.paddingTop = "10px";
+        header.style.paddingBottom = "8px";
+        headerTop.style.marginBottom = "8px";
         searchBarCollapsed = false;
         return;
       }
@@ -4590,6 +4600,15 @@
       searchInput.style.paddingBottom = searchBarCollapsed ? "0" : "6px";
       searchInput.style.borderWidth = searchBarCollapsed ? "0" : "1px";
       searchInput.style.pointerEvents = searchBarCollapsed ? "none" : "auto";
+
+      // Collapse the header itself with the search field. The input alone can
+      // disappear while osu!'s global CSS still leaves a large header box.
+      const headerHeight = searchBarCollapsed ? "54px" : "100px";
+      header.style.height = headerHeight;
+      header.style.maxHeight = headerHeight;
+      header.style.paddingTop = "10px";
+      header.style.paddingBottom = "8px";
+      headerTop.style.marginBottom = searchBarCollapsed ? "0" : "8px";
     }
     listEl.addEventListener("scroll", updateMobileSearchBar, { passive: true });
     window.addEventListener("resize", updateMobileSearchBar);
