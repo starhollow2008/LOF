@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/LOF
 // @updateURL    https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/LOF/raw/main/osu-local-favorites.user.js
-// @version      4.10.0
+// @version      5.0.1
 // @icon         https://github.com/starhollow2008/LOF/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -799,9 +799,9 @@
     audio._queueAdvance = null;
 
     audio.addEventListener("timeupdate", () => {
-      if (audio._activeBar && audio.duration) {
-        audio._activeBar.style.width = (audio.currentTime / audio.duration) * 100 + "%";
-      }
+      const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+      if (audio._activeBar) audio._activeBar.style.width = pct + "%";
+      if (audio._npProgressBar) audio._npProgressBar.style.width = pct + "%";
     });
 
     audio.addEventListener("play", () => {
@@ -853,7 +853,11 @@
       audio._activeBar = null;
       audio._activeDim = null;
       if (audio._npBar) audio._npBar.style.display = "none";
+      if (audio._npProgressBar) audio._npProgressBar.style.width = "0%";
       audio._npCurrentId = null;
+      audio._npCurrentTitle = "";
+      audio._npCurrentArtist = "";
+      audio._queueAdvance = null;
     });
 
     return audio;
@@ -2443,10 +2447,36 @@
     });
   }
 
+  function clearFavoritesPanelAudio() {
+    const audio = window._osuFavAudio;
+    if (!audio) return;
+    audio.pause();
+    audio.removeAttribute("src");
+    try { audio.load(); } catch (e) { /* best effort */ }
+    audio._activeBtn = null;
+    audio._activeBar = null;
+    audio._activeDim = null;
+    audio._npBar = null;
+    audio._npTitle = null;
+    audio._npArtist = null;
+    audio._npPlayBtn = null;
+    audio._npProgressBar = null;
+    audio._queueAdvance = null;
+    audio._npCurrentId = null;
+    audio._npCurrentTitle = "";
+    audio._npCurrentArtist = "";
+    audio._queueNavigated = false;
+    audio._queueSkipAttempt = 0;
+  }
+
   // ═══ Favorites panel ═══
   function showFavoritesPanel() {
     const existing = document.getElementById("osu-local-fav-panel");
     if (existing) {
+      // The audio element is page-lifetime, while the player UI belongs to the
+      // panel. Clean both sides of that binding when the panel is toggled closed
+      // so a detached Now Playing bar can never resurrect later.
+      clearFavoritesPanelAudio();
       existing.remove();
       return;
     }
@@ -2632,7 +2662,12 @@
     closeBtn.textContent = "✕ Close";
     closeBtn.style.cssText =
       "background:none;border:1px solid #333;color:#999;cursor:pointer;padding:2px 8px;border-radius:3px;font-size:12px;flex-shrink:0";
-    closeBtn.addEventListener("click", () => panel.remove());
+    closeBtn.addEventListener("click", () => {
+      const audio = window._osuFavAudio;
+      if (audio) resetActiveCardUI(audio);
+      clearFavoritesPanelAudio();
+      panel.remove();
+    });
 
     headerTop.append(logoImg, titleEl, settingsBtn, closeBtn);
 
@@ -2806,7 +2841,7 @@
     nowPlayingBar.id = "osu-fav-nowplaying";
     nowPlayingBar.style.cssText =
       "display:none;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid #333;" +
-      "background:#1a1a1a;flex-shrink:0";
+      "background:#1a1a1a;flex-shrink:0;position:relative";
 
     const npInfo = document.createElement("div");
     npInfo.style.cssText = "flex:1;min-width:0";
@@ -2817,6 +2852,17 @@
     npArtist.style.cssText =
       "font-size:10px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px";
     npInfo.append(npTitle, npArtist);
+
+    // The player owns its own progress track so it survives favorite-list
+    // rerenders. It intentionally mirrors the card preview progress styling:
+    // dark background track + accent-colored fill.
+    const npProgressWrap = document.createElement("div");
+    npProgressWrap.style.cssText =
+      "position:absolute;left:0;right:0;bottom:0;height:2px;background:#111;overflow:hidden";
+    const npProgressBar = document.createElement("div");
+    npProgressBar.style.cssText =
+      "height:100%;width:0%;background:var(--osu-fav-accent);transition:width .05s linear";
+    npProgressWrap.appendChild(npProgressBar);
 
     const npControls = document.createElement("div");
     npControls.style.cssText = "display:flex;align-items:center;gap:4px;flex-shrink:0";
@@ -2872,7 +2918,10 @@
     });
 
     npControls.append(npShuffleBtn, npBackBtn, npPlayBtn, npNextBtn, npLoopBtn);
-    nowPlayingBar.append(npInfo, npControls);
+    nowPlayingBar.append(npInfo, npControls, npProgressWrap);
+    // Mount the player after it has been fully constructed so it stays static
+    // below the scrollable list/settings viewport.
+    contentArea.append(nowPlayingBar);
 
     // Resets whatever card is currently linked to the audio element back to
     // its idle look - shared by the "switch to a different track" path and
@@ -2893,6 +2942,7 @@
       audio._activeBtn = null;
       audio._activeBar = null;
       audio._activeDim = null;
+      if (audio._npProgressBar) audio._npProgressBar.style.width = "0%";
     }
 
     // Starts a track by id/record, linking up whichever card is currently
@@ -2938,6 +2988,7 @@
         audio._npBar.style.display = "flex";
         if (audio._npTitle) audio._npTitle.textContent = audio._npCurrentTitle;
         if (audio._npArtist) audio._npArtist.textContent = audio._npCurrentArtist;
+        if (audio._npProgressBar) audio._npProgressBar.style.width = "0%";
       }
 
       // Cache lookup is local (IndexedDB) and normally resolves in a few ms,
@@ -2986,20 +3037,66 @@
     }
 
     // Wire this panel's Now Playing bar + queue functions into the
-    // (page-lifetime, singleton) audio element. Reassigned every time the
-    // panel is opened so a fresh panel always drives the persistent audio,
-    // even if a previous panel's bar was left playing when it was closed.
+    // (page-lifetime, singleton) audio element. The bar itself is mounted
+    // directly in this panel's content area, so it never scrolls away with
+    // the list/settings view.
     const npAudio = ensureAudio();
     npAudio._npBar = nowPlayingBar;
     npAudio._npTitle = npTitle;
     npAudio._npArtist = npArtist;
     npAudio._npPlayBtn = npPlayBtn;
+    npAudio._npProgressBar = npProgressBar;
     npAudio._queueAdvance = queueAdvance;
+
+    // Reconcile the freshly-rendered favorite cards with the singleton audio.
+    // renderList() can replace the DOM node for the current song while playback
+    // is still alive; never let the detached node remain the active UI owner.
+    function syncCurrentCardUI() {
+      const audio = window._osuFavAudio;
+      if (!audio || !audio._npCurrentId) return;
+      const cardEl = listEl.querySelector('[data-fav-id="' + audio._npCurrentId + '"]');
+      if (!cardEl) return;
+
+      const btn = cardEl.querySelector(".osu-fav-preview-btn");
+      const barWrap = cardEl.querySelector(".osu-fav-progress-wrap");
+      const bar = cardEl.querySelector(".osu-fav-progress-bar");
+      const dim = cardEl.querySelector(".osu-fav-dim-overlay");
+
+      // Clear the old card refs first; then link them to this newly-mounted node.
+      audio._activeBtn = btn || null;
+      audio._activeBar = bar || null;
+      audio._activeDim = dim || null;
+
+      if (btn) {
+        const playing = !audio.paused;
+        btn.innerHTML = playing ? pauseSVG() : playSVG();
+        btn._playing = playing;
+        btn.style.opacity = playing
+          ? "var(--osu-fav-active-opacity, 0.8)"
+          : "var(--osu-fav-idle-opacity, 0.15)";
+        btn.style.borderColor = playing ? "var(--osu-fav-accent)" : "#333";
+        btn.style.color = playing ? "var(--osu-fav-accent)" : "#999";
+      }
+      if (barWrap) barWrap.style.display = !audio.paused ? "block" : "none";
+      if (bar) {
+        const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+        bar.style.width = pct + "%";
+      }
+      if (dim) {
+        dim.style.background = !audio.paused
+          ? "rgba(51,51,51,var(--osu-fav-hover-dim, 0.65))"
+          : "rgba(51,51,51,var(--osu-fav-idle-dim, 0))";
+      }
+    }
+
     if (npAudio.src && npAudio._npCurrentId) {
       nowPlayingBar.style.display = "flex";
       npTitle.textContent = npAudio._npCurrentTitle || "";
       npArtist.textContent = npAudio._npCurrentArtist || "";
       npPlayBtn.innerHTML = npAudio.paused ? playSVG() : pauseSVG();
+      npProgressBar.style.width =
+        npAudio.duration ? (npAudio.currentTime / npAudio.duration) * 100 + "%" : "0%";
+      syncCurrentCardUI();
     }
 
     // ── View switching ───────────────────────────────────────
@@ -3012,13 +3109,15 @@
       settingsBtn.style.color = showSettings ? "var(--osu-fav-accent)" : "#999";
       settingsBtn.style.borderColor = showSettings ? "var(--osu-fav-accent)" : "#333";
       settingsBtn.title = showSettings ? "Back to favorites" : "Settings";
-      if (showSettings) renderSettingsView();
-      // Returning to the list from Settings: rebuild rows so anything that's
-      // baked into the DOM at render time (currently just the Download
-      // button, which is a plain link or a dropdown trigger depending on
-      // the default-mirror setting) picks up whatever just changed, instead
-      // of staying stale until the whole panel is closed and reopened.
-      else renderList();
+      if (showSettings) {
+        renderSettingsView();
+      } else {
+        // Returning to the list from Settings rebuilds rows so controls pick
+        // up changed settings, then reconnects the current audio track to the
+        // newly-created card instead of leaving stale detached DOM refs.
+        renderList();
+        requestAnimationFrame(syncCurrentCardUI);
+      }
     }
 
     // ── Helpers ────────────────────────────────────────────
@@ -4372,7 +4471,7 @@
     }
 
     // ── Assemble & wire events ─────────────────────────────
-    panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, nowPlayingBar, footer);
+    panel.append(header, ...(githubBanner ? [githubBanner] : []), toolbar, contentArea, footer);
     document.body.appendChild(panel);
     updateSortBtns();
     renderList();
