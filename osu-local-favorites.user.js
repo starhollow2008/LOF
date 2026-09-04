@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.3.0
+// @version      5.3.1
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -1219,34 +1219,54 @@
       return row;
     }
 
+    // Tags can number in the hundreds/thousands for a big library — building
+    // a DOM row for every single one on open was the source of multi-second
+    // "click handler" jank. Cap what's actually rendered; the live filter
+    // box (with its own smaller cap) is how the rest get reached.
+    const MAX_UNFILTERED_TAGS = 60;
+    const MAX_FILTERED_TAGS = 150;
+
     function renderRows(query) {
-      rowsWrap.innerHTML = "";
       const q = (query || "").toLowerCase();
       const filteredGenres = q ? genreList.filter((t) => t.display.toLowerCase().includes(q)) : genreList;
-      const filteredTags = q ? tagList.filter((t) => t.display.toLowerCase().includes(q)) : tagList;
+      const filteredTagsAll = q ? tagList.filter((t) => t.display.toLowerCase().includes(q)) : tagList;
+      const cap = q ? MAX_FILTERED_TAGS : MAX_UNFILTERED_TAGS;
+      const shownTags = filteredTagsAll.slice(0, cap);
+      const hiddenCount = filteredTagsAll.length - shownTags.length;
 
-      if (filteredGenres.length === 0 && filteredTags.length === 0) {
+      // Build off-DOM, then attach once — avoids a forced layout per row.
+      const frag = document.createDocumentFragment();
+
+      if (filteredGenres.length === 0 && shownTags.length === 0) {
         const empty = document.createElement("div");
         empty.style.cssText = "font-size:11px;color:#666;padding:8px 10px";
         empty.textContent = q ? "No matches." : "No favorites to filter yet.";
-        rowsWrap.appendChild(empty);
-        return;
+        frag.appendChild(empty);
+      } else {
+        if (filteredGenres.length) {
+          const label = document.createElement("div");
+          label.style.cssText = "font-size:9px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.03em;padding:4px 8px 2px";
+          label.textContent = "Genres";
+          frag.appendChild(label);
+          filteredGenres.forEach((t) => frag.appendChild(makeRow(t)));
+        }
+        if (shownTags.length) {
+          const label = document.createElement("div");
+          label.style.cssText = "font-size:9px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.03em;padding:6px 8px 2px";
+          label.textContent = "Tags";
+          frag.appendChild(label);
+          shownTags.forEach((t) => frag.appendChild(makeRow(t)));
+        }
+        if (hiddenCount > 0) {
+          const note = document.createElement("div");
+          note.style.cssText = "font-size:9px;color:#555;padding:5px 8px;line-height:1.4";
+          note.textContent = `+${hiddenCount} more tag${hiddenCount === 1 ? "" : "s"} — type to narrow`;
+          frag.appendChild(note);
+        }
       }
 
-      if (filteredGenres.length) {
-        const label = document.createElement("div");
-        label.style.cssText = "font-size:9px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.03em;padding:4px 8px 2px";
-        label.textContent = "Genres";
-        rowsWrap.appendChild(label);
-        filteredGenres.forEach((t) => rowsWrap.appendChild(makeRow(t)));
-      }
-      if (filteredTags.length) {
-        const label = document.createElement("div");
-        label.style.cssText = "font-size:9px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.03em;padding:6px 8px 2px";
-        label.textContent = "Tags";
-        rowsWrap.appendChild(label);
-        filteredTags.forEach((t) => rowsWrap.appendChild(makeRow(t)));
-      }
+      rowsWrap.innerHTML = "";
+      rowsWrap.appendChild(frag);
     }
     renderRows("");
     searchBox.addEventListener("input", () => renderRows(searchBox.value.trim()));
