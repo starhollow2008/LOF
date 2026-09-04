@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.3.2
+// @version      5.3.3
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -5314,7 +5314,11 @@
 
       // Chunked build+append — mounting 500+ rows in one synchronous pass
       // blocked the click handler for seconds and forced full-layout reflows.
-      const CHUNK_SIZE = 60;
+      // Smaller chunks keep each frame comfortably under the ~50ms budget
+      // Chrome flags as janky, at the cost of slightly more frames to finish
+      // mounting a very long list — imperceptible either way while scrolled
+      // near the top, and it's non-blocking regardless.
+      const CHUNK_SIZE = 25;
       const renderToken = renderList._token; // set at top of this function
       let cursor = 0;
       const renderChunk = () => {
