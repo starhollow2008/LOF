@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.3.1
+// @version      5.3.2
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -1015,7 +1015,7 @@
       menu.remove();
       document.removeEventListener("click", onOutsideClick, true);
       document.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("scroll", cleanup, true);
+      window.removeEventListener("scroll", onWindowScroll, true);
     }
     function onOutsideClick(e) {
       if (menu.contains(e.target)) return;
@@ -1023,6 +1023,13 @@
     }
     function onKey(e) {
       if (e.key === "Escape") cleanup();
+    }
+    // Only close on a scroll that moves the menu's anchor out from under it
+    // (page/panel scroll) — a scroll *inside* the menu itself (e.g. the
+    // scrollable genre/tag or collections list) must not close it.
+    function onWindowScroll(e) {
+      if (menu.contains(e.target)) return;
+      cleanup();
     }
     menu._cleanup = cleanup;
 
@@ -1070,7 +1077,7 @@
     // Defer attaching so this same click doesn't immediately close the menu
     setTimeout(() => document.addEventListener("click", onOutsideClick, true), 0);
     document.addEventListener("keydown", onKey, true);
-    window.addEventListener("scroll", cleanup, true);
+    window.addEventListener("scroll", onWindowScroll, true);
   }
 
   // ── Genre + Tags term collection ──
@@ -1153,7 +1160,7 @@
       menu.remove();
       document.removeEventListener("click", onOutsideClick, true);
       document.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("scroll", cleanup, true);
+      window.removeEventListener("scroll", onWindowScroll, true);
     }
     function onOutsideClick(e) {
       if (menu.contains(e.target)) return;
@@ -1161,6 +1168,13 @@
     }
     function onKey(e) {
       if (e.key === "Escape") cleanup();
+    }
+    // Only close on a scroll that moves the menu's anchor out from under it
+    // (page/panel scroll) — a scroll *inside* the menu itself (e.g. the
+    // scrollable genre/tag or collections list) must not close it.
+    function onWindowScroll(e) {
+      if (menu.contains(e.target)) return;
+      cleanup();
     }
     menu._cleanup = cleanup;
 
@@ -1303,7 +1317,7 @@
 
     setTimeout(() => document.addEventListener("click", onOutsideClick, true), 0);
     document.addEventListener("keydown", onKey, true);
-    window.addEventListener("scroll", cleanup, true);
+    window.addEventListener("scroll", onWindowScroll, true);
   }
 
   // ── Collections selector popover (toolbar) ──
@@ -1329,7 +1343,7 @@
       menu.remove();
       document.removeEventListener("click", onOutsideClick, true);
       document.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("scroll", cleanup, true);
+      window.removeEventListener("scroll", onWindowScroll, true);
     }
     function onOutsideClick(e) {
       if (menu.contains(e.target)) return;
@@ -1337,6 +1351,13 @@
     }
     function onKey(e) {
       if (e.key === "Escape") cleanup();
+    }
+    // Only close on a scroll that moves the menu's anchor out from under it
+    // (page/panel scroll) — a scroll *inside* the menu itself (e.g. the
+    // scrollable genre/tag or collections list) must not close it.
+    function onWindowScroll(e) {
+      if (menu.contains(e.target)) return;
+      cleanup();
     }
     menu._cleanup = cleanup;
 
@@ -1459,7 +1480,7 @@
 
     setTimeout(() => document.addEventListener("click", onOutsideClick, true), 0);
     document.addEventListener("keydown", onKey, true);
-    window.addEventListener("scroll", cleanup, true);
+    window.addEventListener("scroll", onWindowScroll, true);
   }
 
   // ── Per-card "add to collection" popover ──
@@ -1484,7 +1505,7 @@
       menu.remove();
       document.removeEventListener("click", onOutsideClick, true);
       document.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("scroll", cleanup, true);
+      window.removeEventListener("scroll", onWindowScroll, true);
     }
     function onOutsideClick(e) {
       if (menu.contains(e.target)) return;
@@ -1492,6 +1513,13 @@
     }
     function onKey(e) {
       if (e.key === "Escape") cleanup();
+    }
+    // Only close on a scroll that moves the menu's anchor out from under it
+    // (page/panel scroll) — a scroll *inside* the menu itself (e.g. the
+    // scrollable genre/tag or collections list) must not close it.
+    function onWindowScroll(e) {
+      if (menu.contains(e.target)) return;
+      cleanup();
     }
     menu._cleanup = cleanup;
 
@@ -1583,7 +1611,7 @@
 
     setTimeout(() => document.addEventListener("click", onOutsideClick, true), 0);
     document.addEventListener("keydown", onKey, true);
-    window.addEventListener("scroll", cleanup, true);
+    window.addEventListener("scroll", onWindowScroll, true);
   }
 
   // ═══ GitHub Gist Backup ═══
