@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.3.3
+// @version      5.3.4
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -5964,6 +5964,23 @@
   // ═══ Init ═══
   function init() {
     applyTheme();
+
+    // osu!'s own qtip tooltips/popups (difficulty hover cards, user cards,
+    // achievement popups, etc.) sit at z-index ~512 on the live site — far
+    // below the favorites panel's z-index (100000+). Whenever a tooltip
+    // would land underneath the panel's screen area (fixed to the right
+    // edge, full viewport height), it rendered completely invisible instead
+    // of on top like it should. This is injected unconditionally at init,
+    // not folded into the panel's own lazily-created stylesheet, so it's in
+    // effect from the very first hover — not just after the panel has been
+    // opened once.
+    if (!document.getElementById("osu-fav-qtip-style")) {
+      const qtipStyle = document.createElement("style");
+      qtipStyle.id = "osu-fav-qtip-style";
+      qtipStyle.textContent = ".qtip{z-index:100003!important}";
+      document.head.appendChild(qtipStyle);
+    }
+
     injectInterceptor();
     // OAuth callback must be handled as early as possible so the user never
     // sees osu!'s 404 page for /osu-local-favorites.
