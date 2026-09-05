@@ -17,7 +17,7 @@ The script adds a **View Local Favorites** option in the Tampermonkey menu. Clic
 
 Browser Extensions
 > **Heavily deprecated browser extension** 
-this is behind by about 1.7 major releases [94 commits behind check here](https://github.com/starhollow2008/osu-Local-Favorites/compare/v3.4.2...main)
+this is behind by about 2.0.3 major releases [122 commits behind check here](https://github.com/starhollow2008/osu-Local-Favorites/compare/v3.4.2...main)
 > The old browser-extension build (`manifest.json`, `content.js`, `popup.*`, `background.js`, etc.) is no longer maintained or included in this repository — only the archived v3.4.2 release below still has those files. All active development happens on the Tampermonkey userscript.
 
 1. Download `osu-favorites-extension.zip` or `osu-favorites-extension.xpi` from the [last extension release](https://github.com/starhollow2008/osu-Local-Favorites/releases/tag/v3.4.2)
@@ -47,7 +47,7 @@ Everything below lives behind the ⚙ **Settings** button in the side panel head
 
 <table>
   <tr>
-    <td width="33%" valign="top"><img src="screenshots/settings_1.png" width="100%"><img src="screenshots/settings_2.png" width="100%"><img src="screenshots/settings_3.png" width="100%"></td>
+    <td width="33%" valign="top"><img src="screenshots/settings_full.png" width="100%" alt="Settings panel"></td>
     <td valign="top">
       <ul>
         <li><strong>Backup &amp; Restore</strong> — export your whole library to a JSON file, or import one back in (merges, skips duplicates)</li>
