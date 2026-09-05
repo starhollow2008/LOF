@@ -939,6 +939,12 @@
   function ensureAudio() {
     if (window._osuFavAudio) return window._osuFavAudio;
     const audio = new Audio();
+    // Keep a real media element alive for the lifetime of the page. Using a
+    // normal network URL for playback (rather than swapping in blob: URLs
+    // after an async cache lookup) keeps Firefox Android's media session tied
+    // to a conventional media resource and, importantly, preserves the
+    // original click's user activation for audio.play().
+    audio.preload = "metadata";
     audio.volume = musicVolumePct() / 100;
     window._osuFavAudio = audio;
     audio._activeBtn = null;
@@ -965,18 +971,90 @@
       if (audio._npProgressBar) audio._npProgressBar.style.width = pct + "%";
     });
 
+    function updateMediaSessionPositionState() {
+      if (!("mediaSession" in navigator)) return;
+      if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate || 1,
+          position: Math.min(audio.currentTime || 0, audio.duration),
+        });
+      } catch (_) {
+        // Some Firefox Android builds reject position updates while media is
+        // transitioning between sources; playback itself is still fine.
+      }
+    }
+
+    // Firefox Android exposes this element through Android's media controls
+    // when Media Session metadata/actions are supplied.
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.setActionHandler("play", () => {
+          audio.play().catch(() => {});
+        });
+        navigator.mediaSession.setActionHandler("pause", () => audio.pause());
+        navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+          const offset = Number.isFinite(details && details.seekOffset) ? details.seekOffset : 10;
+          audio.currentTime = Math.max(0, audio.currentTime - offset);
+        });
+        navigator.mediaSession.setActionHandler("seekforward", (details) => {
+          const offset = Number.isFinite(details && details.seekOffset) ? details.seekOffset : 10;
+          const end = Number.isFinite(audio.duration) ? audio.duration : Infinity;
+          audio.currentTime = Math.min(end, audio.currentTime + offset);
+        });
+        navigator.mediaSession.setActionHandler("seekto", (details) => {
+          if (!details || !Number.isFinite(details.seekTime)) return;
+          audio.currentTime = Math.max(0, Math.min(
+            Number.isFinite(audio.duration) ? audio.duration : Infinity,
+            details.seekTime
+          ));
+        });
+        navigator.mediaSession.setActionHandler("previoustrack", () => {
+          if (audio._queueAdvance) audio._queueAdvance(-1, {});
+        });
+        navigator.mediaSession.setActionHandler("nexttrack", () => {
+          if (audio._queueAdvance) audio._queueAdvance(1, {});
+        });
+      } catch (_) {
+        // Action handlers are optional; an unsupported action must not break
+        // the player on older Firefox Android releases.
+      }
+    }
+
     audio.addEventListener("play", () => {
       if (audio._npPlayBtn) audio._npPlayBtn.innerHTML = pauseSVG();
+      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing";
     });
     audio.addEventListener("pause", () => {
       if (audio._npPlayBtn) audio._npPlayBtn.innerHTML = playSVG();
+      if ("mediaSession" in navigator && !audio.ended) navigator.mediaSession.playbackState = "paused";
     });
+    audio.addEventListener("timeupdate", updateMediaSessionPositionState);
+    audio.addEventListener("loadedmetadata", updateMediaSessionPositionState);
+    audio.addEventListener("durationchange", updateMediaSessionPositionState);
+    audio.addEventListener("ratechange", updateMediaSessionPositionState);
 
     // Fires once metadata loads for whatever we just set as .src. If we got
     // here via Back/Next/auto-next/shuffle (not a direct click on this
     // track's own preview button) and the clip turns out to be osu!'s
     // short fallback rather than a full track, treat it as "not on Hina"
     // and keep moving instead of playing the short clip.
+    audio.addEventListener("loadedmetadata", () => {
+      if (!("mediaSession" in navigator)) return;
+      if (!audio._npCurrentId) return;
+      const fav = getFavorites()[audio._npCurrentId] || {};
+      const artwork = getPlaybackCover(fav, audio._npCurrentId);
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: audio._npCurrentTitle || "Unknown",
+          artist: audio._npCurrentArtist || "",
+          album: "osu! Local Favorites",
+          artwork: artwork ? [{ src: artwork }] : [],
+        });
+      } catch (_) {}
+    });
+
     audio.addEventListener("loadedmetadata", () => {
       if (!audio._queueNavigated) return;
       if (!fullSongPreviewsEnabled()) return;
@@ -989,6 +1067,7 @@
     });
 
     audio.addEventListener("ended", () => {
+      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
       if (musicLoopEnabled()) {
         audio.currentTime = 0;
         audio.play();
@@ -3933,6 +4012,17 @@
       audio._npCurrentArtist = f.artist || f.artist_unicode || "";
 
       const playbackCover = getPlaybackCover(f, id);
+      if ("mediaSession" in navigator) {
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: audio._npCurrentTitle,
+            artist: audio._npCurrentArtist,
+            album: "osu! Local Favorites",
+            artwork: playbackCover ? [{ src: playbackCover }] : [],
+          });
+          navigator.mediaSession.playbackState = "none";
+        } catch (_) {}
+      }
       if (audio._npThumb) {
         if (playbackCover) {
           audio._npThumb.src = playbackCover;
@@ -3974,39 +4064,39 @@
         if (audio._npProgressBar) audio._npProgressBar.style.width = "0%";
       }
 
-      // Cache lookup is local (IndexedDB) and normally resolves in a few ms,
-      // but it's still async - guard against the user navigating to a
-      // *different* track while this one is in flight, so a slow lookup
-      // can't clobber whatever's playing by the time it resolves.
-      const requestedId = id;
-      resolveCachedMediaUrl(previewUrl).then((resolvedUrl) => {
-        if (audio._npCurrentId !== requestedId) return;
-
-        // Unlike covers (many small ones visible at once, worth keeping
-        // resident for smooth re-renders), only one preview ever plays at a
-        // time, and full-length previews in particular can be several MB
-        // each. Holding on to every track's blob for the rest of the tab's
-        // life — which is what _blobUrlCache normally does — adds up fast
-        // over a session of skipping through a lot of songs. Release the
-        // *previous* track's blob URL as soon as we move to a new one; if
-        // it's replayed later, the underlying bytes are still sitting in
-        // IndexedDB, so re-resolving it back to a blob: URL is instant and
-        // free of any network request either way.
-        if (audio._activePreviewUrl && audio._activePreviewUrl !== previewUrl) {
-          const prevBlobUrl = _blobUrlCache.get(audio._activePreviewUrl);
-          if (prevBlobUrl) {
-            URL.revokeObjectURL(prevBlobUrl);
-            _blobUrlCache.delete(audio._activePreviewUrl);
-          }
+      // IMPORTANT on Firefox Android: do not wait for an async IndexedDB
+      // cache lookup before calling play(). The promise continuation is no
+      // longer part of the original tap/click's user-activation chain, so
+      // mobile autoplay policy can reject audio.play() with NotAllowedError.
+      // Use the normal HTTPS media URL directly for playback. The cache still
+      // populates in the background and remains available for covers/future
+      // data, but it no longer sits between the user gesture and playback.
+      if (audio._activePreviewUrl && audio._activePreviewUrl !== previewUrl) {
+        const prevBlobUrl = _blobUrlCache.get(audio._activePreviewUrl);
+        if (prevBlobUrl) {
+          URL.revokeObjectURL(prevBlobUrl);
+          _blobUrlCache.delete(audio._activePreviewUrl);
         }
-        audio._activePreviewUrl = previewUrl;
-
-        audio.src = resolvedUrl;
-        audio.play().catch(() => {
+      }
+      audio._activePreviewUrl = previewUrl;
+      audio.src = previewUrl;
+      audio.load();
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {
           resetActiveCardUI(audio);
           if (audio._npBar) audio._npBar.style.display = "none";
+          if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
         });
-      });
+      }
+
+      // Keep the IndexedDB copy warm without making playback depend on it.
+      // This is intentionally fire-and-forget.
+      if (cacheDurationMode() !== "never") {
+        gmFetchBlob(previewUrl).then((blob) => {
+          if (blob) cachePut(previewUrl, blob);
+        });
+      }
     }
 
     // Moves to the next (direction 1) or previous (direction -1) track in
