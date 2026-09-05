@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.4.3
+// @version      5.4.4
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -2681,15 +2681,32 @@
         setTimeout(drainNext, ENRICH_RATE_LIMIT_MS);
         return;
       }
-      const queue = getEnrichQueue();
-      const favs = getFavorites();
-      const id = queue.find((qid) => favs[qid]); // skip queued IDs no longer favorited
-      if (!id) {
-        if (queue.length) setEnrichQueue(queue.filter((qid) => favs[qid]));
+      const queue = getEnrichQueue().filter((qid) => getFavorites()[qid]); // drop no-longer-favorited IDs
+      if (!queue.length) {
+        setEnrichQueue(queue);
         _enrichDrainerActive = false; // queue empty — stop until something re-queues it
         return;
       }
-      enrichBeatmapData(id).then(() => setTimeout(drainNext, ENRICH_RATE_LIMIT_MS));
+      const id = queue[0];
+      enrichBeatmapData(id).then((ok) => {
+        if (!ok) {
+          // Left in the queue by enrichBeatmapData on failure, but rotate it
+          // to the back rather than leaving it at the front — otherwise a
+          // single persistently-failing map (deleted beatmapset, transient
+          // error, whatever) gets retried forever every cycle and every
+          // *other* queued map behind it never gets a turn, which looked
+          // exactly like enrichment being broken again even though it was
+          // just stuck on one bad entry.
+          const q2 = getEnrichQueue();
+          const idx = q2.indexOf(id);
+          if (idx !== -1) {
+            q2.splice(idx, 1);
+            q2.push(id);
+            setEnrichQueue(q2);
+          }
+        }
+        setTimeout(drainNext, ENRICH_RATE_LIMIT_MS);
+      });
     }
     setTimeout(drainNext, ENRICH_RATE_LIMIT_MS);
   }
