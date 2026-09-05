@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.4.2
+// @version      5.4.3
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -771,6 +771,13 @@
     });
   }
   function cacheClearAll() {
+    // Revoke every blob URL handed out from the cache — otherwise clearing
+    // the IndexedDB store still leaves those object URLs (and the Blobs
+    // behind them) alive in memory until the tab closes, and any <img>/
+    // <audio> still pointing at one would keep "working" despite the
+    // underlying cache entry no longer existing.
+    _blobUrlCache.forEach((objUrl) => URL.revokeObjectURL(objUrl));
+    _blobUrlCache.clear();
     return openCacheDb().then((db) => {
       if (!db) return;
       return new Promise((resolve) => {
@@ -844,6 +851,18 @@
       .catch(() => null);
   }
 
+  // Reuses one blob: URL per cached source URL for the whole tab's
+  // lifetime, instead of minting a fresh one every time resolveCachedMediaUrl
+  // resolves the same cover/preview again (which happens on essentially
+  // every re-render — sorting, filtering, search, scroll-chunking all
+  // rebuild cards from scratch). Blob URLs are never garbage-collected just
+  // because the <img>/<audio> referencing them got removed from the DOM —
+  // only URL.revokeObjectURL() or a full page unload frees the underlying
+  // Blob — so without this, a long session doing a lot of re-rendering was
+  // steadily accumulating orphaned blob URLs (and, for full-length preview
+  // audio, several-MB Blobs behind each one) that never got released.
+  const _blobUrlCache = new Map(); // sourceUrl -> objectURL
+
   // Resolves to a URL safe to hand straight to <img src> / <audio src>: a
   // local blob: URL when a fresh cached copy exists, otherwise the original
   // network URL unchanged - so a cache miss never delays first-time
@@ -857,9 +876,28 @@
     return cacheGet(url).then((entry) => {
       const ttl = cacheDurationMs();
       const fresh = entry && (ttl === Infinity || Date.now() - entry.cachedAt < ttl);
-      if (fresh) return URL.createObjectURL(entry.blob);
+      if (fresh) {
+        let objUrl = _blobUrlCache.get(url);
+        if (!objUrl) {
+          objUrl = URL.createObjectURL(entry.blob);
+          _blobUrlCache.set(url, objUrl);
+        }
+        return objUrl;
+      }
 
-      gmFetchBlob(url).then((blob) => { if (blob) cachePut(url, blob); });
+      gmFetchBlob(url).then((blob) => {
+        if (!blob) return;
+        cachePut(url, blob);
+        // The blob just changed (first fetch, or a re-fetch after the old
+        // entry expired) - drop any object URL for the previous bytes so the
+        // next resolve mints one for the new blob instead of quietly serving
+        // stale content forever.
+        const stale = _blobUrlCache.get(url);
+        if (stale) {
+          URL.revokeObjectURL(stale);
+          _blobUrlCache.delete(url);
+        }
+      });
       return url;
     });
   }
@@ -3903,6 +3941,26 @@
       const requestedId = id;
       resolveCachedMediaUrl(previewUrl).then((resolvedUrl) => {
         if (audio._npCurrentId !== requestedId) return;
+
+        // Unlike covers (many small ones visible at once, worth keeping
+        // resident for smooth re-renders), only one preview ever plays at a
+        // time, and full-length previews in particular can be several MB
+        // each. Holding on to every track's blob for the rest of the tab's
+        // life — which is what _blobUrlCache normally does — adds up fast
+        // over a session of skipping through a lot of songs. Release the
+        // *previous* track's blob URL as soon as we move to a new one; if
+        // it's replayed later, the underlying bytes are still sitting in
+        // IndexedDB, so re-resolving it back to a blob: URL is instant and
+        // free of any network request either way.
+        if (audio._activePreviewUrl && audio._activePreviewUrl !== previewUrl) {
+          const prevBlobUrl = _blobUrlCache.get(audio._activePreviewUrl);
+          if (prevBlobUrl) {
+            URL.revokeObjectURL(prevBlobUrl);
+            _blobUrlCache.delete(audio._activePreviewUrl);
+          }
+        }
+        audio._activePreviewUrl = previewUrl;
+
         audio.src = resolvedUrl;
         audio.play().catch(() => {
           resetActiveCardUI(audio);
