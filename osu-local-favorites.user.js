@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.3.4
+// @version      5.4.1
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -657,10 +657,11 @@
       : fallbackUrl;
   }
 
-  // ═══ Music Playback settings (loop / auto next / shuffle) ═══
+  // ═══ Music Playback settings (loop / auto next / shuffle / volume) ═══
   const MUSIC_LOOP_KEY = "osu_music_loop";
   const MUSIC_AUTONEXT_KEY = "osu_music_autonext";
   const MUSIC_SHUFFLE_KEY = "osu_music_shuffle";
+  const MUSIC_VOLUME_KEY = "osu_music_volume"; // 0-100, applied as audio.volume/100
   function musicLoopEnabled() {
     return GM_getValue(MUSIC_LOOP_KEY, false);
   }
@@ -669,6 +670,10 @@
   }
   function musicShuffleEnabled() {
     return GM_getValue(MUSIC_SHUFFLE_KEY, false);
+  }
+  function musicVolumePct() {
+    const v = GM_getValue(MUSIC_VOLUME_KEY, 100);
+    return typeof v === "number" && v >= 0 && v <= 100 ? v : 100;
   }
 
   // ═══ Media Cache (background covers + audio previews) ═══
@@ -873,6 +878,7 @@
   function ensureAudio() {
     if (window._osuFavAudio) return window._osuFavAudio;
     const audio = new Audio();
+    audio.volume = musicVolumePct() / 100;
     window._osuFavAudio = audio;
     audio._activeBtn = null;
     audio._activeBar = null;
@@ -1087,6 +1093,21 @@
   // once per unique term even if it shows up twice (e.g. a tag repeated).
   // Any tag string that collides with a genre value is dropped from the tag
   // list so the same term never appears twice across both sections.
+  //
+  // Tag text gets light cleanup before it's used as a dedup key: NFKC
+  // normalization folds full-width Latin letters and other compatibility
+  // variants down to their plain form (so e.g. a full-width "Ｋａｓａｉ" and
+  // an ordinary "Kasai" collapse into one entry instead of two near-
+  // duplicate rows), and stray leading/trailing punctuation is trimmed.
+  // Display text keeps the normalized form's original casing/script —
+  // this only removes accidental duplicates, it doesn't translate or
+  // otherwise rewrite non-Latin tags.
+  const TAG_TRIM_PUNCT_RE = /^[\s"'.,;:!?()\[\]「」『』【】]+|[\s"'.,;:!?()\[\]「」『』【】]+$/g;
+  function normalizeTagText(raw) {
+    let t = raw.normalize("NFKC").replace(TAG_TRIM_PUNCT_RE, "");
+    return t;
+  }
+
   function collectGenreAndTagTerms(favs) {
     const genreCounts = new Map(); // lowercase key -> { display, count }
     const tagCounts = new Map();
@@ -1099,7 +1120,7 @@
 
       const seen = new Set();
       (f.tags || "").split(/\s+/).forEach((raw) => {
-        const tag = raw.trim();
+        const tag = normalizeTagText(raw.trim());
         if (!tag) return;
         const tKey = tag.toLowerCase();
         if (seen.has(tKey)) return;
@@ -1115,11 +1136,15 @@
   }
 
   // Whether a favorite matches a given genre/tag filter key (both compared
-  // lowercase) — true if it's that favorite's genre, or one of its tags.
+  // lowercase, tags run through the same NFKC-normalize + trim as the
+  // popover list) — true if it's that favorite's genre, or one of its tags.
   function favMatchesGenreTerm(f, key) {
     const genre = ((f.genre && f.genre.trim()) || "Unspecified").toLowerCase();
     if (genre === key) return true;
-    return (f.tags || "").toLowerCase().split(/\s+/).includes(key);
+    return (f.tags || "")
+      .split(/\s+/)
+      .map((t) => normalizeTagText(t.trim()).toLowerCase())
+      .includes(key);
   }
 
   // ── Genre + Tags filter popover ──
@@ -2474,6 +2499,47 @@
   // (bulk "Favorite all" import or a full-library re-enrichment) is driving it.
   const ENRICH_RATE_LIMIT_MS = 1000;
 
+  // Persistent queue of beatmapset IDs still missing full metadata (genre/
+  // language/tags/source/etc.) — anything favorited from a listing card
+  // instead of the beatmapset detail page starts here (see toggleFavorite/
+  // "Favorite all" below) and is only removed once enrichBeatmapData()
+  // actually succeeds for it.
+  //
+  // This exists because the previous approach — fire off enrichBeatmapData()
+  // once right after favoriting and otherwise forget about it — quietly
+  // lost genre/language for a lot of favorites in practice: at the required
+  // ~1 req/sec throttle, favoriting even a couple hundred maps in one
+  // "Favorite all" run takes minutes to fully enrich, and closing the tab
+  // (or just navigating away) partway through abandons whatever hadn't been
+  // reached yet, with no record that it was ever incomplete. The queue below
+  // survives navigation/reloads and a background drainer (see
+  // ensureEnrichDrainerRunning) resumes it automatically wherever the user
+  // happens to be browsing, at the same gentle pace, until it's empty.
+  const ENRICH_QUEUE_KEY = "osu_enrich_queue";
+
+  function getEnrichQueue() {
+    const q = GM_getValue(ENRICH_QUEUE_KEY, []);
+    return Array.isArray(q) ? q : [];
+  }
+  function setEnrichQueue(q) {
+    GM_setValue(ENRICH_QUEUE_KEY, q);
+  }
+  function addToEnrichQueue(id) {
+    const q = getEnrichQueue();
+    if (!q.includes(id)) {
+      q.push(id);
+      setEnrichQueue(q);
+    }
+  }
+  function removeFromEnrichQueue(id) {
+    const q = getEnrichQueue();
+    const idx = q.indexOf(id);
+    if (idx !== -1) {
+      q.splice(idx, 1);
+      setEnrichQueue(q);
+    }
+  }
+
   // Fetches the beatmapset detail page and merges full JSON data into storage.
   // Fire-and-forget — card data is stored instantly, this fills in the gaps.
   // Also used standalone by the global re-enrichment feature to refresh
@@ -2507,10 +2573,15 @@
 
     return Promise.resolve(fetchNormalized)
       .then((bm) => {
-        if (!bm) return;
+        if (!bm) return false;
         const favs = getFavorites();
         const sid = String(bm.id);
-        if (!favs[sid]) return; // Removed before enrichment finished — skip
+        if (!favs[sid]) {
+          // Removed before enrichment finished — nothing to fill in, but it's
+          // also not "still needing enrichment" anymore, so stop retrying it.
+          removeFromEnrichQueue(sid);
+          return false;
+        }
         favs[sid] = {
           id: sid,
           artist: bm.artist || "",
@@ -2536,8 +2607,10 @@
         };
         setFavorites(favs);
         scheduleAutoBackup();
+        removeFromEnrichQueue(sid);
+        return true;
       })
-      .catch(() => { });
+      .catch(() => false); // left in the queue — a later drain pass retries it
   }
 
   // Sequentially enriches a list of IDs with a delay between requests
@@ -2548,6 +2621,39 @@
       enrichBeatmapData(ids[i++]).then(() => setTimeout(next, delayMs));
     }
     setTimeout(next, delayMs);
+  }
+
+  // Quietly works through the persistent enrichment queue (see
+  // ENRICH_QUEUE_KEY above) in the background, one map per
+  // ENRICH_RATE_LIMIT_MS — same throttle as every other enrichment path,
+  // just spread across however many page loads it takes instead of
+  // requiring one tab to stay open until it's done. Safe to call any time;
+  // it's a no-op while a manual "Re-enrich all maps" run is already going
+  // (avoids doubling up the request rate), and naturally stops calling
+  // itself once the queue is empty or every favorite it names is gone.
+  let _enrichDrainerActive = false;
+  function ensureEnrichDrainerRunning() {
+    if (_enrichDrainerActive) return;
+    _enrichDrainerActive = true;
+
+    function drainNext() {
+      if (_reenrichRunning) {
+        // Manual re-enrichment took over — back off and let it finish;
+        // it removes IDs from this same queue as it goes.
+        setTimeout(drainNext, ENRICH_RATE_LIMIT_MS);
+        return;
+      }
+      const queue = getEnrichQueue();
+      const favs = getFavorites();
+      const id = queue.find((qid) => favs[qid]); // skip queued IDs no longer favorited
+      if (!id) {
+        if (queue.length) setEnrichQueue(queue.filter((qid) => favs[qid]));
+        _enrichDrainerActive = false; // queue empty — stop until something re-queues it
+        return;
+      }
+      enrichBeatmapData(id).then(() => setTimeout(drainNext, ENRICH_RATE_LIMIT_MS));
+    }
+    setTimeout(drainNext, ENRICH_RATE_LIMIT_MS);
   }
 
   // ═══ Global re-enrichment (Settings → Library Maintenance) ═══
@@ -2635,6 +2741,7 @@
 
     if (wasFav) {
       delete favs[beatmapId];
+      removeFromEnrichQueue(beatmapId); // no longer favorited — stop trying to enrich it
     } else {
       const jsonData = getBeatmapDataFromJSON();
       if (jsonData) {
@@ -2658,7 +2765,14 @@
       document.getElementById("osu-local-fav-panel").remove();
       showFavoritesPanel();
     }
-    if (needsEnrich) enrichBeatmapData(beatmapId);
+    if (needsEnrich) {
+      // Persisted first so this survives even if the immediate attempt
+      // below doesn't finish before the tab closes/navigates away — the
+      // background drainer picks it back up later regardless.
+      addToEnrichQueue(beatmapId);
+      enrichBeatmapData(beatmapId);
+      ensureEnrichDrainerRunning();
+    }
     return !wasFav;
   }
 
@@ -2810,6 +2924,12 @@
             ? " *[matching " + alreadyHad + "| " + alreadyHad + " not added]"
             : "";
           btn.textContent = "Added " + count + skippedLabel + ", enriching...";
+          // Persist the queue first — for a big batch, this run alone can
+          // take minutes at the required throttle, and closing the tab
+          // partway through used to lose genre/language/tags permanently
+          // for whatever hadn't been reached yet. Now the background
+          // drainer just resumes where this left off on a later page load.
+          newIds.forEach(addToEnrichQueue);
           // Enrich each new beatmapset sequentially — respects ENRICH_RATE_LIMIT_MS
           // (1 request/sec), the same throttle every other bulk/re-enrich path uses.
           enrichBeatmapsSequential(newIds);
@@ -4625,6 +4745,18 @@
         settingsRow("Shuffle", shuffleToggle, "Picks the next favorite at random instead of going in list order"),
       );
 
+      const volumeSlider = makeSlider(musicVolumePct(), (frac) => {
+        const pct = Math.round(frac * 100);
+        GM_setValue(MUSIC_VOLUME_KEY, pct);
+        // Applied immediately to whatever's already playing, not just future
+        // playback — the audio element is a tab-lifetime singleton, so
+        // without this the change wouldn't take effect until the next track.
+        if (window._osuFavAudio) window._osuFavAudio.volume = frac;
+      });
+      wrap.appendChild(
+        settingsRow("Preview volume", volumeSlider, "Applies to both the panel's preview player and the Now Playing bar"),
+      );
+
       wrap.appendChild(divider());
 
       // ── Media Cache ──
@@ -4792,6 +4924,16 @@
         "for every favorited map. Useful if fields look stale or were saved in an older, " +
         "differently-formatted version. Runs one map at a time to respect osu!'s rate limits.";
       wrap.appendChild(maintHint);
+
+      const queueLen = getEnrichQueue().length;
+      if (queueLen > 0) {
+        const queueNote = document.createElement("div");
+        queueNote.style.cssText = "font-size:10px;color:var(--osu-fav-accent);line-height:1.5;margin-bottom:8px";
+        queueNote.textContent =
+          `${queueLen} map${queueLen === 1 ? "" : "s"} missing genre/tags/language — ` +
+          "filling in automatically in the background as you browse (no need to run the button below for these).";
+        wrap.appendChild(queueNote);
+      }
 
       const reenrichBtn = document.createElement("button");
       reenrichBtn.id = "osu-fav-reenrich-btn";
@@ -5985,6 +6127,23 @@
     // OAuth callback must be handled as early as possible so the user never
     // sees osu!'s 404 page for /osu-local-favorites.
     osuApiHandleOAuthCallback();
+
+    // One-time-per-favorite migration: back-fill the enrichment queue with
+    // any favorite that's missing genre data. osu!'s API always returns a
+    // genre object (even "Unspecified" has one), so an empty genre string
+    // reliably means this favorite was saved from a listing card and either
+    // never got enriched or a past attempt didn't survive to completion —
+    // both are exactly what the queue+drainer above now handle. Cheap to
+    // run every load: IDs already in the queue are skipped by addToEnrichQueue,
+    // and once a favorite has real data it never gets re-added.
+    try {
+      const favs = getFavorites();
+      const favsNeedingGenre = Object.keys(favs).filter((id) => !favs[id].genre);
+      if (favsNeedingGenre.length) {
+        favsNeedingGenre.forEach(addToEnrichQueue);
+      }
+    } catch (e) { /* never break page load over this */ }
+    if (getEnrichQueue().length) ensureEnrichDrainerRunning();
 
     // ═══ Cross-tab sync ═══
     // When another tab writes to the favorites key, refresh all UI in this tab.
