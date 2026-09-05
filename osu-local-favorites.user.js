@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.4.1
+// @version      5.4.2
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -3176,6 +3176,22 @@
 
   // ═══ Refresh visible buttons ═══
   function refreshButtons() {
+    // Cheap short-circuit: isFavButton() only ever returns true for an
+    // element on an actual beatmapset detail page or one sitting inside a
+    // ".beatmapset-panel" (listing/profile cards) — every other branch in it
+    // requires one of those two. On any other page (dashboard, forum, wiki,
+    // chat, settings, etc.) that's guaranteed false for literally every
+    // element, so skip straight past the expensive "every <button> on the
+    // whole page" scan below rather than running it — and the several
+    // querySelector/closest calls inside isFavButton() for each one — on
+    // totally unrelated pages, every 1.5s and on every DOM mutation, for as
+    // long as the tab stays open. This is a pure short-circuit: it changes
+    // nothing about which buttons get matched, only skips the work when the
+    // page couldn't possibly contain any.
+    if (!getBeatmapId() && !document.querySelector(".beatmapset-panel, .beatmapset-panel__menu-item")) {
+      return;
+    }
+
     // Also scan disabled <span> elements used when the user is not signed in
     const candidates = document.querySelectorAll(
       "button, span.beatmapset-panel__menu-item",
@@ -6204,6 +6220,16 @@
       if (timer) return;
       timer = setTimeout(() => {
         timer = null;
+        // Skip while the tab is in the background — a MutationObserver on
+        // the whole document body fires on osu!'s own live-updating content
+        // too (dashboard activity feed, notification counts, relative
+        // timestamps, etc.), not just our own changes, so on a busy page
+        // this can otherwise re-run every ~600ms indefinitely even while
+        // nobody's looking at the tab. The visibilitychange listener below
+        // catches up in one pass as soon as it's foregrounded again, so
+        // nothing actually goes stale — this just stops paying for it while
+        // backgrounded.
+        if (document.hidden) return;
         refreshButtons();
         if (!document.getElementById("osu-local-fav-ind"))
           ensureHeartIndicator();
@@ -6287,7 +6313,12 @@
     // callbacks. This is a cheap, unconditional re-scan that guarantees
     // hearts, the "Favorite all" button, and download links all settle into
     // the correct state within ~1.5s no matter what triggered the render.
+    // Skipped while backgrounded for the same reason as debouncedRefresh
+    // above — a background tab has no reason to keep re-scanning the page
+    // every 1.5s forever; the visibilitychange listener below runs one pass
+    // immediately on returning to the tab instead.
     setInterval(() => {
+      if (document.hidden) return;
       refreshButtons();
       addFavoriteAllButtons();
       addGuestFavoriteButton();
@@ -6295,6 +6326,20 @@
       injectMirrorButtons();
       if (!document.getElementById("osu-local-fav-ind")) ensureHeartIndicator();
     }, 1500);
+
+    // Catch up in one pass as soon as the tab is foregrounded again, so
+    // pausing the two scans above while hidden never leaves anything stale
+    // for longer than it takes to switch back to the tab.
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) return;
+      refreshButtons();
+      addFavoriteAllButtons();
+      addGuestFavoriteButton();
+      updateFloatingHeart();
+      enableGuestDownloads();
+      injectMirrorButtons();
+      if (!document.getElementById("osu-local-fav-ind")) ensureHeartIndicator();
+    });
 
     // Initial refresh after page settles
     setTimeout(refreshButtons, 800);
