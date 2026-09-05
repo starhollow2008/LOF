@@ -3,7 +3,7 @@
 // @namespace    https://github.com/starhollow2008/osu-Local-Favorites
 // @updateURL    https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
 // @downloadURL  https://github.com/starhollow2008/osu-Local-Favorites/raw/main/osu-local-favorites.user.js
-// @version      5.4.4
+// @version      5.4.5
 // @icon         https://github.com/starhollow2008/osu-Local-Favorites/blob/main/icons/icon48.png?raw=true
 // @description  Store osu! beatmap favorites locally instead of on osu!'s servers. Works without sign-in.
 // @author       Starhollow2008 | FlareonGhh
@@ -348,13 +348,36 @@
   });
 
   // ═══ Storage ═══
+  // In-memory write-through cache over the favorites object. getFavorites()
+  // used to deserialize the ENTIRE favorites store out of GM storage on every
+  // single call, and it sits under hot paths that run constantly:
+  // refreshButtons() (every DOM mutation + a 1.5s fallback interval, once per
+  // heart button per pass via isFavorited), updateFloatingHeart(), and the
+  // enrichment drainer re-filtering the queue against it every second. With a
+  // large library that was several multi-megabyte JSON parses per second for
+  // the whole tab lifetime — constant CPU burn and GC churn bad enough to get
+  // the renderer OOM-killed ("Aw, Snap!" / SIGILL) and the page stuck loading.
+  // Every writer already goes through setFavorites(), so caching the last
+  // value in memory and persisting only on write is coherent; the cross-tab
+  // listeners (GM_addValueChangeListener in init() for native GM storage, the
+  // DOM "storage" event here for the localStorage fallback) invalidate it.
+  let _favsCache = null;
   function getFavorites() {
-    return GM_getValue(STORAGE_KEY, {});
+    if (_favsCache === null) _favsCache = GM_getValue(STORAGE_KEY, {});
+    return _favsCache;
   }
 
   function setFavorites(favs) {
+    _favsCache = favs;
     GM_setValue(STORAGE_KEY, favs);
   }
+
+  // Invalidate on cross-tab writes in the localStorage-fallback mode. (In
+  // native GM mode this event never fires for GM storage — init()'s
+  // GM_addValueChangeListener handler covers that path instead.)
+  window.addEventListener("storage", (e) => {
+    if (!e.key || e.key === _GM_FALLBACK_LS_KEY) _favsCache = null;
+  });
 
   function isFavorited(id) {
     return !!getFavorites()[id];
@@ -6249,6 +6272,11 @@
       try {
         GM_addValueChangeListener(STORAGE_KEY, (_key, _oldVal, _newVal, remote) => {
           if (!remote) return; // ignore writes from this same tab
+
+          // Another tab replaced the favorites store — drop this tab's
+          // in-memory copy so the next getFavorites() re-reads persisted
+          // state instead of serving a now-stale cached object.
+          _favsCache = null;
 
           // Re-render floating heart (filled/outline SVG) for the current beatmap
           updateFloatingHeart();
